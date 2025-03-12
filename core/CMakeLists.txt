@@ -8,6 +8,7 @@ add_library(CoreModule STATIC gb.cpp
         cpu/opcode_names.h
         cpu/cpu_opcodes.cpp
         utils/utils.h
+        cpu/opcode_cycles.h
 
 )
 

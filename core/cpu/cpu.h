@@ -9,6 +9,7 @@
 #include "register_file.h"
 #include "mmu/mmu.h"
 #include <array>
+#include <stdexcept>
 
 namespace cpu {
 
@@ -35,25 +36,31 @@ namespace cpu {
 	}
 
 	class cpu {
-
-
-	private:
-		register_file registers;
-		bool ime;
 		mmu::mmu mmu;
+		register_file registers;
+		bool ime = false;
+
+		//Execution State
+		bool halted = false;
 
 		//Divide the execution of instructions by Blocks set by the 
-		void block0(decoded_instruction& result);
-		void block1(decoded_instruction& result);
-		void block2(decoded_instruction& result);
+		void block0(const decoded_instruction &result, bool &branch_taken);
+		void block1(const decoded_instruction& result);
+		void block2(const decoded_instruction& result);
+		void block3(decoded_instruction &result, bool &branch_taken);
+
 
 		void JP_16(uint16_t uint16);
 
-		void block3(decoded_instruction& result);
+		void JP_offset(int8_t offset);
+
+		void PUSH(uint16_t& i);
+
 
 
 
 		//ALU
+		void ADD_SP_I8(const int8_t &i);
 		void ADD_a(uint8_t& data);
 		void ADC_a(uint8_t& data);
 		void SUB_a(uint8_t& data);
@@ -104,6 +111,9 @@ namespace cpu {
 		void SET(uint8_t y,uint8_t& operand);
 		//8 BIt Loads
 		void LD_8bit(uint8_t& dest, uint8_t & src);
+
+		void LD_HL_SP_i8(int8_t value);
+
 		void LD_mem(uint16_t addr, uint8_t &src);
 
 		void LD_nn_SP(uint16_t address);
@@ -111,7 +121,13 @@ namespace cpu {
 		void LD_16bit_reg_NN(uint16_t &regref,uint16_t value);
 
 		void ADD_HL(const uint16_t& data);
-		
+
+		void RST(const uint8_t rst);
+
+		void CALL(const uint16_t address);
+
+		void RET();
+
 		using _refFunc = void(cpu::cpu::*)(uint8_t&);
 
 		static constexpr  std::array<_refFunc, 8> alu_table = {
@@ -173,7 +189,7 @@ namespace cpu {
 		 };
 
 
-		bool readflag_tbl(uint8_t id) {
+		constexpr bool readflag_tbl(uint8_t id) {
 			//Should crash on wrong lookup
 			const bool flagLookup[4] = {
 				!registers.f.ZERO,  // id = NZ
@@ -196,12 +212,13 @@ namespace cpu {
 		};
 
 	public:
+		cpu::cpu(const mmu::mmu &mmu):mmu(mmu) {
 
-		void cycle();
+		}
+		void step();
 
 
 	};
-
 
 };
 

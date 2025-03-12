@@ -1,10 +1,4 @@
 #include "cpu.h"
-#include "cpu.h"
-#include "cpu.h"
-#include "cpu.h"
-#include "cpu.h"
-#include "cpu.h"
-#include "cpu.h"
 #include <utils/utils.h>
 
 
@@ -25,6 +19,13 @@ void cpu::cpu::ADC_a(uint8_t &data) {
 	registers.f.CARRY = (registers.a + data + carry) > 0xff;
 	registers.f.HALF_CARRY = (carry + registers.a & 0xf + data & 0xf) > 0xf;
 	registers.a = result;
+}
+
+void cpu::cpu::ADD_SP_I8(const int8_t &i) {
+	registers.f.zeroAll();
+	registers.f.by_mnemonic.H = (registers.sp+i)>0xf;
+	registers.f.by_mnemonic.C = (registers.sp+i)>0xFF;
+	registers.sp += i;
 }
 
 void cpu::cpu::SUB_a(uint8_t &data) {
@@ -313,6 +314,19 @@ void cpu::cpu::LD_8bit(uint8_t &dest, uint8_t &src) {
 	dest = src;
 }
 
+void cpu::cpu::LD_HL_SP_i8(int8_t i) {
+	registers.f.zeroAll();
+	registers.f.by_mnemonic.H = (registers.sp+i)>0xf;
+	registers.f.by_mnemonic.C = (registers.sp+i)>0xFF;
+	registers.hl = registers.sp + i;
+
+}
+
+
+void cpu::cpu::LD_mem(uint16_t addr, uint8_t &src) {
+	mmu.write(addr, src);
+}
+
 void cpu::cpu::LD_nn_SP(uint16_t address) {
 	const auto pair = utils::split16Bit(registers.sp);
 	const auto lower = pair.first;
@@ -332,6 +346,32 @@ void cpu::cpu::ADD_HL(const uint16_t &data) {
 	registers.hl =  registers.hl + data;;
 }
 
-void cpu::cpu::JP_16(uint16_t uint16)
-{
+void cpu::cpu::RST(const uint8_t rst) {
+	CALL(rst*8);
+}
+
+void cpu::cpu::CALL(const uint16_t address) {
+	const auto pair = utils::split16Bit(registers.sp);
+	const auto lower = pair.first;
+	const auto upper = pair.second;
+	mmu.write(--registers.sp, upper);
+	mmu.write(--registers.sp, lower);
+	registers.pc = address;
+}
+
+void cpu::cpu::JP_16(const uint16_t address) {
+	registers.pc=address;
+}
+
+void cpu::cpu::JP_offset(const int8_t offset) {
+	registers.pc += offset;
+}
+
+
+void cpu::cpu::PUSH(uint16_t &val) {
+	const auto pair = utils::split16Bit(val);
+	const auto lower = pair.first;
+	const auto upper = pair.second;
+	mmu.write(--registers.sp, upper);
+	mmu.write(--registers.sp, lower);
 }
