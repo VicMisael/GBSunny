@@ -10,6 +10,7 @@
 #include "mmu/mmu.h"
 #include <array>
 #include <stdexcept>
+#include <utility>
 
 namespace cpu {
 
@@ -36,8 +37,8 @@ namespace cpu {
 	}
 
 	class cpu {
-		mmu::mmu mmu;
-		register_file registers;
+		mmu::MMU _mmu;
+		register_file _registers;
 		bool ime = false;
 
 		//Execution State
@@ -110,11 +111,11 @@ namespace cpu {
 		void RES(uint8_t y,uint8_t& operand);
 		void SET(uint8_t y,uint8_t& operand);
 		//8 BIt Loads
-		void LD_8bit(uint8_t& dest, uint8_t & src);
+		static void LD_8bit(uint8_t& dest, uint8_t src);
 
 		void LD_HL_SP_i8(int8_t value);
 
-		void LD_mem(uint16_t addr, uint8_t &src);
+		void LD_mem(uint16_t addr, uint8_t src);
 
 		void LD_nn_SP(uint16_t address);
 
@@ -127,6 +128,8 @@ namespace cpu {
 		void CALL(const uint16_t address);
 
 		void RET();
+
+		void POP(uint16_t &regref);
 
 		using _refFunc = void(cpu::cpu::*)(uint8_t&);
 
@@ -164,38 +167,38 @@ namespace cpu {
 		};
 
 		 const std::array<uint8_t*, 8> reg_readonly = {
-		  &registers.b,
-		  &registers.c,
-		  &registers.d,
-		  &registers.e,
-		  &registers.h,
-		  &registers.l,
-		  &mmu.read(registers.hl),//Don't use this to write
-		  &registers.a
+		  &_registers.b,
+		  &_registers.c,
+		  &_registers.d,
+		  &_registers.e,
+		  &_registers.h,
+		  &_registers.l,
+		  &_mmu.read_as_ref(_registers.hl),//Don't use this to write
+		  &_registers.a
 		};
 			
 		 const std::array<uint16_t*, 4> reg_16_sp = {
-			&registers.bc,
-			&registers.de,
-			&registers.hl,
-			&registers.sp
+			&_registers.bc,
+			&_registers.de,
+			&_registers.hl,
+			&_registers.sp
 		 };
 
 		 const std::array<uint16_t*, 4> reg_16_af = {
-			&registers.bc,
-			&registers.de,
-			&registers.hl,
-			&registers.af
+			&_registers.bc,
+			&_registers.de,
+			&_registers.hl,
+			&_registers.af
 		 };
 
 
 		constexpr bool readflag_tbl(uint8_t id) {
 			//Should crash on wrong lookup
 			const bool flagLookup[4] = {
-				!registers.f.ZERO,  // id = NZ
-				registers.f.ZERO,   // id = Z
-				!registers.f.CARRY, // id = NC
-				registers.f.CARRY   // id = C
+				!_registers.f.ZERO,  // id = NZ
+				_registers.f.ZERO,   // id = Z
+				!_registers.f.CARRY, // id = NC
+				_registers.f.CARRY   // id = C
 			};
 
 			return flagLookup[id]; // Adjust index for 0-based array
@@ -203,19 +206,17 @@ namespace cpu {
 
 		constexpr uint16_t r16mem(uint16_t index) {
 			switch (index) {
-				case 0:return registers.bc;
-				case 1:return registers.de;
-				case 2:return registers.hl++;
-				case 3:return registers.hl--;
+				case 0:return _registers.bc;
+				case 1:return _registers.de;
+				case 2:return _registers.hl++;
+				case 3:return _registers.hl--;
 			}
 			throw std::out_of_range("Invalid register index");
 		};
 
 	public:
-		cpu::cpu(const mmu::mmu &mmu):mmu(mmu) {
-
-		}
-		void step();
+		explicit cpu(mmu::MMU  mmu):_mmu(std::move(mmu)) {}
+		void step(uint32_t &spent_cycles);
 
 
 	};

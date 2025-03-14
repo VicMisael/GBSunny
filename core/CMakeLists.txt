@@ -9,6 +9,13 @@ add_library(CoreModule STATIC gb.cpp
         cpu/cpu_opcodes.cpp
         utils/utils.h
         cpu/opcode_cycles.h
+        ppu/ppu.cpp
+        ppu/ppu.h
+        cartridge/cartridge_info.h
+        cartridge/cartridge_info.cc
+        cartridge/cartridge.cc
+        cartridge/cartridge.h
+
 
 )
 
