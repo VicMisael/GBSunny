@@ -6,7 +6,9 @@ void cpu::cpu::block0(const decoded_instruction &result, bool &branch_taken) {
     switch (result.z) {
         case 0: {
             switch (result.y) {
-                case 0: { break; } //NOP
+                case 0: {
+                        _registers.pc++;
+                        break; } //NOP
                 case 1: {
                     //LD (nn),SP
                     this->LD_nn_SP(utils::uint16_little_endian(_mmu.read(_registers.pc++), _mmu.read(_registers.pc++)));
@@ -14,7 +16,7 @@ void cpu::cpu::block0(const decoded_instruction &result, bool &branch_taken) {
                 }
                 case 2: {
                     //STOP
-                    _registers.pc++;
+
 
                     break;
                 }
@@ -359,6 +361,6 @@ void cpu::cpu::step(uint32_t& spent_cycles ) {
         }
         default: break;
     }
-    spent_cycles = branchTaken?opcode_cycles_branched[result.opcode]:opcode_cycles[result.opcode];
+    spent_cycles = 4*(branchTaken?opcode_cycles_branched[result.opcode]:opcode_cycles[result.opcode]);
 
 }

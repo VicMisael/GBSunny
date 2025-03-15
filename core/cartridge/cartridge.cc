@@ -57,3 +57,8 @@ auto NoMBC::read(const uint16_t &addr) const -> uint8_t {
     /* TODO: check this uint16_t is in sensible bounds */
     return rom[addr];
 }
+
+uint8_t NoMBC::read_sram(uint16_t addr) const
+{
+    return 0;
+}

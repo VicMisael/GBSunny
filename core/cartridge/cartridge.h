@@ -45,6 +45,8 @@ public:
     [[nodiscard]] virtual uint8_t read(const uint16_t &address) const = 0;
 
     virtual void write(const uint16_t &address, uint8_t value) = 0;
+    [[nodiscard]] virtual uint8_t read_sram(uint16_t addr) const = 0;
+    virtual void write_sram(uint16_t addr) = 0;
 
     static std::shared_ptr<Cartridge> get_cartridge(const std::string& path);
 
@@ -63,5 +65,6 @@ public:
 
     [[nodiscard]] uint8_t read(const uint16_t &address) const override;
 
+    [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
     void write(const uint16_t &address, uint8_t value) override;
 };

@@ -3,8 +3,8 @@ add_library(CoreModule STATIC gb.cpp
         cpu/cpu.h
         cpu/register_file.cpp
         cpu/register_file.h
-        mmu/mmu.cpp
-        mmu/mmu.h
+        mmu/MMU.cpp
+        mmu/MMU.h
         cpu/opcode_names.h
         cpu/cpu_opcodes.cpp
         utils/utils.h
@@ -15,6 +15,12 @@ add_library(CoreModule STATIC gb.cpp
         cartridge/cartridge_info.cc
         cartridge/cartridge.cc
         cartridge/cartridge.h
+        cartridge/boot_rom.h
+        timer/timer.cpp
+        timer/timer.h
+        spu/spu.cpp
+        spu/spu.h
+        cpu/register_types.h
 
 
 )

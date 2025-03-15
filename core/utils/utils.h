@@ -22,6 +22,11 @@ namespace  utils {
         return (static_cast<uint16_t>(LSB) << 8) | static_cast<uint16_t>(MSB);
     };
 
+    constexpr bool in_range(uint16_t value,uint16_t lower, uint16_t upper)
+    {
+        return lower <= value && value <= upper;
+    }
+
     inline std::vector<uint8_t> read_file(const std::string &filename) noexcept(false) {
         using std::ifstream;
         using std::ios;

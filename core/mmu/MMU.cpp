@@ -4,6 +4,10 @@
 
 #include "MMU.h"
 
+#include "cartridge/boot_rom.h"
+#include "spu/spu.h"
+#include "utils/utils.h"
+// https://gbdev.io/pandocs/Memory_Map.html
 constexpr uint16_t ROM0_START   = 0x0000;
 constexpr uint16_t ROM0_END     = 0x3FFF;
 
@@ -38,9 +42,152 @@ constexpr uint16_t HRAM_START   = 0xFF80;
 constexpr uint16_t HRAM_END     = 0xFFFE;
 
 constexpr uint16_t IE_REGISTER  = 0xFFFF;
-//TODO
+
+
+
+
+
+
+void mmu::MMU::io_write(uint16_t addr, uint8_t data)
+{
+}
+
+bool mmu::MMU::boot_rom_enabled() const
+{
+	return bootRomControl==0;
+}
+
+
 uint8_t mmu::MMU::read(uint16_t addr) {
+	if (utils::in_range(ROM0_START, ROMX_END, addr))
+	{
+		if (boot_rom_enabled())
+		{
+			return cartridge::bootDMG[addr];
+		}
+		return cartridge->read(addr);
+	}
+
+	if (utils::in_range(VRAM_START, VRAM_END, addr))
+	{
+		return _ppu.read(addr);
+	}
+
+	if (utils::in_range(SRAM_START, SRAM_END, addr))
+	{
+		return cartridge->read_sram(addr);
+	}
+	if (utils::in_range(WRAM0_START, WRAM0_END, addr))
+	{
+		return internal_RAM[addr&0xfff];
+	}
+	if (utils::in_range(WRAMX_START, WRAMX_END, addr))
+	{
+		return internal_RAM2[addr&0xfff];
+	}
+	if (utils::in_range(ECHO_START, ECHO_END, addr))
+	{
+		return internal_RAM[addr&0x1fff];
+	}
+	if (utils::in_range(OAM_START, OAM_END, addr))
+	{
+		return _ppu.read_oam(addr);
+	}
+	if (utils::in_range(UNUSED_START, UNUSED_END, addr))
+	{
+		return 0xff;
+	}
+	if (utils::in_range(IO_REG_START, IO_REG_END, addr))
+	{
+		return io_read(addr);
+	}
+	if (utils::in_range(HRAM_START,HRAM_END, addr))
+	{
+		return HRAM[addr-HRAM_START];
+	}
+	if (addr==IE_REGISTER)
+	{
+		return this->read_interrupt_enable();
+	}
+	throw std::runtime_error("Invalid ROM address");
+}
+
+uint8_t mmu::MMU::read_interrupt_enable()
+{
 	return 0;
+}
+
+uint8_t mmu::MMU::read_interrupt_flag()
+{
+}
+
+void mmu::MMU::set_interrupt_flag(uint8_t)
+{
+}
+
+void mmu::MMU::set_interrupt_enable(uint8_t)
+{
+}
+
+
+uint8_t mmu::MMU::io_read(uint16_t addr)
+{
+	const uint16_t index = addr & 0xFF;
+	if (index==0x0)
+	{
+		//JoyPad
+	}
+	if (utils::in_range(0x01,0x02,addr))
+	{
+		//Serial transfer
+	}
+	if (utils::in_range(0x04,0x07,addr))
+	{
+		return _timer->read(addr);
+		//Timer
+	}
+	if (addr==0x0f)
+	{
+		return read_interrupt_enable();
+	}
+	if (utils::in_range(0x10,0x26,addr))
+	{
+		return _spu->read(addr);
+	}
+	if (utils::in_range(0x30,0x3f,addr))
+	{
+		return _spu->read_wave(addr);
+	}
+	if (utils::in_range(0x40,0x4b,addr))
+	{
+		return _ppu.read_ppucontrol(addr);
+	}
+
+	if (addr==0x50)
+	{
+		return bootRomControl;
+	}
+	//TODO all of the ones below are CGB specifica
+	if (addr==0x4f)
+	{
+		//VRAM BANK SELECT
+	}
+	if (utils::in_range(0x51,0x55,addr))
+	{
+		// VRAM DMQA
+	}
+	if (utils::in_range(0x68,0x6b,addr))
+	{
+		// BG/OBJ
+	}
+	if (addr==0x70)
+	{
+		// WRAM BANK SELECT
+	}
+	return 0xff;
+	//FF4F FF50 FF51->FF55 FF68->FF6B FF70
+
+
 }
 
 uint8_t& mmu::MMU::read_as_ref(uint16_t addr) {
@@ -49,5 +196,51 @@ uint8_t& mmu::MMU::read_as_ref(uint16_t addr) {
 
 //TODO
 void mmu::MMU::write(uint16_t addr,const uint8_t& data) {
+	if (utils::in_range(ROM0_START, ROMX_END, addr))
+	{
+		 cartridge->write(addr,data);
+	}
 
+	if (utils::in_range(VRAM_START, VRAM_END, addr))
+	{
+		return _ppu.write(addr,data);
+	}
+
+	if (utils::in_range(SRAM_START, SRAM_END, addr))
+	{
+		 cartridge->write_sram(addr);
+	}
+	if (utils::in_range(WRAM0_START, WRAM0_END, addr))
+	{
+		internal_RAM[addr&0xfff] = data;
+	}
+	if (utils::in_range(WRAMX_START, WRAMX_END, addr))
+	{
+		 internal_RAM2[addr&0xfff] =data;
+	}
+	if (utils::in_range(ECHO_START, ECHO_END, addr))
+	{
+		 internal_RAM[addr&0x1fff] =data;
+	}
+	if (utils::in_range(OAM_START, OAM_END, addr))
+	{
+		 _ppu.write_oam(addr,data);
+	}
+	if (utils::in_range(UNUSED_START, UNUSED_END, addr))
+	{
+		return;
+	}
+	if (utils::in_range(IO_REG_START, IO_REG_END, addr))
+	{
+		 io_write(addr,data);
+	}
+	if (utils::in_range(HRAM_START,HRAM_END, addr))
+	{
+		 HRAM[addr-HRAM_START] = data;
+	}
+	if (addr==IE_REGISTER)
+	{
+		this->set_interrupt_enable(data);
+	}
+	throw std::runtime_error("Invalid ROM address");
 }

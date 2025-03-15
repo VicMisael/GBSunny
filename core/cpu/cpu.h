@@ -7,7 +7,7 @@
 #include <cstdint>
 
 #include "register_file.h"
-#include "mmu/mmu.h"
+#include "mmu/MMU.h"
 #include <array>
 #include <stdexcept>
 #include <utility>
