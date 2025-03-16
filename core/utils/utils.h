@@ -22,7 +22,7 @@ namespace  utils {
         return (static_cast<uint16_t>(LSB) << 8) | static_cast<uint16_t>(MSB);
     };
 
-    constexpr bool in_range(uint16_t value,uint16_t lower, uint16_t upper)
+    constexpr bool in_range(uint16_t lower, uint16_t upper,uint16_t value)
     {
         return lower <= value && value <= upper;
     }

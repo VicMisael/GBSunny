@@ -2,7 +2,7 @@
 #include <utils/utils.h>
 
 
-void cpu::cpu::ADD_a(uint8_t &data) {
+void cpu::cpu::ADD_a(uint8_t data) {
 	const uint8_t result = _registers.a + data;
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = false;
@@ -11,7 +11,7 @@ void cpu::cpu::ADD_a(uint8_t &data) {
 	_registers.a = result;
 }
 
-void cpu::cpu::ADC_a(uint8_t &data) {
+void cpu::cpu::ADC_a(uint8_t data) {
 	const bool carry = _registers.f.CARRY;
 	const uint8_t result = (_registers.a + data + carry);
 	_registers.f.ZERO = result == 0;
@@ -28,7 +28,7 @@ void cpu::cpu::ADD_SP_I8(const int8_t &i) {
 	_registers.sp += i;
 }
 
-void cpu::cpu::SUB_a(uint8_t &data) {
+void cpu::cpu::SUB_a(uint8_t data) {
 	const uint8_t result = (_registers.a - data);
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = true;
@@ -37,7 +37,7 @@ void cpu::cpu::SUB_a(uint8_t &data) {
 	_registers.a = result;
 }
 
-void cpu::cpu::SBC_A(uint8_t &data) {
+void cpu::cpu::SBC_A(uint8_t data) {
 	const uint8_t carry = _registers.f.CARRY;
 	const uint8_t result = (_registers.a - data - carry);
 	_registers.f.ZERO = result == 0;
@@ -47,7 +47,7 @@ void cpu::cpu::SBC_A(uint8_t &data) {
 	_registers.a = result;
 }
 
-void cpu::cpu::AND_a(uint8_t &data) {
+void cpu::cpu::AND_a(uint8_t data) {
 	const uint8_t result = (_registers.a & data);
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = false;
@@ -56,7 +56,7 @@ void cpu::cpu::AND_a(uint8_t &data) {
 	_registers.a = result;
 }
 
-void cpu::cpu::XOR_a(uint8_t &data) {
+void cpu::cpu::XOR_a(uint8_t data) {
 	const uint8_t result = (_registers.a ^ data);
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = false;
@@ -65,7 +65,7 @@ void cpu::cpu::XOR_a(uint8_t &data) {
 	_registers.a = result;
 }
 
-void cpu::cpu::OR_a(uint8_t &data) {
+void cpu::cpu::OR_a(uint8_t data) {
 	const uint8_t result = (_registers.a | data);
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = false;
@@ -74,7 +74,7 @@ void cpu::cpu::OR_a(uint8_t &data) {
 	_registers.a = result;
 }
 
-void cpu::cpu::CP_a(uint8_t &data) {
+void cpu::cpu::CP_a(uint8_t data) {
 	const uint8_t result = (_registers.a - data);
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = true;
@@ -283,7 +283,7 @@ void cpu::cpu::SRL(uint8_t &data) {
 	_registers.f.ZERO = data;
 }
 
-void cpu::cpu::BIT(uint8_t y, uint8_t &operand) {
+void cpu::cpu::BIT(uint8_t y, uint8_t operand) {
 	uint8_t checkbit = 0x01 << y;
 
 	_registers.f.by_mnemonic.H = 0;
@@ -310,11 +310,11 @@ void cpu::cpu::SET(uint8_t y, uint8_t &operand) {
 	operand = result;
 }
 
-void cpu::cpu::LD_8bit(uint8_t &dest, uint8_t src) {
+void cpu::cpu::LD_8bit(uint8_t &dest, const uint8_t src) {
 	dest = src;
 }
 
-void cpu::cpu::LD_HL_SP_i8(int8_t i) {
+void cpu::cpu::LD_HL_SP_i8(const int8_t i) {
 	_registers.f.zeroAll();
 	_registers.f.by_mnemonic.H = (_registers.sp+i)>0xf;
 	_registers.f.by_mnemonic.C = (_registers.sp+i)>0xFF;
@@ -351,7 +351,7 @@ void cpu::cpu::RST(const uint8_t rst) {
 }
 
 void cpu::cpu::CALL(const uint16_t address) {
-	const auto pair = utils::split16Bit(_registers.sp);
+	const auto pair = utils::split16Bit(_registers.pc);
 	const auto lower = pair.first;
 	const auto upper = pair.second;
 	_mmu.write(--_registers.sp, upper);

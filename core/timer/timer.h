@@ -4,12 +4,13 @@
 
 #ifndef TIMER_H
 #define TIMER_H
-#include <bits/stdint-uintn.h>
+#include <cstdint>
 
 
 class timer {
     public:
     uint8_t read(uint16_t addr);
+    void write(uint16_t addr, uint8_t data);
 };
 
 

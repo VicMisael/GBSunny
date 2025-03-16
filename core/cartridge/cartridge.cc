@@ -1,4 +1,5 @@
 #include "cartridge.h"
+#include "cartridge.h"
 
 #include <utility>
 #include <stdexcept>
@@ -48,6 +49,11 @@ std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path) {
 NoMBC::NoMBC(std::vector<uint8_t> rom_data,
              std::unique_ptr<CartridgeInfo> in_cartridge_info)
     : Cartridge(std::move(rom_data), std::move(in_cartridge_info)) {
+}
+
+void NoMBC::write_sram(uint16_t addr)
+{
+
 }
 
 void NoMBC::write(const uint16_t &uint16_t, uint8_t value) {

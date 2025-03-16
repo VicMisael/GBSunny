@@ -10,6 +10,7 @@
 #include "cartridge/cartridge.h"
 #include "ppu/ppu.h"
 #include "timer/timer.h"
+#include "shared/interrupt.h"
 
 class spu;
 
@@ -19,7 +20,6 @@ namespace mmu {
         uint8_t internal_RAM2[4096] = {}; // CGB
         uint8_t HRAM[0x80] = {};
         PPU _ppu;
-        uint16_t offset = 0x1000;
         uint8_t temp = 0;
 
         uint8_t bootRomControl = 0x0;
@@ -27,13 +27,16 @@ namespace mmu {
         std::shared_ptr<timer> _timer;
         std::shared_ptr<Cartridge> cartridge;
         std::shared_ptr<spu> _spu;
-        uint8_t read_interrupt_enable();
-        uint8_t read_interrupt_flag();
+        std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
+
+
+        uint8_t read_interrupt_enable() const;
+        uint8_t read_interrupt_flag() const;
         void set_interrupt_flag(uint8_t);
         void set_interrupt_enable(uint8_t);
 
 
-        uint8_t io_read(uint16_t addr);
+        uint8_t io_read(uint16_t addr) const;
         void io_write(uint16_t addr, uint8_t data);
 
         [[nodiscard]] bool boot_rom_enabled() const;
@@ -44,7 +47,7 @@ namespace mmu {
 
         void reset();
 
-        uint8_t read(uint16_t addr);
+        [[nodiscard]] uint8_t read(uint16_t addr) const ;
 
         uint8_t &read_as_ref(uint16_t addr);
 

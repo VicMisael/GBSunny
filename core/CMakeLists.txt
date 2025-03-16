@@ -21,6 +21,9 @@ add_library(CoreModule STATIC gb.cpp
         spu/spu.cpp
         spu/spu.h
         cpu/register_types.h
+        shared/types.h
+        shared/interrupt.h
+        shared/interrupt.cpp
 
 
 )

@@ -66,5 +66,7 @@ public:
     [[nodiscard]] uint8_t read(const uint16_t &address) const override;
 
     [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
+
+    void write_sram(uint16_t addr) override;
     void write(const uint16_t &address, uint8_t value) override;
 };

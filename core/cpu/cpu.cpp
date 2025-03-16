@@ -1,14 +1,97 @@
 #include "cpu.h"
+#include "cpu.h"
 #include "utils/utils.h"
 #include "opcode_cycles.h"
+
+
+bool cpu::cpu::waiting_interrupt() const {
+    const auto interrupt = this->interrupt_control->allowed();
+    return !ime && interrupt.flag != 0;
+}
+
+void cpu::cpu::handle_interrupt(uint32_t &) {
+    //(one of: $40, $48, $50, $58, $60)
+    constexpr std::array<uint16_t, 5> jmp_table = {
+        0x40, 0x48, 0x50, 0x58, 0x60
+    };
+
+    const auto interrupt = this->interrupt_control->allowed();
+
+    if (interrupt.VBlank) {
+        interrupt_control->flag.VBlank = false;
+        return CALL(jmp_table[0]);
+    };
+
+    if (interrupt.LCD) {
+        interrupt_control->flag.LCD = false;
+        return CALL(jmp_table[1]);
+    };
+
+    if (interrupt.timer) {
+        interrupt_control->flag.timer = false;
+        return CALL(jmp_table[2]);
+    };
+
+    if (interrupt.serial) {
+        interrupt_control->flag.serial = false;
+        return CALL(jmp_table[3]);
+    };
+    if (interrupt.joypad) {
+        interrupt_control->flag.joypad = false;
+        return CALL(jmp_table[4]);
+    };
+}
+
+//Store Run Cycles on
+void cpu::cpu::step(uint32_t &spent_cycles) {
+    if (waiting_interrupt()) {
+        halted = false;
+        ime = false;
+        handle_interrupt(spent_cycles);
+        spent_cycles = 20;
+        return;
+    }
+
+    if (halted) {
+        return;
+    }
+
+    auto fetched_instruction = _mmu.read(_registers.pc++);
+    auto &instruction = reinterpret_cast<decoded_instruction &>(fetched_instruction);
+    bool branchTaken = false;
+    //Execute
+    //https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
+    switch (instruction.x) {
+        case 0: {
+            block0(instruction, branchTaken);
+            break;
+        }
+        case 1: {
+            block1(instruction);
+            break;
+        };
+        case 2: {
+            block2(instruction);
+            break;
+        }
+        case 3: {
+            block3(instruction, branchTaken);
+            break;
+        }
+        default: break;
+    }
+    spent_cycles = 4 * (branchTaken ? opcode_cycles_branched[instruction.opcode] : opcode_cycles[instruction.opcode]);
+}
+
 
 void cpu::cpu::block0(const decoded_instruction &result, bool &branch_taken) {
     switch (result.z) {
         case 0: {
             switch (result.y) {
                 case 0: {
-                        _registers.pc++;
-                        break; } //NOP
+                    _registers.pc++;
+                    break;
+                } //NOP
                 case 1: {
                     //LD (nn),SP
                     this->LD_nn_SP(utils::uint16_little_endian(_mmu.read(_registers.pc++), _mmu.read(_registers.pc++)));
@@ -45,7 +128,8 @@ void cpu::cpu::block0(const decoded_instruction &result, bool &branch_taken) {
             switch (result.q) {
                 case 0: {
                     LD_16bit_reg_NN(*reg_16_sp[result.q],
-                                    utils::uint16_little_endian(_mmu.read(_registers.pc++), _mmu.read(_registers.pc++)));
+                                    utils::uint16_little_endian(_mmu.read(_registers.pc++),
+                                                                _mmu.read(_registers.pc++)));
                     break;
                 };
                 case 1: {
@@ -92,7 +176,7 @@ void cpu::cpu::block0(const decoded_instruction &result, bool &branch_taken) {
                 INC_HL_8bit();
                 break;
             }
-            INC_8bit(*reg_readonly[result.y]);
+            INC_8bit(reg_ref(result.y));
             break;
         }
         case 5: {
@@ -100,12 +184,12 @@ void cpu::cpu::block0(const decoded_instruction &result, bool &branch_taken) {
                 DEC_HL_8bit();
                 break;
             }
-            DEC_8bit(*reg_readonly[result.y]);
+            DEC_8bit(reg_ref(result.y));
             break;
         }
         case 6: {
             auto immediate = _mmu.read(_registers.pc++);
-            result.y == 6 ? LD_8bit(*reg_readonly[result.y], immediate) : LD_mem(_registers.hl, immediate);
+            result.y == 6 ? LD_8bit(reg_ref(result.y), immediate) : LD_mem(_registers.hl, immediate);
             break;
         }
         case 7: {
@@ -122,20 +206,19 @@ void cpu::cpu::block1(const decoded_instruction &result) {
         return;
     }
 
-    auto &src = *reg_readonly[result.z];
+    auto src = reg_readonly(result.z);
 
     if (result.y == 6) {
         LD_mem(_registers.hl, src);
     } else {
-        cpu::cpu::LD_8bit(*reg_readonly[result.y], src);
+        cpu::cpu::LD_8bit(reg_ref(result.y), src);
     }
 }
 
 void cpu::cpu::block2(const decoded_instruction &result) {
     auto alu_operation = (alu_table[result.y]);
-    (this->*alu_operation)(*this->reg_readonly[result.z]);
+    (this->*alu_operation)(this->reg_readonly(result.z));
 }
-
 
 void cpu::cpu::block3(decoded_instruction &result, bool &branch_taken) {
     switch (result.z) {
@@ -255,18 +338,39 @@ void cpu::cpu::block3(decoded_instruction &result, bool &branch_taken) {
 
                     switch (result.x) {
                         case 0: {
-                            const auto func = alu_table[result.y];
-                            (this->*func)(*reg_readonly[result.z]);
+                            const auto func = rot_table[result.y];
+                            if (result.z == 6) {
+                                uint16_t hl = _registers.hl;
+                                uint8_t operand = _mmu.read(hl);
+                                (this->*func)(operand);
+                                _mmu.write(hl, operand);
+                            } else {
+                                (this->*func)(reg_ref(result.z));
+                            }
                             break;
                         }
                         case 1:
-                            this->BIT(result.y, *this->reg_readonly[result.z]);
+                            this->BIT(result.y, this->reg_readonly(result.z));
                             break;
                         case 2:
-                            this->RES(result.y, *this->reg_readonly[result.z]);
+                            if (result.z == 6) {
+                                uint16_t hl = _registers.hl;
+                                uint8_t operand = _mmu.read(hl);
+                                RES(result.y, operand);
+                                _mmu.write(hl, operand);
+                            } else {
+                                this->RES(result.y, this->reg_ref(result.z));
+                            }
                             break;
                         case 3:
-                            this->SET(result.y, *this->reg_readonly[result.z]);
+                            if (result.z == 6) {
+                                uint16_t hl = _registers.hl;
+                                uint8_t operand = _mmu.read(hl);
+                                SET(result.y, operand);
+                                _mmu.write(hl, operand);
+                            } else {
+                                this->SET(result.y, this->reg_ref(result.z));
+                            }
                             break;
                         default: break;
                     }
@@ -303,15 +407,10 @@ void cpu::cpu::block3(decoded_instruction &result, bool &branch_taken) {
                     break;
                 }
                 case 1: {
-                    switch (result.p) {
-                        case 0: {
-                            CALL(utils::uint16_little_endian(_mmu.read(_registers.pc++), _mmu.read(_registers.pc++)));
-                            break;
-                        }
-                        default: {
-                            //Crash
-                            break;
-                        }
+                    if (result.p == 0) {
+                        CALL(utils::uint16_little_endian(_mmu.read(_registers.pc++), _mmu.read(_registers.pc++)));
+                    } else {
+                        //crash
                     }
                     break;
                 }
@@ -332,35 +431,4 @@ void cpu::cpu::block3(decoded_instruction &result, bool &branch_taken) {
         }
         default: ;
     }
-}
-
-//Store Run Cycles on
-void cpu::cpu::step(uint32_t& spent_cycles ) {
-    auto fetched_instruction = _mmu.read(_registers.pc++);
-    decoded_instruction &result = reinterpret_ref_as_decoded_instruction(fetched_instruction);
-    //Fetch
-    //decode
-    bool branchTaken = false;
-    //Execute
-    switch (result.x) {
-        case 0: {
-            block0(result, branchTaken);
-            break;
-        }
-        case 1: {
-            block1(result);
-            break;
-        };
-        case 2: {
-            block2(result);
-            break;
-        }
-        case 3: {
-            block3(result, branchTaken);
-            break;
-        }
-        default: break;
-    }
-    spent_cycles = 4*(branchTaken?opcode_cycles_branched[result.opcode]:opcode_cycles[result.opcode]);
-
 }

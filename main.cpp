@@ -8,17 +8,16 @@ int main() {
     // TIP Press <shortcut actionId="RenameElement"/> when your caret is at the
     // <b>lang</b> variable name to see how CLion can help you rename it.
     auto lang = "C++";
-    std::cout << "Hello and welcome to " << lang << "!\n";
-
-    for (int i = 1; i <= UINT16_MAX; i++) {
+    std::cout << "Hello and welcome to " << lang << "!\n"; 
+    uint8_t i = 0;
+    cpu::decoded_instruction& decoded_instruction = reinterpret_cast<cpu::decoded_instruction&>(i);
+    for (i= 1; i <= 128; i++) {
         // TIP Press <shortcut actionId="Debug"/> to start debugging your code.
         // We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/>
         // breakpoint for you, but you can always add more by pressing
         // <shortcut actionId="ToggleLineBreakpoint"/>.
-
-        uint8_t instruction=0231;
-        cpu::decoded_instruction decoded_instruction = cpu::reinterpret_ref_as_decoded_instruction(instruction);
-        std::cout << decoded_instruction.x << "\n";
+        
+        std::cout <<std::hex<< (uint16_t)decoded_instruction.opcode << "\n";
 
 
     }

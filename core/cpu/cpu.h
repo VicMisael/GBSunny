@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <utility>
 
+
 namespace cpu {
 
 
@@ -32,16 +33,14 @@ namespace cpu {
 		uint8_t opcode;
 	};
 
-	static decoded_instruction &reinterpret_ref_as_decoded_instruction(uint8_t &instruction) {
-		return reinterpret_cast<decoded_instruction&>(instruction);
-	}
-
 	class cpu {
 		mmu::MMU _mmu;
 		register_file _registers;
-		bool ime = false;
+		std::shared_ptr<shared::interrupt> interrupt_control; //Shared space for interrupts
+
 
 		//Execution State
+		bool ime = false;
 		bool halted = false;
 
 		//Divide the execution of instructions by Blocks set by the 
@@ -50,26 +49,22 @@ namespace cpu {
 		void block2(const decoded_instruction& result);
 		void block3(decoded_instruction &result, bool &branch_taken);
 
-
 		void JP_16(uint16_t uint16);
 
 		void JP_offset(int8_t offset);
 
 		void PUSH(uint16_t& i);
 
-
-
-
 		//ALU
 		void ADD_SP_I8(const int8_t &i);
-		void ADD_a(uint8_t& data);
-		void ADC_a(uint8_t& data);
-		void SUB_a(uint8_t& data);
-		void SBC_A(uint8_t& data);
-		void AND_a(uint8_t& data);
-		void XOR_a(uint8_t& data);
-		void OR_a(uint8_t& data);
-		void CP_a(uint8_t& data);
+		void ADD_a(uint8_t data);
+		void ADC_a(uint8_t data);
+		void SUB_a(uint8_t data);
+		void SBC_A(uint8_t data);
+		void AND_a(uint8_t data);
+		void XOR_a(uint8_t data);
+		void OR_a(uint8_t data);
+		void CP_a(uint8_t data);
 		// INC - DEC
 		void INC_8bit(uint8_t& data);
 
@@ -107,7 +102,7 @@ namespace cpu {
 		void SWAP(uint8_t& data);
 		void SRL(uint8_t& data);
 		//BIT RES
-		void BIT(uint8_t y,uint8_t& operand);
+		void BIT(uint8_t y,uint8_t operand);
 		void RES(uint8_t y,uint8_t& operand);
 		void SET(uint8_t y,uint8_t& operand);
 		//8 BIt Loads
@@ -123,17 +118,17 @@ namespace cpu {
 
 		void ADD_HL(const uint16_t& data);
 
-		void RST(const uint8_t rst);
+		void RST( uint8_t rst);
 
-		void CALL(const uint16_t address);
+		void CALL( uint16_t address);
 
 		void RET();
 
 		void POP(uint16_t &regref);
 
-		using _refFunc = void(cpu::cpu::*)(uint8_t&);
+		using _addA = void(cpu::cpu::*)(const uint8_t);
 
-		static constexpr  std::array<_refFunc, 8> alu_table = {
+		static constexpr  std::array<_addA, 8> alu_table = {
 			&cpu::ADD_a,
 			&cpu::ADC_a,
 			&cpu::SUB_a,
@@ -155,7 +150,9 @@ namespace cpu {
 			&cpu::CPL,
 			&cpu::CCF,
 		};
-		static constexpr  std::array<_refFunc, 8> rot_table = {
+
+		using _rot = void(cpu::cpu::*)(uint8_t&);
+		static constexpr  std::array<_rot, 8> rot_table = {
 			&cpu::RLC,
 			&cpu::RRC,
 			&cpu::RL,
@@ -166,17 +163,36 @@ namespace cpu {
 			&cpu::SRL,
 		};
 
-		 const std::array<uint8_t*, 8> reg_readonly = {
-		  &_registers.b,
-		  &_registers.c,
-		  &_registers.d,
-		  &_registers.e,
-		  &_registers.h,
-		  &_registers.l,
-		  &_mmu.read_as_ref(_registers.hl),//Don't use this to write
-		  &_registers.a
-		};
-			
+
+
+		uint8_t& reg_ref(int index) {
+			switch (index) {
+				case 0: return _registers.b;
+				case 1: return _registers.c;
+				case 2: return _registers.d;
+				case 3: return _registers.e;
+				case 4: return _registers.h;
+				case 5: return _registers.l;
+				case 6: throw std::runtime_error("getting a reference to memory is not possible, write and read isntead"); // Be careful when using this
+				case 7: return _registers.a;
+				default: throw std::out_of_range("Invalid register index");
+			}
+		}
+
+		 uint8_t reg_readonly(int index) const {
+		 	switch (index) {
+		 		case 0: return _registers.b;
+		 		case 1: return _registers.c;
+		 		case 2: return _registers.d;
+		 		case 3: return _registers.e;
+		 		case 4: return _registers.h;
+		 		case 5: return _registers.l;
+		 		case 6: return _mmu.read(_registers.hl); // Be careful when using this
+		 		case 7: return _registers.a;
+		 		default: throw std::out_of_range("Invalid register index");
+		 	}
+		 }
+
 		 const std::array<uint16_t*, 4> reg_16_sp = {
 			&_registers.bc,
 			&_registers.de,
@@ -190,6 +206,7 @@ namespace cpu {
 			&_registers.hl,
 			&_registers.af
 		 };
+
 
 
 		constexpr bool readflag_tbl(uint8_t id) {
@@ -213,6 +230,9 @@ namespace cpu {
 			}
 			throw std::out_of_range("Invalid register index");
 		};
+
+		bool waiting_interrupt() const;
+		void handle_interrupt(uint32_t&);
 
 	public:
 		explicit cpu(mmu::MMU  mmu):_mmu(std::move(mmu)) {}
