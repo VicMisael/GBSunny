@@ -182,12 +182,12 @@ uint8_t mmu::MMU::read_interrupt_flag() const
 
 void mmu::MMU::set_interrupt_flag(uint8_t input)
 {
-	interrupt->flag.flag = input;
+	interrupt->flag.flag = input&0x1f;
 }
 
 void mmu::MMU::set_interrupt_enable(uint8_t enable)
 {
-	interrupt->enable.flag = enable;
+	interrupt->enable.flag = enable&0x1f;//Ignore the 3 bits
 }
 
 
@@ -228,7 +228,7 @@ uint8_t mmu::MMU::io_read(uint16_t addr) const
 	{
 		return bootRomControl;
 	}
-	//TODO all of the ones below are CGB specifica
+	//TODO all of the ones below are CGB specific
 	if (addr==0x4f)
 	{
 		//VRAM BANK SELECT
@@ -248,10 +248,6 @@ uint8_t mmu::MMU::io_read(uint16_t addr) const
 	return 0xff;
 
 
-}
-
-uint8_t& mmu::MMU::read_as_ref(uint16_t addr) {
-	return internal_RAM[0];
 }
 
 //TODO

@@ -16,6 +16,7 @@ void cpu::cpu::handle_interrupt(uint32_t &) {
     };
 
     const auto interrupt = this->interrupt_control->allowed();
+    ime = false;
 
     if (interrupt.VBlank) {
         interrupt_control->flag.VBlank = false;
@@ -354,10 +355,9 @@ void cpu::cpu::block3(decoded_instruction &result, bool &branch_taken) {
                             break;
                         case 2:
                             if (result.z == 6) {
-                                uint16_t hl = _registers.hl;
-                                uint8_t operand = _mmu.read(hl);
+                                uint8_t operand = _mmu.read(_registers.hl);
                                 RES(result.y, operand);
-                                _mmu.write(hl, operand);
+                                _mmu.write(_registers.hl, operand);
                             } else {
                                 this->RES(result.y, this->reg_ref(result.z));
                             }

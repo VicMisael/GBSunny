@@ -173,7 +173,7 @@ namespace cpu {
 				case 3: return _registers.e;
 				case 4: return _registers.h;
 				case 5: return _registers.l;
-				case 6: throw std::runtime_error("getting a reference to memory is not possible, write and read isntead"); // Be careful when using this
+				case 6: throw std::runtime_error("getting a reference to memory is not possible, write and read instead"); // Be careful when using this
 				case 7: return _registers.a;
 				default: throw std::out_of_range("Invalid register index");
 			}
@@ -231,7 +231,7 @@ namespace cpu {
 			throw std::out_of_range("Invalid register index");
 		};
 
-		bool waiting_interrupt() const;
+		[[nodiscard]] bool waiting_interrupt() const;
 		void handle_interrupt(uint32_t&);
 
 	public:

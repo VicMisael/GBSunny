@@ -30,13 +30,13 @@ namespace mmu {
         std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
 
 
-        uint8_t read_interrupt_enable() const;
-        uint8_t read_interrupt_flag() const;
+        [[nodiscard]] uint8_t read_interrupt_enable() const;
+        [[nodiscard]] uint8_t read_interrupt_flag() const;
         void set_interrupt_flag(uint8_t);
         void set_interrupt_enable(uint8_t);
 
 
-        uint8_t io_read(uint16_t addr) const;
+        [[nodiscard]] uint8_t io_read(uint16_t addr) const;
         void io_write(uint16_t addr, uint8_t data);
 
         [[nodiscard]] bool boot_rom_enabled() const;
@@ -49,7 +49,6 @@ namespace mmu {
 
         [[nodiscard]] uint8_t read(uint16_t addr) const ;
 
-        uint8_t &read_as_ref(uint16_t addr);
 
         void write(uint16_t addr, const uint8_t &data);
 
