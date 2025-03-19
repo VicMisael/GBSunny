@@ -226,6 +226,7 @@ auto get_actual_ram_size(RAMSize size) -> uint32_t {
         case RAMSize::KB64:
             return 0x10000;
     }
+    throw std::runtime_error("Unknown RAM Size");
 }
 
 auto describe(RAMSize size) -> std::string {
