@@ -267,6 +267,7 @@ auto describe(Destination destination) -> std::string {
         case Destination::NonJapanese:
             return "Non-Japanese";
     }
+    return "Unknown";
 }
 
 auto get_title(std::vector<uint8_t>& rom) -> std::string {

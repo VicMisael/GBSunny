@@ -16,14 +16,16 @@ class spu;
 
 namespace mmu {
     class MMU {
-        uint8_t internal_RAM[4096] = {};
-        uint8_t internal_RAM2[4096] = {}; // CGB
-        uint8_t HRAM[0x80] = {};
-        PPU _ppu;
+
+        static uint8_t internal_RAM[4096];
+        static uint8_t internal_RAM2[4096] ; // CGB
+        static uint8_t HRAM[0x80];
+
         uint8_t temp = 0;
 
         uint8_t bootRomControl = 0x0;
 
+        std::shared_ptr<PPU> _ppu;
         std::shared_ptr<timer> _timer;
         std::shared_ptr<Cartridge> cartridge;
         std::shared_ptr<spu> _spu;
@@ -42,7 +44,7 @@ namespace mmu {
         [[nodiscard]] bool boot_rom_enabled() const;
 
     public:
-        MMU(const std::shared_ptr<Cartridge> &cartridge, const PPU &ppu): _ppu(ppu), cartridge(cartridge) {
+        MMU(const std::shared_ptr<Cartridge> &cartridge, const std::shared_ptr<PPU> ppu): _ppu(ppu), cartridge(cartridge) {
         };
 
         void reset();

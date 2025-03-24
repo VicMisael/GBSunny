@@ -3,7 +3,6 @@
 // Created by Misael on 08/03/2025.
 //
 
-#include "MMU.h"
 
 #include "cartridge/boot_rom.h"
 #include "spu/spu.h"
@@ -80,7 +79,7 @@ void mmu::MMU::io_write(uint16_t addr, uint8_t data)
 	}
 	if (utils::in_range(0x40, 0x4b, addr))
 	{
-		_ppu.write_ppucontrol(addr,data);
+		_ppu->write_ppucontrol(addr,data);
 	}
 
 	if (addr == 0x50)
@@ -128,7 +127,7 @@ uint8_t mmu::MMU::read(uint16_t addr) const{
 
 	if (utils::in_range(VRAM_START, VRAM_END, addr))
 	{
-		return _ppu.read(addr);
+		return _ppu->read(addr);
 	}
 
 	if (utils::in_range(SRAM_START, SRAM_END, addr))
@@ -149,7 +148,7 @@ uint8_t mmu::MMU::read(uint16_t addr) const{
 	}
 	if (utils::in_range(OAM_START, OAM_END, addr))
 	{
-		return _ppu.read_oam(addr);
+		return _ppu->read_oam(addr);
 	}
 	if (utils::in_range(UNUSED_START, UNUSED_END, addr))
 	{
@@ -221,7 +220,7 @@ uint8_t mmu::MMU::io_read(uint16_t addr) const
 	}
 	if (utils::in_range(0x40,0x4b,addr))
 	{
-		return _ppu.read_ppucontrol(addr);
+		return _ppu->read_ppucontrol(addr);
 	}
 
 	if (addr==0x50)
@@ -259,7 +258,7 @@ void mmu::MMU::write(uint16_t addr,const uint8_t& data) {
 
 	if (utils::in_range(VRAM_START, VRAM_END, addr))
 	{
-		return _ppu.write(addr,data);
+		return _ppu->write(addr,data);
 	}
 
 	if (utils::in_range(SRAM_START, SRAM_END, addr))
@@ -280,7 +279,7 @@ void mmu::MMU::write(uint16_t addr,const uint8_t& data) {
 	}
 	if (utils::in_range(OAM_START, OAM_END, addr))
 	{
-		 _ppu.write_oam(addr,data);
+		 _ppu->write_oam(addr,data);
 	}
 	if (utils::in_range(UNUSED_START, UNUSED_END, addr))
 	{

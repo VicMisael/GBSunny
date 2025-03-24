@@ -24,8 +24,6 @@ add_library(CoreModule STATIC gb.cpp
         shared/types.h
         shared/interrupt.h
         shared/interrupt.cpp
-
-
 )
 
 

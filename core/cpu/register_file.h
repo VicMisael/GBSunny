@@ -22,7 +22,7 @@ namespace cpu {
         uint16_t sp;
 
         union {
-            uint16_t af;
+            uint16_t af{};
             struct {
                 f_reg f;
                 uint8_t a;
@@ -30,7 +30,7 @@ namespace cpu {
         };
 
         union {
-            uint16_t bc;
+            uint16_t bc{};
             struct {
                 uint8_t c;
                 uint8_t b;
@@ -38,7 +38,7 @@ namespace cpu {
         };
 
         union {
-            uint16_t de;
+            uint16_t de{};
             struct {
                 uint8_t e;
                 uint8_t d;
@@ -46,7 +46,7 @@ namespace cpu {
         };
 
         union {
-            uint16_t hl;
+            uint16_t hl{};
             struct {
                 uint8_t l;
                 uint8_t h;
