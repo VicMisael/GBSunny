@@ -164,7 +164,7 @@ void cpu::cpu::RRC(uint8_t &data) {
 
 void cpu::cpu::RL(uint8_t &data) {
 	const bool carry = data & 0x80;
-	data = (data << 1) | _registers.f.CARRY;
+	data = (data << 1) | static_cast<uint8_t>(_registers.f.CARRY);
 	_registers.f.zeroAll();
 	_registers.f.CARRY = carry;
 	_registers.f.ZERO = data;

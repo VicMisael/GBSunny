@@ -11,9 +11,10 @@ bool cpu::cpu::waiting_interrupt() const {
 
 void cpu::cpu::handle_interrupt(uint32_t &) {
     //(one of: $40, $48, $50, $58, $60)
-    constexpr std::array<uint16_t, 5> jmp_table = {
+    static constexpr std::array<uint16_t, 5> jmp_table = {
         0x40, 0x48, 0x50, 0x58, 0x60
     };
+        
 
     const auto interrupt = this->interrupt_control->allowed();
     ime = false;

@@ -25,10 +25,10 @@ namespace cpu {
 		};
 
 		struct {
-			uint8_t padding:3; // 2-0
+			uint8_t :3; // 2-0
 			uint8_t q:1;//bit 3
 			uint8_t p:2;//bits 5-4
-			uint8_t padding2:2;//bits 7-6
+			uint8_t :2;//bits 7-6
 		};
 		uint8_t opcode;
 	};
@@ -38,7 +38,7 @@ namespace cpu {
 		register_file _registers;
 		std::shared_ptr<shared::interrupt> interrupt_control; //Shared space for interrupts
 
-
+		
 		//Execution State
 		bool ime = false;
 		bool halted = false;
@@ -227,6 +227,7 @@ namespace cpu {
 				case 1:return _registers.de;
 				case 2:return _registers.hl++;
 				case 3:return _registers.hl--;
+				default: throw std::out_of_range("Invalid register index");
 			}
 			throw std::out_of_range("Invalid register index");
 		};

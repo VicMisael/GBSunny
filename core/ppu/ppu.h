@@ -12,6 +12,7 @@
 
 
 
+
 class PPU {
     uint8_t video_RAM[8192] = {};
 
@@ -22,9 +23,15 @@ class PPU {
 
     std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
 
+    //OAM
+    int32_t oam_transfer_remaining_cycles;
+    void start_oam_transfer();
+
 public:
 
     explicit PPU(std::shared_ptr<shared::interrupt> interrupt) : interrupt(std::move(interrupt)), lcd_control(0) {}
+
+    bool is_oam_transfer_running() const;
 
     void reset();
     [[nodiscard]] uint8_t read(uint16_t address) const;
@@ -35,6 +42,8 @@ public:
     void write_ppucontrol(uint16_t addr, uint8_t data);
 
     void write_oam(uint16_t addr, uint8_t data);
+
+    void step(const uint8_t cycles_to_run);
 };
 
 

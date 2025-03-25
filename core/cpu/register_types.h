@@ -13,7 +13,7 @@ namespace cpu
         uint8_t f;
 
         struct {
-            uint8_t _ignored: 4; //LSB;
+            uint8_t : 4; //LSB;
             bool CARRY: 1;
             bool HALF_CARRY: 1;
             bool SUBTRACT: 1;
@@ -21,7 +21,7 @@ namespace cpu
         };
 
         struct {
-            uint8_t _ignored : 4; //LSB;
+            uint8_t  : 4; //LSB;
             bool C: 1;
             bool H: 1;
             bool N : 1;

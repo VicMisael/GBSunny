@@ -4,6 +4,14 @@
 
 #include "ppu.h"
 
+void PPU::start_oam_transfer() {
+	oam_transfer_remaining_cycles = 160;
+}
+
+bool PPU::is_oam_transfer_running() const {
+	return oam_transfer_remaining_cycles > 0;
+}
+
 void PPU::reset()
 {
 }
@@ -36,4 +44,7 @@ void PPU::write_ppucontrol(uint16_t addr, uint8_t data) {
 }
 
 void PPU::write_oam(uint16_t addr, uint8_t data) {
+}
+
+void PPU::step(const uint8_t cycles_to_run) {
 }

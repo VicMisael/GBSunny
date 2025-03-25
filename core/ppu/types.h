@@ -30,4 +30,30 @@ namespace ppu_types{
         explicit _lcd_control(uint8_t data) : data(data) {}
     } ;
 
+    union _lcd_stat {
+
+    private:
+        uint8_t data = 0;
+    public:
+        struct {
+            uint8_t ppumode:2;
+            bool LYC_eq_LY:1;
+            bool MODE_0_INT_SELECT:1;
+            bool MODE_1_INT_SELECT:1;
+            bool MODE_2_INT_SELECT:1;
+            bool LYC_INT_SELECT:1;
+            bool :1;
+        };
+
+
+        void write(const uint8_t input) {
+            data = input & 0x7E;
+        };
+
+        [[nodiscard]] uint8_t read() const {
+            return data;
+        }
+
+    };
+
 }
