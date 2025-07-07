@@ -6,8 +6,10 @@ void cpu::cpu::ADD_a(uint8_t data) {
 	const uint8_t result = _registers.a + data;
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = false;
-	_registers.f.CARRY = (_registers.a + data) > 0xff;
-	_registers.f.HALF_CARRY = (_registers.a & 0xf + data & 0xf) > 0xf;
+	// from ADD_a
+	_registers.f.HALF_CARRY = ((_registers.a & 0xf) + (data & 0xf)) > 0xf;
+	// The check for carry should be on a wider type to avoid overflow issues.
+	_registers.f.CARRY = (static_cast<uint16_t>(_registers.a) + static_cast<uint16_t>(data)) > 0xff;
 	_registers.a = result;
 }
 
@@ -17,15 +19,17 @@ void cpu::cpu::ADC_a(uint8_t data) {
 	_registers.f.ZERO = result == 0;
 	_registers.f.SUBTRACT = false;
 	_registers.f.CARRY = (_registers.a + data + carry) > 0xff;
-	_registers.f.HALF_CARRY = (carry + _registers.a & 0xf + data & 0xf) > 0xf;
+	_registers.f.HALF_CARRY = ((carry + _registers.a) & (0xf + (data & 0xf))) > 0xf;
 	_registers.a = result;
 }
 
 void cpu::cpu::ADD_SP_I8(const int8_t &i) {
-	_registers.f.zeroAll();
-	_registers.f.by_mnemonic.H = (_registers.sp+i)>0xf;
-	_registers.f.by_mnemonic.C = (_registers.sp+i)>0xFF;
-	_registers.sp += i;
+    uint16_t result = _registers.sp + i;
+    _registers.f.zeroAll(); // Z=0, N=0
+    // Check for carry from bit 3 and bit 7 on the lower byte
+    _registers.f.HALF_CARRY = ((_registers.sp & 0x0F) + (i & 0x0F)) > 0x0F;
+    _registers.f.CARRY = ((_registers.sp & 0xFF) + (i & 0xFF)) > 0xFF;
+    _registers.sp = result;
 }
 
 void cpu::cpu::SUB_a(uint8_t data) {
@@ -91,48 +95,52 @@ void cpu::cpu::INC_8bit(uint8_t &data) {
 }
 
 void cpu::cpu::DEC_8bit(uint8_t &data) {
-	_registers.f.ZERO = ((data - 1) & 0xff) == 0;
-	_registers.f.SUBTRACT = false;
-	_registers.f.HALF_CARRY = ((data & 0xf) - 1) > 0xf;
+	_registers.f.HALF_CARRY = (data & 0x0f) == 0x00;
+
 	data--;
+
+	_registers.f.ZERO = (data == 0);
+
+	_registers.f.SUBTRACT = true;
+
 }
 
 void cpu::cpu::INC_HL_8bit() {
-	auto data = _mmu.read(_registers.hl);
+	auto data = _mmu->read(_registers.hl);
 	const uint16_t result = data + 1;
 	_registers.f.ZERO = (result & 0xff) == 0;
 	_registers.f.SUBTRACT = false;
 	_registers.f.HALF_CARRY = ((data & 0xf) + 1) > 0xf;
-	_mmu.write(_registers.hl, data);
+	_mmu->write(_registers.hl, result);
 }
 
 void cpu::cpu::DEC_HL_8bit() {
-	auto data = _mmu.read(_registers.hl);
+	auto data = _mmu->read(_registers.hl);
 	const uint16_t result = data - 1;
 	_registers.f.ZERO = (result & 0xff) == 0;
 	_registers.f.SUBTRACT = false;
 	_registers.f.HALF_CARRY = ((data & 0xf) - 1) > 0xf;
-	_mmu.write(_registers.hl, result);
+	_mmu->write(_registers.hl, result);
 }
 
 
 
 void cpu::cpu::INC_HLAddress() {
-	const uint16_t data = _mmu.read(_registers.hl);
+	const uint16_t data = _mmu->read(_registers.hl);
 	const uint8_t result = data + 1;
 	_registers.f.ZERO = (result & 0xff) == 0;
 	_registers.f.SUBTRACT = false;
 	_registers.f.HALF_CARRY = ((data & 0xf) + 1) > 0xf;
-	_mmu.write(_registers.hl, result);
+	_mmu->write(_registers.hl, result);
 }
 
 void cpu::cpu::DEC_HLAddress() {
-	const uint8_t data = _mmu.read(_registers.hl);
+	const uint8_t data = _mmu->read(_registers.hl);
 	const uint8_t result = data - 1;
 	_registers.f.ZERO = (result & 0xff) == 0;
 	_registers.f.SUBTRACT = false;
 	_registers.f.HALF_CARRY = ((data & 0xf) + 1) > 0xf;
-	_mmu.write(_registers.hl, result);
+	_mmu->write(_registers.hl, result);
 }
 
 void cpu::cpu::INC_16bit(uint16_t &data) {
@@ -150,7 +158,7 @@ void cpu::cpu::RLC(uint8_t &data) {
 	data = (data << 1) | (carry >> 7);
 	_registers.f.HALF_CARRY = 0;
 	_registers.f.SUBTRACT = 0;
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = (data == 0);
 }
 
 void cpu::cpu::RRC(uint8_t &data) {
@@ -159,7 +167,7 @@ void cpu::cpu::RRC(uint8_t &data) {
 	_registers.f.CARRY = carry;
 	_registers.f.HALF_CARRY = 0;
 	_registers.f.SUBTRACT = 0;
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = (data == 0);
 }
 
 void cpu::cpu::RL(uint8_t &data) {
@@ -167,7 +175,7 @@ void cpu::cpu::RL(uint8_t &data) {
 	data = (data << 1) | static_cast<uint8_t>(_registers.f.CARRY);
 	_registers.f.zeroAll();
 	_registers.f.CARRY = carry;
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = (data == 0);
 }
 
 void cpu::cpu::RR(uint8_t &data) {
@@ -175,7 +183,7 @@ void cpu::cpu::RR(uint8_t &data) {
 	data = (data >> 1) | _registers.f.CARRY << 7;
 	_registers.f.zeroAll();
 	_registers.f.CARRY = carry;
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = (data == 0);
 }
 
 void cpu::cpu::RLCA() {
@@ -208,31 +216,26 @@ void cpu::cpu::RRA() {
 	_registers.f.CARRY = carry;
 }
 
-void cpu::cpu::DAA()
-{
-	uint16_t result = _registers.a;
-	if (_registers.f.SUBTRACT) {
-		uint8_t adjustment = 0;
-		adjustment += _registers.f.HALF_CARRY * 0x6 + _registers.f.CARRY * 0x60;
-		result -= adjustment;
+void cpu::cpu::DAA() {
+	uint16_t a = _registers.a;
 
-	}
-	else {
-		uint8_t adjustment = 0;
-		adjustment += _registers.f.HALF_CARRY * 0x6 + _registers.f.CARRY * 0x60;
-		result += adjustment;
+	if (!_registers.f.SUBTRACT) { // after an addition
+		if (_registers.f.CARRY || a > 0x99) { a += 0x60; _registers.f.CARRY = true; }
+		if (_registers.f.HALF_CARRY || (a & 0x0F) > 0x09) { a += 0x06; }
+	} else { // after a subtraction
+		if (_registers.f.CARRY) { a -= 0x60; }
+		if (_registers.f.HALF_CARRY) { a -= 0x06; }
 	}
 
-	_registers.f.ZERO = result;
-	_registers.f.CARRY = result & 0x100;
-	_registers.f.by_mnemonic.H = false;
+	_registers.a = static_cast<uint8_t>(a);
+	_registers.f.ZERO = (_registers.a == 0);
+	_registers.f.HALF_CARRY = false;
 }
 
-void cpu::cpu::CPL()
-{
+void cpu::cpu::CPL() {
 	_registers.a = ~_registers.a;
-	_registers.f.by_mnemonic.N = 0;
-	_registers.f.by_mnemonic.H = 0;
+	_registers.f.SUBTRACT = true;
+	_registers.f.HALF_CARRY = true;
 }
 
 void cpu::cpu::SCF()
@@ -256,7 +259,7 @@ void cpu::cpu::SLA(uint8_t &data) {
 	data = (data & 0x01) | (data << 1);
 	_registers.f.zeroAll();
 	_registers.f.CARRY = carry;
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = (data == 0);
 }
 
 void cpu::cpu::SRA(uint8_t &data) {
@@ -264,7 +267,7 @@ void cpu::cpu::SRA(uint8_t &data) {
 	data = (data & 0x80) | (data >> 1);
 	_registers.f.zeroAll();
 	_registers.f.CARRY = carry;
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = (data == 0);
 }
 
 void cpu::cpu::SWAP(uint8_t &data) {
@@ -272,7 +275,7 @@ void cpu::cpu::SWAP(uint8_t &data) {
 	const uint8_t lower = (data & 0xf) << 4;
 	data = lower | upper;
 	_registers.f.zeroAll();
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = (data == 0);
 }
 
 void cpu::cpu::SRL(uint8_t &data) {
@@ -280,7 +283,7 @@ void cpu::cpu::SRL(uint8_t &data) {
 	data = data >> 1;
 	_registers.f.zeroAll();
 	_registers.f.CARRY = carry;
-	_registers.f.ZERO = data;
+	_registers.f.ZERO = data == 0;
 }
 
 void cpu::cpu::BIT(uint8_t y, uint8_t operand) {
@@ -324,15 +327,15 @@ void cpu::cpu::LD_HL_SP_i8(const int8_t i) {
 
 
 void cpu::cpu::LD_mem(uint16_t addr, const uint8_t src) {
-	_mmu.write(addr, src);
+	_mmu->write(addr, src);
 }
 
 void cpu::cpu::LD_nn_SP(uint16_t address) {
 	const auto pair = utils::split16Bit(_registers.sp);
 	const auto lower = pair.first;
 	const auto upper = pair.second;
-	_mmu.write(address++, lower);
-	_mmu.write(address, upper);
+	_mmu->write(address++, lower);
+	_mmu->write(address, upper);
 }
 
 void cpu::cpu::LD_16bit_reg_NN(uint16_t &regref, uint16_t value) {
@@ -354,8 +357,8 @@ void cpu::cpu::CALL(const uint16_t address) {
 	const auto pair = utils::split16Bit(_registers.pc);
 	const auto lower = pair.first;
 	const auto upper = pair.second;
-	_mmu.write(--_registers.sp, upper);
-	_mmu.write(--_registers.sp, lower);
+	_mmu->write(--_registers.sp, upper);
+	_mmu->write(--_registers.sp, lower);
 	_registers.pc = address;
 }
 
@@ -364,8 +367,8 @@ void cpu::cpu::RET() {
 }
 
 void cpu::cpu::POP(uint16_t &regref) {
-	const auto lower = _mmu.read(_registers.sp++);
-	const auto upper = _mmu.read(_registers.sp++);
+	const auto lower = _mmu->read(_registers.sp++);
+	const auto upper = _mmu->read(_registers.sp++);
 	regref = utils::uint16_little_endian(lower,upper);
 }
 
@@ -382,6 +385,6 @@ void cpu::cpu::PUSH(uint16_t &val) {
 	const auto pair = utils::split16Bit(val);
 	const auto lower = pair.first;
 	const auto upper = pair.second;
-	_mmu.write(--_registers.sp, upper);
-	_mmu.write(--_registers.sp, lower);
+	_mmu->write(--_registers.sp, upper);
+	_mmu->write(--_registers.sp, lower);
 }
