@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 #include <string>
 namespace cpu {
-    static constexpr std::array<std::string, 256> opcode_names = {
+    const std::array<std::string, 256> opcode_names = {
         "NOP",
         "LD BC,nn",
         "LD (BC),A",
@@ -309,8 +309,7 @@ namespace cpu {
         "CP n",
         "RST 0x38"
     };
-
-    static constexpr std::array<std::string, 256> opcode_cb_names = {
+    const std::array<std::string, 256> opcode_cb_names = {
         "RLC B",
         "RLC C",
         "RLC D",

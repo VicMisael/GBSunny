@@ -16,8 +16,8 @@ add_library(CoreModule STATIC gb.cpp
         cartridge/cartridge.cc
         cartridge/cartridge.h
         cartridge/boot_rom.h
-        timer/timer.cpp
-        timer/timer.h
+        timer/gb_timer.cpp
+        timer/gb_timer.h
         spu/spu.cpp
         spu/spu.h
         cpu/register_types.h

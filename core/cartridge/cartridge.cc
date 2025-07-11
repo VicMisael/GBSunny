@@ -42,7 +42,7 @@ std::shared_ptr<Cartridge> instance_cartridge(const std::vector<uint8_t> &rom_da
         case CartridgeType::ROMOnly:
             return std::make_shared<NoMBC>(rom_data, std::move(info));
         case CartridgeType::MBC1:
-            throw std::runtime_error("MBC1 not implemented");
+            return std::make_shared<MBC1>(rom_data, std::move(info));
         case CartridgeType::MBC2:
             throw std::runtime_error("MBC2 not implemented");
         case CartridgeType::MBC3:
@@ -69,8 +69,9 @@ Cartridge::Cartridge(std::vector<uint8_t> rom_data,std::unique_ptr<CartridgeInfo
 
 std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path) {
     std::vector<uint8_t> ram = {};
-    return instance_cartridge(utils::read_file(path));
-
+    const auto file = utils::read_file(path);
+    auto cartridge = instance_cartridge(file);
+    return cartridge;
 }
 
 
@@ -79,7 +80,7 @@ NoMBC::NoMBC(std::vector<uint8_t> rom_data,
     : Cartridge(std::move(rom_data), std::move(in_cartridge_info)) {
 }
 
-void NoMBC::write_sram(uint16_t addr)
+void NoMBC::write_sram(uint16_t addr,uint8_t value)
 {
 
 }
@@ -95,4 +96,67 @@ auto NoMBC::read(const uint16_t &addr) const -> uint8_t {
 uint8_t NoMBC::read_sram(uint16_t addr) const
 {
     return 0;
+}
+
+
+
+MBC1::MBC1(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info)
+    : Cartridge(std::move(rom_data), std::move(in_cartridge_info)) {
+    const uint32_t ram_size_bytes = get_actual_ram_size(cartridge_info->ram_size);
+    ram.resize(ram_size_bytes);
+    current_rom_bank = 1;
+}
+
+void MBC1::write(const uint16_t& address, uint8_t value) {
+    if (address <= 0x1FFF) {
+        ram_enabled = (value & 0x0F) == 0x0A;
+    }
+    else if (address <= 0x3FFF) {
+        uint8_t lower5 = value & 0x1F;
+        if (lower5 == 0) lower5 = 1;
+        current_rom_bank = (current_rom_bank & 0xE0) | lower5;
+        current_rom_bank %= rom.size() / 0x4000;
+        if (current_rom_bank == 0) current_rom_bank = 1;
+    }
+    else if (address <= 0x5FFF) {
+        if (rom_banking_mode) {
+            current_rom_bank = (current_rom_bank & 0x1F) | ((value & 0x03) << 5);
+            current_rom_bank %= rom.size() / 0x4000;
+            if (current_rom_bank == 0) current_rom_bank = 1;
+        }
+        else {
+            current_ram_bank = value & 0x03;
+        }
+    }
+    else if (address <= 0x7FFF) {
+        rom_banking_mode = (value & 0x01) == 1;
+    }
+}
+
+uint8_t MBC1::read(const uint16_t& address) const {
+    if (address <= 0x3FFF) {
+        return rom[address];
+    }
+    else if (address <= 0x7FFF) {
+        uint32_t mapped_addr = (current_rom_bank * 0x4000) + (address - 0x4000);
+        if (mapped_addr < rom.size()) return rom[mapped_addr];
+    }
+    return 0xFF;
+}
+
+void MBC1::write_sram(uint16_t addr, uint8_t value) {
+    if (!ram_enabled || addr < 0xA000 || addr > 0xBFFF) return;
+    uint32_t mapped_addr = (current_ram_bank * 0x2000) + (addr - 0xA000);
+    if (mapped_addr < ram.size()) {
+        ram[mapped_addr] = value;
+    }
+}
+
+uint8_t MBC1::read_sram(uint16_t addr) const {
+    if (!ram_enabled || addr < 0xA000 || addr > 0xBFFF) return 0xFF;
+    uint32_t mapped_addr = (current_ram_bank * 0x2000) + (addr - 0xA000);
+    if (mapped_addr < ram.size()) {
+        return ram[mapped_addr];
+    }
+    return 0xFF;
 }

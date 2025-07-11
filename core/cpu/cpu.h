@@ -11,7 +11,7 @@
 #include <array>
 #include <stdexcept>
 #include <utility>
-
+#include <fstream> 
 
 namespace cpu {
 
@@ -34,19 +34,22 @@ namespace cpu {
 	};
 
 	class cpu {
-		mmu::MMU _mmu;
+		std::shared_ptr<mmu::MMU> _mmu;
 		register_file _registers;
 		std::shared_ptr<shared::interrupt> interrupt_control; //Shared space for interrupts
 
 		
 		//Execution State
 		bool ime = false;
+		bool shouldEnableIme = false;
 		bool halted = false;
 
+		//All of the methods change the state of this object
 		//Divide the execution of instructions by Blocks set by the 
 		void block0(const decoded_instruction &result, bool &branch_taken);
 		void block1(const decoded_instruction& result);
 		void block2(const decoded_instruction& result);
+		void cb_prefixed();
 		void block3(decoded_instruction &result, bool &branch_taken);
 
 		void JP_16(uint16_t uint16);
@@ -73,8 +76,6 @@ namespace cpu {
 		void INC_HL_8bit();
 
 		void DEC_8bit(uint8_t& data);
-		void INC_HLAddress();
-		void DEC_HLAddress();
 
 		static void INC_16bit(uint16_t& data);
 
@@ -87,7 +88,6 @@ namespace cpu {
 		void RL(uint8_t& data);
 		void RR(uint8_t& data);
 
-		//0x8 group
 		void RLCA();
 		void RRCA();
 		void RLA();
@@ -148,6 +148,7 @@ namespace cpu {
 			&cpu::RRA,
 			&cpu::DAA,
 			&cpu::CPL,
+			&cpu::SCF,
 			&cpu::CCF,
 		};
 
@@ -187,7 +188,7 @@ namespace cpu {
 		 		case 3: return _registers.e;
 		 		case 4: return _registers.h;
 		 		case 5: return _registers.l;
-		 		case 6: return _mmu.read(_registers.hl); // Be careful when using this
+		 		case 6: return _mmu->read(_registers.hl); // Be careful when using this
 		 		case 7: return _registers.a;
 		 		default: throw std::out_of_range("Invalid register index");
 		 	}
@@ -233,11 +234,25 @@ namespace cpu {
 		};
 
 		[[nodiscard]] bool waiting_interrupt() const;
-		void handle_interrupt(uint32_t&);
+		uint32_t handle_interrupt();
+
+#pragma region debugging
+		uint32_t current_pc=0;
+		void gb_doctor_print(std::ostream& out_stream);
+		std::ofstream log_file;
+#pragma endregion
+
 
 	public:
-		explicit cpu(mmu::MMU  mmu):_mmu(std::move(mmu)) {}
-		void step(uint32_t &spent_cycles);
+		explicit cpu(const std::shared_ptr<mmu::MMU> &mmu, const std::shared_ptr<shared::interrupt>  interrupt_control):_mmu(mmu),interrupt_control(interrupt_control) {
+			log_file = std::ofstream("emulator_log.txt");
+			if (!log_file.is_open()) {
+				std::cerr << "Failed to open log file!" << std::endl;
+			}
+
+		}
+		void reset();
+		uint32_t step();
 
 
 	};

@@ -19,7 +19,7 @@ namespace  utils {
     }
 
     constexpr uint16_t uint16_little_endian(const uint8_t& LSB, const uint8_t& MSB) {
-        return (static_cast<uint16_t>(LSB) << 8) | static_cast<uint16_t>(MSB);
+        return (static_cast<uint16_t>(LSB)) | static_cast<uint16_t>(MSB)<<8;
     };
 
     constexpr bool in_range(uint16_t lower, uint16_t upper,uint16_t value)

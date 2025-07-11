@@ -9,25 +9,26 @@
 
 #include "cartridge/cartridge.h"
 #include "ppu/ppu.h"
-#include "timer/timer.h"
+#include "spu/spu.h"
+#include "timer/gb_timer.h"
 #include "shared/interrupt.h"
 
-class spu;
+
 
 namespace mmu {
     class MMU {
 
-        static uint8_t internal_RAM[4096];
-        static uint8_t internal_RAM2[4096] ; // CGB
-        static uint8_t HRAM[0x80];
+        uint8_t internal_RAM[4096];
+        uint8_t internal_RAM2[4096] ; // CGB
+        uint8_t HRAM[128];
 
-        uint8_t temp = 0;
 
-        uint8_t bootRomControl = 0x0;
+
+        uint8_t bootRomControl = 1;
 
         std::shared_ptr<PPU> _ppu;
-        std::shared_ptr<timer> _timer;
-        std::shared_ptr<Cartridge> cartridge;
+        std::shared_ptr<gb_timer> _timer;
+        std::shared_ptr<Cartridge> _cartridge;
         std::shared_ptr<spu> _spu;
         std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
 
@@ -41,11 +42,25 @@ namespace mmu {
         [[nodiscard]] uint8_t io_read(uint16_t addr) const;
         void io_write(uint16_t addr, uint8_t data);
 
-        [[nodiscard]] bool boot_rom_enabled() const;
+
+        uint8_t serial_data = 0x00;     // 0xFF01 (SB)
+        uint8_t serial_control = 0x00;  // 0xFF02 (SC)
 
     public:
-        MMU(const std::shared_ptr<Cartridge> &cartridge, const std::shared_ptr<PPU> ppu): _ppu(ppu), cartridge(cartridge) {
-        };
+        MMU(const std::shared_ptr<Cartridge>& cart,
+            const std::shared_ptr<PPU>& ppu_ptr,
+            const std::shared_ptr<gb_timer>& timer_ptr,
+            const std::shared_ptr<shared::interrupt>& interrupt_ptr,
+            const std::shared_ptr<spu>& spu_ptr
+        ) : _ppu(ppu_ptr), _cartridge(cart), _timer(timer_ptr),
+            interrupt(interrupt_ptr),
+            _spu(spu_ptr) {
+            // Constructor body can be empty if all initialization is done in the list.
+            std::fill(std::begin(internal_RAM), std::end(internal_RAM), 0);
+            std::fill(std::begin(internal_RAM2), std::end(internal_RAM2), 0);
+            std::fill(std::begin(HRAM), std::end(HRAM), 0);
+        }
+        [[nodiscard]] bool boot_rom_enabled() const;
 
         void reset();
 

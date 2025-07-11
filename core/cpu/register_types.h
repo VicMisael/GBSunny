@@ -32,9 +32,13 @@ namespace cpu
             f=input;
             return *this;
         }
-        void zeroAll() {
-            this->f = 0;
+        void zero_unused_nibble() {
+            this->f &= 0xf0;
         };
+
+        void reset_all_flags() {
+            this->f &= 0x0f;
+        }
     };
 }
 #endif //REGISTER_TYPES_H
