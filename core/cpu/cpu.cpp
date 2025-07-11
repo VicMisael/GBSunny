@@ -346,9 +346,9 @@ void cpu::cpu::block3(decoded_instruction &result, bool &branch_taken) {
                 case 1:
                 case 2:
                 case 3: {
+                    const auto lower = _mmu->read(_registers.pc++);
+                    const auto upper = _mmu->read(_registers.pc++);
                     if (readflag_tbl(result.y)) {
-                        const auto lower = _mmu->read(_registers.pc++);
-                        const auto upper = _mmu->read(_registers.pc++);
                         JP_16(utils::uint16_little_endian(lower, upper));
                     }
                     break;
@@ -479,15 +479,13 @@ uint32_t cpu::cpu::step() {
         std::cout << std::dec << std::nouppercase << std::setfill(' ') << "--------------------" << std::endl;
     }
 
-    gb_doctor_print(this->log_file);
+    //gb_doctor_print(this->log_file);
     //
     bool branchTaken = false;
     //Execute
     //https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
 
-    //if (current_pc == 0x220) {
-    //    std::cout << "A";
-    //}
+
     switch (instruction.x) {
         case 0: {
             block0(instruction, branchTaken);

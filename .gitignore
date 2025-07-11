@@ -3,3 +3,10 @@
 /.vs/
 /out/
 /build/
+/out/
+/vcpkg_installed/
+/cmake-build-debug-wsl/
+/cmake-build-minsizerel-wsl/
+/cmake-build-release-wsl/
+/cmake-build-release-wsl-1/
+/cmake-build-relwithdebinfo-wsl/

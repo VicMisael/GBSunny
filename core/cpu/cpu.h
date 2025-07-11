@@ -210,16 +210,15 @@ namespace cpu {
 
 
 
-		constexpr bool readflag_tbl(uint8_t id) {
+		 bool readflag_tbl(uint8_t id) {
 			//Should crash on wrong lookup
-			const bool flagLookup[4] = {
-				!_registers.f.ZERO,  // id = NZ
-				_registers.f.ZERO,   // id = Z
-				!_registers.f.CARRY, // id = NC
-				_registers.f.CARRY   // id = C
-			};
-
-			return flagLookup[id]; // Adjust index for 0-based array
+			 switch (id) {
+			 case 0:return !_registers.f.ZERO;
+			 case 1:return _registers.f.ZERO;
+			 case 2:return !_registers.f.CARRY;
+			 case 3:return _registers.f.CARRY;
+			 };
+			 std::cout << "ERROR";
 		}
 
 		constexpr uint16_t r16mem(uint16_t index) {

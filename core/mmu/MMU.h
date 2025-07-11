@@ -24,7 +24,7 @@ namespace mmu {
 
 
 
-        uint8_t bootRomControl = 1;
+        uint8_t bootRomControl = 0;
 
         std::shared_ptr<PPU> _ppu;
         std::shared_ptr<gb_timer> _timer;

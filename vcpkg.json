@@ -1,6 +1,6 @@
 {
   "dependencies": [
-    "sdl2"
+    "raylib"
   ],
   "version": "0.0.1",
   "name": "gbsunny",
