@@ -1,33 +1,9 @@
 
 
-//#include <iostream>
-//#include <chrono>
-//#include <thread>
-//#include "gb.h"
-
-//const int SCREEN_WIDTH = 160;
-//const int SCREEN_HEIGHT = 144;
-
-//int main(int argc, char* argv[]) {
-//    // --- SDL Initialization ---
-//         gb gameboy("D:\\Emulation\\bgb\\cpu_instrs.gb");
-//         int i = 0;
-//   while (i<6) {
-
-//        gameboy.run_one_frame();
-//        i++;
-//    }
-//    return 0;
-//}
-
-
-
-
-#include <iostream>
 #include <chrono>
-#include <thread>
+#include <cstring>
+#include <SDL2/SDL.h>
 #include "gb.h"
-#include "raylib.h" // Include the main SDL header
 
 // Define screen dimensions for clarity
 const int SCREEN_WIDTH = 160;
@@ -36,74 +12,83 @@ const int SCREEN_SCALE = 4; // Scale up the window for better visibility
 
 int main(int argc, char* argv[]) {
 
+    gb gameboy("/media/visael/B012CD5112CD1CEA/Emulation/bgb/Motocross Maniacs (USA).gb");
 
-    // gb gameboy("D:\\Emulation\\bgb\\cpu_instrs\\individual\\09-op r,r.gb");
-    ////gb gameboy("/home/visael/gp/tetris.gb");
-    //int i = 0;
-    //int frames = 0;
-    //while (i < 13196) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
+        std::cerr << "Erro ao iniciar SDL: " << SDL_GetError() << std::endl;
+        return 1;
+    }
 
-    //	gameboy.run_one_frame();
-    //	frames++;
-    //	i++;
-    //}
+    SDL_Window* window = SDL_CreateWindow(
+        "GBsunny Emulator",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE,
+        SDL_WINDOW_SHOWN
+    );
 
+    if (!window) {
+        std::cerr << "Erro ao criar janela SDL: " << SDL_GetError() << std::endl;
+        SDL_Quit();
+        return 1;
+    }
 
-    //return 0;
-    // --- SDL Initialization ---
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        std::cerr << "Erro ao criar renderer SDL: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
 
-    InitWindow(SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE, "GBsunny Emulator");
-    //SetTargetFPS(60);
+    SDL_Texture* texture = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT
+    );
 
-    // Create a Raylib Image to hold our pixel data.
-    // This only needs to be created once.
-    // The format RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 matches our rgba struct.
-    Image gb_screen = GenImageColor(SCREEN_WIDTH, SCREEN_HEIGHT, BLANK);
-    // Create a texture that we can update each frame.
-    Texture2D gb_texture = LoadTextureFromImage(gb_screen);
-    UnloadImage(gb_screen); // The image data is now in the texture, so we can unload it
+    if (!texture) {
+        std::cerr << "Erro ao criar textura SDL: " << SDL_GetError() << std::endl;
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
 
     try {
-        // Create an instance of the emulator, providing a path to a ROM.
-        // You must replace "path/to/your/rom.gb" with a valid path.
-        gb gameboy("D:\\Emulation\\bgb\\bgbtest.gb");
-        // The main application loop.
-        while (!WindowShouldClose()) {
-            // 1. Run the emulator for one full frame's worth of cycles.
-            gameboy.run_one_frame();
 
-            // 2. Get the resulting framebuffer from the emulator.
+        bool running = true;
+        SDL_Event event;
+
+        while (running) {
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT) {
+                    running = false;
+                }
+            }
+
+            gameboy.run_one_frame();
             const auto& framebuffer = gameboy.get_framebuffer();
 
-            // 3. Update the Raylib Texture data with the emulator's framebuffer.
-            //    The UpdateTexture function expects a `const void*`, so we can pass a pointer
-            //    to the start of our rgba array.
-            UpdateTexture(gb_texture, framebuffer.data());
+            void* pixels;
+            int pitch;
+            SDL_LockTexture(texture, nullptr, &pixels, &pitch);
+            std::memcpy(pixels, framebuffer.data(), framebuffer.size() * sizeof(ppu_types::rgba));
+            SDL_UnlockTexture(texture);
 
-            // --- Drawing ---
-            BeginDrawing();
-            ClearBackground(BLACK);
-
-            // Draw the texture, scaled up to fill the window.
-            DrawTextureEx(
-                gb_texture,
-                { 0, 0 },      // Position (top-left corner)
-                0.0f,        // Rotation
-                SCREEN_SCALE, // Scale
-                WHITE        // Tint
-            );
-
-            EndDrawing();
+            SDL_RenderClear(renderer);
+            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+            SDL_RenderPresent(renderer);
         }
-    }
-    catch (const std::exception& e) {
-        std::cerr << "An emulator error occurred: " << e.what() << std::endl;
-        // The cleanup below will still run.
+    } catch (const std::exception& e) {
+        std::cerr << "Erro na emulação: " << e.what() << std::endl;
     }
 
-    // --- Cleanup ---
-    UnloadTexture(gb_texture);
-    CloseWindow();
+    SDL_DestroyTexture(texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 
     return 0;
 }
