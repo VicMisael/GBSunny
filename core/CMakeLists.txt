@@ -15,6 +15,9 @@ add_library(CoreModule STATIC gb.cpp
         cartridge/cartridge_info.cc
         cartridge/cartridge.cc
         cartridge/cartridge.h
+        cartridge/modes/mbc1.cpp
+        cartridge/modes/mbc2.cpp
+        cartridge/modes/mbc3.cpp
         cartridge/boot_rom.h
         timer/gb_timer.cpp
         timer/gb_timer.h
@@ -24,7 +27,7 @@ add_library(CoreModule STATIC gb.cpp
         shared/types.h
         shared/interrupt.h
         shared/interrupt.cpp
-)
+  )
 
 
 target_include_directories(CoreModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

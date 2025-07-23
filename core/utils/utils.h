@@ -24,6 +24,7 @@ namespace  utils {
 
     constexpr bool in_range(uint16_t lower, uint16_t upper,uint16_t value)
     {
+        //[lower,upper](inclusive)
         return lower <= value && value <= upper;
     }
 

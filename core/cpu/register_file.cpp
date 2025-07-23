@@ -18,5 +18,5 @@ void cpu::register_file::reset() {
 	this->h = 0x01;
 	this->l = 0x4D;
 	this->sp = 0xFFFE;
-	this->pc = 0;
+	this->pc = 0x0;
 }

@@ -27,6 +27,8 @@ void gb::reset() {
 
 
 void gb::run_one_frame() {
+  //const int CYCLES_PER_FRAME = 69905;
+  
   const int CYCLES_PER_FRAME = 69905;
   int cycles_this_frame = 0;
 
@@ -48,3 +50,4 @@ void gb::run_one_frame() {
 const std::array<ppu_types::rgba, 160 * 144>& gb::get_framebuffer() const{
   return _ppu->get_framebuffer();
 }
+

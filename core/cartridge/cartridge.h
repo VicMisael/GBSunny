@@ -34,11 +34,12 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <span>
+#include <array>
 
 class Cartridge {
 public:
-    Cartridge(std::vector<uint8_t> rom_data,
-              std::unique_ptr<CartridgeInfo> cartridge_info);
+    Cartridge(std::unique_ptr<CartridgeInfo> cartridge_info);
 
     virtual ~Cartridge() = default;
 
@@ -51,8 +52,6 @@ public:
     static std::shared_ptr<Cartridge> get_cartridge(const std::string &path);
 
 protected:
-    std::vector<uint8_t> rom;
-    std::vector<uint8_t> ram;
 
     std::unique_ptr<CartridgeInfo> cartridge_info;
 };
@@ -69,7 +68,13 @@ public:
 
     void write_sram(uint16_t addr,uint8_t value) override;
     void write(const uint16_t &address, uint8_t value) override;
+private:
+    std::vector<uint8_t> rom;
+    std::vector<uint8_t> ram;
+
 };
+
+
 
 
 
@@ -85,8 +90,57 @@ public:
     void write_sram(uint16_t addr, uint8_t value) override;
 
 private:
+    std::vector<uint8_t> rom;
+    std::vector<uint8_t> ram;
+
     uint8_t current_rom_bank = 1;
     uint8_t current_ram_bank = 0;
     bool ram_enabled = false;
     bool rom_banking_mode = true; // true = ROM banking, false = RAM banking
 };
+
+
+class MBC2 : public Cartridge {
+public:
+    MBC2(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info);
+
+    // Updated to match Cartridge base class signature exactly
+    [[nodiscard]] uint8_t read(const uint16_t& address) const override;
+    void write(const uint16_t& address, uint8_t value) override;
+
+    [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
+    void write_sram(uint16_t addr, uint8_t value) override;
+
+
+
+private:
+    std::vector<uint8_t> rom;
+    std::array <uint8_t,512> ram;
+
+    //State
+    bool ram_enabled=false;
+    uint8_t current_bank=1;
+};
+
+class MBC3 : public Cartridge {
+public:
+    MBC3(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info);
+
+    // Updated to match Cartridge base class signature exactly
+    [[nodiscard]] uint8_t read(const uint16_t& address) const override;
+    void write(const uint16_t& address, uint8_t value) override;
+
+    [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
+    void write_sram(uint16_t addr, uint8_t value) override;
+
+
+
+private:
+    std::vector<uint8_t> rom;
+    std::array <uint8_t, 512> ram;
+
+    //State
+    bool ram_enabled = false;
+    uint8_t current_bank = 1;
+};
+

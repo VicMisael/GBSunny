@@ -1,94 +1,58 @@
-
-
-#include <chrono>
-#include <cstring>
-#include <SDL2/SDL.h>
+#include "raylib.h"
 #include "gb.h"
+#include <iostream>
+#include <chrono>
+#include <thread>
 
-// Define screen dimensions for clarity
+// Define screen dimensions
 const int SCREEN_WIDTH = 160;
 const int SCREEN_HEIGHT = 144;
-const int SCREEN_SCALE = 4; // Scale up the window for better visibility
+const int SCREEN_SCALE = 4; // Scale up the window
 
 int main(int argc, char* argv[]) {
 
-    gb gameboy("/media/visael/B012CD5112CD1CEA/Emulation/bgb/Motocross Maniacs (USA).gb");
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-        std::cerr << "Erro ao iniciar SDL: " << SDL_GetError() << std::endl;
-        return 1;
+    //if (argc < 2) {
+    //    std::cerr << "Error: Please provide a path to the ROM file." << std::endl;
+    //    std::cerr << "Usage: " << argv[0] << " <path_to_rom>" << std::endl;
+    //    
+    //    return 1; // Return an error code
+    //}
+    std::string path_arg(argv[1]);
+    std::cout << path_arg << std::endl;;
+    // Pass the first command-line argument (the path) to the constructor
+    gb gameboy("D:\\Emulation\\bgb\\02-interrupts.gb");
+    while (true) {
+        gameboy.run_one_frame();
+    }
+    // Inicializar janela
+    InitWindow(SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE, "GBsunny Emulator");
+    //SetTargetFPS(60);  // Target frame rate
+
+    // Criar textura da Raylib
+    Image image = GenImageColor(SCREEN_WIDTH, SCREEN_HEIGHT, BLACK);
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image); 
+
+    while (!WindowShouldClose()) {
+        gameboy.run_one_frame();
+        const auto& framebuffer = gameboy.get_framebuffer();
+
+        // Atualizar textura com o framebuffer
+        UpdateTexture(texture, framebuffer.data());
+
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        // Desenha a textura em escala
+        DrawTextureEx(texture, { 0, 0 }, 0.0f, SCREEN_SCALE, WHITE);
+
+        EndDrawing();
     }
 
-    SDL_Window* window = SDL_CreateWindow(
-        "GBsunny Emulator",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE,
-        SDL_WINDOW_SHOWN
-    );
-
-    if (!window) {
-        std::cerr << "Erro ao criar janela SDL: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return 1;
-    }
-
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (!renderer) {
-        std::cerr << "Erro ao criar renderer SDL: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
-
-    SDL_Texture* texture = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        SCREEN_WIDTH,
-        SCREEN_HEIGHT
-    );
-
-    if (!texture) {
-        std::cerr << "Erro ao criar textura SDL: " << SDL_GetError() << std::endl;
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
-
-    try {
-
-        bool running = true;
-        SDL_Event event;
-
-        while (running) {
-            while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_QUIT) {
-                    running = false;
-                }
-            }
-
-            gameboy.run_one_frame();
-            const auto& framebuffer = gameboy.get_framebuffer();
-
-            void* pixels;
-            int pitch;
-            SDL_LockTexture(texture, nullptr, &pixels, &pitch);
-            std::memcpy(pixels, framebuffer.data(), framebuffer.size() * sizeof(ppu_types::rgba));
-            SDL_UnlockTexture(texture);
-
-            SDL_RenderClear(renderer);
-            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-            SDL_RenderPresent(renderer);
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Erro na emulação: " << e.what() << std::endl;
-    }
-
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    // Cleanup
+    UnloadTexture(texture);
+    CloseWindow();
 
     return 0;
 }

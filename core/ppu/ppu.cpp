@@ -260,7 +260,7 @@ void PPU::render_sprites() {
     }
 
     std::sort(visible_sprites.begin(), visible_sprites.end(), [](const auto& a, const auto& b) {
-        if (a.x != b.x) return a.x < b.x;
+        if (a.x != b.x) return a.x >= b.x;
         return &a < &b; // Stable sort for sprites with same X
     });
 
@@ -317,7 +317,7 @@ uint8_t PPU::read_control(uint16_t addr) const {
         case 0xFF41: return stat.read();
         case 0xFF42: return scy;
         case 0xFF43: return scx;
-        case 0xFF44: return ly;
+        case 0xFF44: return 0x90; return ly;
         case 0xFF45: return lyc;
         case 0xFF47: return bgp;
         case 0xFF48: return obp0;

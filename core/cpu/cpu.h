@@ -43,6 +43,7 @@ namespace cpu {
 		bool ime = false;
 		bool shouldEnableIme = false;
 		bool halted = false;
+		bool halt_bug = false;
 
 		//All of the methods change the state of this object
 		//Divide the execution of instructions by Blocks set by the 
@@ -180,7 +181,7 @@ namespace cpu {
 			}
 		}
 
-		 uint8_t reg_readonly(int index) const {
+		inline uint8_t reg_readonly(int index) const {
 		 	switch (index) {
 		 		case 0: return _registers.b;
 		 		case 1: return _registers.c;
@@ -210,15 +211,17 @@ namespace cpu {
 
 
 
-		 bool readflag_tbl(uint8_t id) {
+		 bool readflag_tbl(uint8_t id) const {
 			//Should crash on wrong lookup
 			 switch (id) {
 			 case 0:return !_registers.f.ZERO;
 			 case 1:return _registers.f.ZERO;
 			 case 2:return !_registers.f.CARRY;
 			 case 3:return _registers.f.CARRY;
+				 default: ;
 			 };
 			 std::cout << "ERROR";
+		 	return false;
 		}
 
 		constexpr uint16_t r16mem(uint16_t index) {
@@ -235,19 +238,18 @@ namespace cpu {
 		[[nodiscard]] bool waiting_interrupt() const;
 		uint32_t handle_interrupt();
 
-#pragma region debugging
-		uint32_t current_pc=0;
-		void gb_doctor_print(std::ostream& out_stream);
-		std::ofstream log_file;
-#pragma endregion
+//#pragma region debugging
+		void gb_doctor_print(std::ostream& out_stream) const;
+//		std::ofstream log_file;
+//#pragma endregion
 
 
 	public:
 		explicit cpu(const std::shared_ptr<mmu::MMU> &mmu, const std::shared_ptr<shared::interrupt>  interrupt_control):_mmu(mmu),interrupt_control(interrupt_control) {
-			log_file = std::ofstream("emulator_log.txt");
-			if (!log_file.is_open()) {
-				std::cerr << "Failed to open log file!" << std::endl;
-			}
+			//log_file = std::ofstream("emulator_log.txt");
+			//if (!log_file.is_open()) {
+			//	std::cerr << "Failed to open log file!" << std::endl;
+			//}
 
 		}
 		void reset();
