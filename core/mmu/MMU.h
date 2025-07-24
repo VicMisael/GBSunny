@@ -8,10 +8,10 @@
 #include <memory>
 
 #include "cartridge/cartridge.h"
-#include "ppu/ppu.h"
 #include "spu/spu.h"
 #include "timer/gb_timer.h"
 #include "shared/interrupt.h"
+#include <ppu/ppu_base.h>
 
 
 
@@ -26,7 +26,7 @@ namespace mmu {
 
         uint8_t bootRomControl = 0;
 
-        std::shared_ptr<PPU> _ppu;
+        std::shared_ptr<PPU_Base> _ppu;
         std::shared_ptr<gb_timer> _timer;
         std::shared_ptr<Cartridge> _cartridge;
         std::shared_ptr<spu> _spu;
@@ -50,7 +50,7 @@ namespace mmu {
 
     public:
         MMU(const std::shared_ptr<Cartridge>& cart,
-            const std::shared_ptr<PPU>& ppu_ptr,
+            const std::shared_ptr<PPU_Base>& ppu_ptr,
             const std::shared_ptr<gb_timer>& timer_ptr,
             const std::shared_ptr<shared::interrupt>& interrupt_ptr,
             const std::shared_ptr<spu>& spu_ptr

@@ -1,13 +1,17 @@
+#include "gb.h"
+#include <ppu/scanline_ppu/ppu_scanline.h>
 //
 // Created by Misael on 07/03/2025.
 //
 
-#include "gb.h"
+void gb::init()
+{
+}
 gb::gb(const std::string &rompath) {
   _interrupt_controller = std::make_shared<shared::interrupt>();
 
   // 2. Create the other components, passing the necessary shared resources.
-  _ppu = std::make_shared<PPU>(_interrupt_controller);
+  _ppu = std::make_shared<PPU_scanline>(_interrupt_controller);
   _timer = std::make_shared<gb_timer>(_interrupt_controller);
 
   _spu = std::make_shared<spu>();
@@ -29,7 +33,7 @@ void gb::reset() {
 void gb::run_one_frame() {
   //const int CYCLES_PER_FRAME = 69905;
   
-  const int CYCLES_PER_FRAME = 69905;
+  const int CYCLES_PER_FRAME = 70224;
   int cycles_this_frame = 0;
 
   while (cycles_this_frame < CYCLES_PER_FRAME) {

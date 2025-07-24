@@ -6,7 +6,7 @@
  * =====================================================================================
  */
 
-#include "ppu.h"
+#include "ppu_scanline.h"
 #include <algorithm>
 #include <vector>
 
@@ -18,7 +18,7 @@ constexpr int SCANLINE_CYCLES = 456;
 constexpr int VBLANK_LINES = 10;
 constexpr int FRAME_LINES = 154;
 
-PPU::PPU(std::shared_ptr<shared::interrupt> interrupt_controller)
+PPU_scanline::PPU_scanline(std::shared_ptr<shared::interrupt> interrupt_controller)
     : interrupt_controller(std::move(interrupt_controller)),
       lcdc(0),
       colors{{
@@ -31,7 +31,7 @@ PPU::PPU(std::shared_ptr<shared::interrupt> interrupt_controller)
     reset();
 }
 
-void PPU::reset() {
+void PPU_scanline::reset() {
     lcdc.data = 0xf;
     stat.data = 0;
     scy = 0;
@@ -52,7 +52,7 @@ void PPU::reset() {
     std::fill(std::begin(oam), std::end(oam), 0xff);
 }
 
-void PPU::step(uint32_t cycles_to_run) {
+void PPU_scanline::step(uint32_t cycles_to_run) {
     if (!lcdc.bits.LCD_PPU_enable) {
         cycle_counter = 0;
         ly = 0;
@@ -71,6 +71,8 @@ void PPU::step(uint32_t cycles_to_run) {
         case ppu_types::OAM_SCAN:
             if (cycle_counter >= OAM_SCAN_CYCLES) {
                 cycle_counter -= OAM_SCAN_CYCLES;
+                sprite_buffer_index=0;
+                fill_oam_buffer();
                 set_mode(ppu_types::DRAWING);
             }
             break;
@@ -109,19 +111,19 @@ void PPU::step(uint32_t cycles_to_run) {
     }
 }
 
-void PPU::increment_ly() {
+void PPU_scanline::increment_ly() {
     ly++;
     check_lyc_coincidence();
 }
 
-void PPU::check_lyc_coincidence() {
+void PPU_scanline::check_lyc_coincidence() {
     stat.LYC_eq_LY = (ly == lyc);
     if (stat.LYC_eq_LY && stat.LYC_INT_SELECT) {
         interrupt_controller->flag.LCD = true;
     }
 }
 
-void PPU::set_mode(ppu_types::ppu_mode new_mode) {
+void PPU_scanline::set_mode(ppu_types::ppu_mode new_mode) {
     current_mode = new_mode;
     stat.ppu_mode = new_mode;
 
@@ -138,32 +140,32 @@ void PPU::set_mode(ppu_types::ppu_mode new_mode) {
     }
 }
 
-void PPU::start_dma_transfer() {
+void PPU_scanline::start_dma_transfer() {
     dma_cycles_remaining = 640;
 }
 
-bool PPU::is_dma_active() const {
+bool PPU_scanline::is_dma_active() const {
     return dma_cycles_remaining > 0;
 }
 
-bool PPU::is_vram_accessible() const {
+bool PPU_scanline::is_vram_accessible() const {
     return current_mode != ppu_types::DRAWING && dma_cycles_remaining == 0;
 }
 
-bool PPU::is_oam_accessible() const {
+bool PPU_scanline::is_oam_accessible() const {
     return current_mode != ppu_types::OAM_SCAN && current_mode != ppu_types::DRAWING;
 }
 
-const std::array<ppu_types::rgba, 160 * 144>& PPU::get_framebuffer() const {
+const std::array<ppu_types::rgba, 160 * 144>& PPU_scanline::get_framebuffer() const {
     return framebuffer;
 }
 
-ppu_types::rgba PPU::get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const {
+ppu_types::rgba PPU_scanline::get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const {
     int shade_index = (palette_reg >> (color_id * 2)) & 0b11;
     return colors[shade_index];
 }
 
-void PPU::render_scanline() {
+void PPU_scanline::render_scanline() {
     // This logic remains the same
     if (lcdc.bits.BG_window_enable) {
         render_background();
@@ -174,8 +176,8 @@ void PPU::render_scanline() {
     }
 }
 
-void PPU::render_background() {
-    uint16_t tile_data_area = lcdc.bits.BG_window_tiles ? 0x8000 : 0x8800;
+void PPU_scanline::render_background() {
+    uint16_t tile_data_area = lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800;
     uint16_t tile_map_area = lcdc.bits.BG_tile_map ? 0x9C00 : 0x9800;
     uint8_t y_in_map = scy + ly;
     uint8_t tile_row = y_in_map / 8;
@@ -188,7 +190,7 @@ void PPU::render_background() {
         uint8_t tile_id = vram[tile_map_addr - 0x8000];
 
         uint16_t tile_data_addr;
-        if (lcdc.bits.BG_window_tiles) {
+        if (lcdc.bits.BG_window_tiles_adressing) {
             tile_data_addr = tile_data_area + tile_id * 16;
         } else {
             tile_data_addr = tile_data_area + (static_cast<int8_t>(tile_id) + 128) * 16;
@@ -205,10 +207,10 @@ void PPU::render_background() {
     }
 }
 
-void PPU::render_window() {
+void PPU_scanline::render_window() {
     if (!lcdc.bits.window_enable || ly < wy) return;
 
-    uint16_t tile_data_area = lcdc.bits.BG_window_tiles ? 0x8000 : 0x8800;
+    uint16_t tile_data_area = lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800;
     uint16_t tile_map_area = lcdc.bits.window_tile_map_area ? 0x9C00 : 0x9800;
     uint8_t y_in_map = window_line_counter;
     uint8_t tile_row = y_in_map / 8;
@@ -223,7 +225,7 @@ void PPU::render_window() {
         uint8_t tile_id = vram[tile_map_addr - 0x8000];
 
         uint16_t tile_data_addr;
-        if (lcdc.bits.BG_window_tiles) {
+        if (lcdc.bits.BG_window_tiles_adressing) {
             tile_data_addr = tile_data_area + tile_id * 16;
         } else {
             tile_data_addr = tile_data_area + (static_cast<int8_t>(tile_id) + 128) * 16;
@@ -241,34 +243,37 @@ void PPU::render_window() {
     window_line_counter++;
 }
 
-void PPU::render_sprites() {
-    uint8_t sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
-    std::vector<ppu_types::OAM_Sprite> visible_sprites(11);
 
-    for (int i = 0; i < 40; ++i) {
-        if (visible_sprites.size() >= 10) break;
+void PPU_scanline::fill_oam_buffer()
+{
+    const auto spriteheight = lcdc.bits.OBJ_SIZE ? 16 : 8;
+    
+    for (const auto sprite : oam_sprites) {
 
-        ppu_types::OAM_Sprite sprite{};
-        sprite.y = oam[i * 4 + 0];
-        sprite.x = oam[i * 4 + 1];
-        sprite.tile_index = oam[i * 4 + 2];
-        sprite.flags = oam[i * 4 + 3];
-
-        if (sprite.x > 0 && (ly + 16) >= sprite.y && (ly + 10) < (sprite.y + sprite_height)) {
-            visible_sprites.push_back(sprite);
+        const auto ly_plus_16 = ly + 16;
+        if (sprite_buffer_index < 10 && sprite.x > 0 && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + spriteheight)) {
+           sprite_buffer[sprite_buffer_index++]=sprite;
         }
     }
+}
 
-    std::sort(visible_sprites.begin(), visible_sprites.end(), [](const auto& a, const auto& b) {
+
+void PPU_scanline::render_sprites() {
+    uint8_t sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
+
+
+    std::sort(sprite_buffer.begin(), sprite_buffer.begin()+sprite_buffer_index, [](const auto& a, const auto& b) {
         if (a.x != b.x) return a.x >= b.x;
         return &a < &b; // Stable sort for sprites with same X
     });
 
-    for (const auto& sprite : visible_sprites) {
-        uint8_t palette_reg = (sprite.flags & (1 << 4)) ? obp1 : obp0;
-        bool x_flip = (sprite.flags & (1 << 5));
-        bool y_flip = (sprite.flags & (1 << 6));
-        bool bg_priority = (sprite.flags & (1 << 7));
+
+    for (int i = 0; i < sprite_buffer_index;i++) {
+        const auto& sprite = sprite_buffer[i];
+        uint8_t palette_reg = (sprite.flags.palette_number) ? obp1 : obp0;
+        bool x_flip = (sprite.flags.x_flip);
+        bool y_flip = (sprite.flags.y_flip);
+        bool bg_priority = (sprite.flags.obj_to_dbg_priority);
 
         uint8_t y_in_sprite = (ly + 16) - sprite.y;
         if (y_flip) y_in_sprite = sprite_height - 1 - y_in_sprite;
@@ -294,30 +299,30 @@ void PPU::render_sprites() {
 }
 
 // Memory and Register Access
-uint8_t PPU::read_vram(uint16_t address) const {
+uint8_t PPU_scanline::read_vram(uint16_t address) const {
     return vram[address - 0x8000];
 }
 
-void PPU::write_vram(uint16_t address, uint8_t value) {
+void PPU_scanline::write_vram(uint16_t address, uint8_t value) {
     if (!this->is_vram_accessible()) return;
     vram[address - 0x8000] = value;
 }
 
-uint8_t PPU::read_oam(uint16_t addr) const {
+uint8_t PPU_scanline::read_oam(uint16_t addr) const {
     return oam[addr - 0xFE00];
 }
 
-void PPU::write_oam(uint16_t addr, uint8_t data) {
+void PPU_scanline::write_oam(uint16_t addr, uint8_t data) {
     oam[addr - 0xFE00] = data;
 }
 
-uint8_t PPU::read_control(uint16_t addr) const {
+uint8_t PPU_scanline::read_control(uint16_t addr) const {
     switch (addr) {
         case 0xFF40: return lcdc.data;
         case 0xFF41: return stat.read();
         case 0xFF42: return scy;
         case 0xFF43: return scx;
-        case 0xFF44: return 0x90; return ly;
+        case 0xFF44: return ly;
         case 0xFF45: return lyc;
         case 0xFF47: return bgp;
         case 0xFF48: return obp0;
@@ -328,7 +333,7 @@ uint8_t PPU::read_control(uint16_t addr) const {
     }
 }
 
-void PPU::write_control(uint16_t addr, uint8_t data) {
+void PPU_scanline::write_control(uint16_t addr, uint8_t data) {
     switch (addr) {
         case 0xFF40: lcdc.data = data; break;
         case 0xFF41: stat.write(data); break;

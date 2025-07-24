@@ -21,10 +21,14 @@ int main(int argc, char* argv[]) {
     std::string path_arg(argv[1]);
     std::cout << path_arg << std::endl;;
     // Pass the first command-line argument (the path) to the constructor
-    gb gameboy("D:\\Emulation\\bgb\\02-interrupts.gb");
+    //gb gameboy(path_arg);
+
+    gb gameboy("D:\\Emulation\\bgb\\zelda.gb");
+
     while (true) {
         gameboy.run_one_frame();
     }
+
     // Inicializar janela
     InitWindow(SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE, "GBsunny Emulator");
     //SetTargetFPS(60);  // Target frame rate
