@@ -275,7 +275,7 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 	}
 }
 
-void inline cpu::cpu::block2(const decoded_instruction& result) {
+void cpu::cpu::block2(const decoded_instruction& result) {
 	auto alu_operation = (alu_table[result.y]);
 	(this->*alu_operation)(this->reg_readonly(result.z));
 }
@@ -471,9 +471,9 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 uint32_t cpu::cpu::step() {
 	uint32_t spent_cycles = 0;
 	
-	
-	//gb_doctor_print(this->log_file);
-
+	if(_registers.pc>=0x150){
+		//gb_doctor_print(this->log_file);
+	}
 	if (waiting_interrupt()) {
 		spent_cycles =  handle_interrupt();
 		return 4 * spent_cycles;
@@ -482,7 +482,7 @@ uint32_t cpu::cpu::step() {
 	if (halted) {
 		// HALT bug: IME is 0, but there's a pending interrupt
 		if (ime == 0 && this->interrupt_control->allowed().flag != 0) {
-			std::cout << "HALT BUG\n";
+			//std::cout << "HALT BUG\n";
 			halt_bug = true;     // Trigger HALT bug (don't increment PC on next fetch)
 
 			halted = false;      // Wake up from HALT
@@ -533,7 +533,6 @@ uint32_t cpu::cpu::step() {
 		ime = true;
 		shouldEnableIme = false;
 	}
-
 
 
 	spent_cycles = 4 * (branchTaken ? opcode_cycles_branched[instruction.opcode] : opcode_cycles[instruction.opcode]);

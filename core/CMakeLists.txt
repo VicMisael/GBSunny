@@ -11,8 +11,10 @@ add_library(CoreModule STATIC gb.cpp
         cpu/opcode_cycles.h
         ppu/scanline_ppu/ppu_scanline.cpp
         ppu/scanline_ppu/ppu_scanline.h
-        ppu/fifo_ppu/ppu_fifo.h
-        ppu/fifo_ppu/ppu_fifo.cpp
+        ppu/tick_fifo_ppu/ppu_fifo_types.h
+        ppu/tick_fifo_ppu/ppu_tick_fifo.h
+        ppu/tick_fifo_ppu/ppu_tick_fifo.cpp
+
         cartridge/cartridge_info.h
         cartridge/cartridge_info.cc
         cartridge/cartridge.cc
@@ -29,7 +31,11 @@ add_library(CoreModule STATIC gb.cpp
         shared/types.h
         shared/interrupt.h
         shared/interrupt.cpp
-        ppu/ppu_base.h)
+        ppu/ppu_base.h
+
+
+
+)
 
 
 target_include_directories(CoreModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

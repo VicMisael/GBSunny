@@ -240,16 +240,16 @@ namespace cpu {
 
 //#pragma region debugging
 		void gb_doctor_print(std::ostream& out_stream) const;
-//		std::ofstream log_file;
+		std::ofstream log_file;
 //#pragma endregion
 
 
 	public:
 		explicit cpu(const std::shared_ptr<mmu::MMU> &mmu, const std::shared_ptr<shared::interrupt>  interrupt_control):_mmu(mmu),interrupt_control(interrupt_control) {
-			//log_file = std::ofstream("emulator_log.txt");
-			//if (!log_file.is_open()) {
-			//	std::cerr << "Failed to open log file!" << std::endl;
-			//}
+			log_file = std::ofstream("emulator_log.txt");
+			if (!log_file.is_open()) {
+				std::cerr << "Failed to open log file!" << std::endl;
+			}
 
 		}
 		void reset();

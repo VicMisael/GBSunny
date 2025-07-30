@@ -91,7 +91,7 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 if (ly == 144) {
                     set_mode(ppu_types::VBLANK);
                     // Correctly set the VBlank interrupt flag
-                    interrupt_controller->flag.VBlank = true;
+                    
                 } else {
                     set_mode(ppu_types::OAM_SCAN);
                 }
@@ -126,7 +126,6 @@ void PPU_scanline::check_lyc_coincidence() {
 void PPU_scanline::set_mode(ppu_types::ppu_mode new_mode) {
     current_mode = new_mode;
     stat.ppu_mode = new_mode;
-
     bool interrupt_requested = false;
     switch (new_mode) {
         case ppu_types::HBLANK:   interrupt_requested = stat.MODE_0_INT_SELECT; break;
@@ -174,11 +173,16 @@ void PPU_scanline::render_scanline() {
     if (lcdc.bits.OBJ_Enable) {
         render_sprites();
     }
+
+    for (int i = 0; i < 160; i++) {
+        const auto [ color_id, bgp ] = scanline_buffer[i];
+        framebuffer[ly * 160 + i] = get_color_from_palette(color_id, bgp);
+    }
 }
 
 void PPU_scanline::render_background() {
-    uint16_t tile_data_area = lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800;
-    uint16_t tile_map_area = lcdc.bits.BG_tile_map ? 0x9C00 : 0x9800;
+    uint16_t base = (lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800);
+    uint16_t tile_map_area = (lcdc.bits.BG_tile_map ? 0x9C00 : 0x9800);
     uint8_t y_in_map = scy + ly;
     uint8_t tile_row = y_in_map / 8;
 
@@ -187,23 +191,23 @@ void PPU_scanline::render_background() {
         uint8_t tile_col = x_in_map / 8;
 
         uint16_t tile_map_addr = tile_map_area + tile_row * 32 + tile_col;
-        uint8_t tile_id = vram[tile_map_addr - 0x8000];
+        uint8_t tile_id = read_vram(tile_map_addr);
 
         uint16_t tile_data_addr;
         if (lcdc.bits.BG_window_tiles_adressing) {
-            tile_data_addr = tile_data_area + tile_id * 16;
+            tile_data_addr =  tile_id;
         } else {
-            tile_data_addr = tile_data_area + (static_cast<int8_t>(tile_id) + 128) * 16;
+            tile_data_addr =  (static_cast<int8_t>(tile_id) + 128);
         }
 
         uint8_t y_in_tile = y_in_map % 8;
-        uint8_t byte1 = vram[tile_data_addr + y_in_tile * 2 - 0x8000];
-        uint8_t byte2 = vram[tile_data_addr + y_in_tile * 2 + 1 - 0x8000];
+        uint8_t byte1 = read_vram(base + tile_data_addr*16 + y_in_tile * 2 );
+        uint8_t byte2 = read_vram(base + tile_data_addr*16 + y_in_tile * 2 + 1);
         uint8_t x_in_tile = 7 - (x_in_map % 8);
         uint8_t color_id = (((byte2 >> x_in_tile) & 1) << 1) | ((byte1 >> x_in_tile) & 1);
 
-        scanline_buffer[pixel] = color_id;
-        framebuffer[ly * 160 + pixel] = get_color_from_palette(color_id, bgp);
+        scanline_buffer[pixel] = { color_id,bgp };
+        //framebuffer[ly * 160 + pixel] = get_color_from_palette(color_id, bgp);
     }
 }
 
@@ -237,8 +241,8 @@ void PPU_scanline::render_window() {
         uint8_t x_in_tile = 7 - (x_in_map % 8);
         uint8_t color_id = (((byte2 >> x_in_tile) & 1) << 1) | ((byte1 >> x_in_tile) & 1);
 
-        scanline_buffer[pixel] = color_id;
-        framebuffer[ly * 160 + pixel] = get_color_from_palette(color_id, bgp);
+        scanline_buffer[pixel] = { .color_id = color_id,.bgp = bgp };
+        //framebuffer[ly * 160 + pixel] = get_color_from_palette(color_id, bgp);
     }
     window_line_counter++;
 }
@@ -286,20 +290,22 @@ void PPU_scanline::render_sprites() {
             int pixel_x = (sprite.x - 8) + x;
             if (pixel_x < 0 || pixel_x >= 160) continue;
 
-            if (bg_priority && scanline_buffer[pixel_x] != 0) continue;
+            if (bg_priority && scanline_buffer[pixel_x].color_id != 0) continue;
 
             uint8_t x_in_tile = x_flip ? x : 7 - x;
             uint8_t color_id = (((byte2 >> x_in_tile) & 1) << 1) | ((byte1 >> x_in_tile) & 1);
 
             if (color_id == 0) continue;
+            scanline_buffer[pixel_x] = { color_id,palette_reg };
 
-            framebuffer[ly * 160 + pixel_x] = get_color_from_palette(color_id, palette_reg);
+
         }
     }
 }
 
 // Memory and Register Access
 uint8_t PPU_scanline::read_vram(uint16_t address) const {
+    //if(!this->is_vram_accessible()) return 0xff;
     return vram[address - 0x8000];
 }
 

@@ -19,7 +19,7 @@ class gb {
 
     void init();
 public:
-    explicit gb(const std::string& rompath);
+    explicit gb(const std::string& rompath,bool fast_ppu=true);
     void reset();
     void run_one_frame();
     [[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const;

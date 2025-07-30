@@ -36,7 +36,7 @@ namespace ppu_types {
 			for (int i = 7; i >= 0; --i) {
 				uint8_t hi = (msb >> i) & 1; // high bit
 				uint8_t lo = (lsb >> i) & 1; // low bit
-				pixels[i] = (hi << 1) | lo; // combine into 2-bit pixel
+				pixels[7-i] = (hi << 1) | lo; // combine into 2-bit pixel
 			}
 
 			return pixels;

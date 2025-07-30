@@ -28,15 +28,15 @@ public:
     void write_vram(uint16_t address, uint8_t value) override;
     [[nodiscard]] uint8_t read_oam(uint16_t addr) const override;
     void write_oam(uint16_t addr, uint8_t data) override;
-    [[nodiscard]] uint8_t read_control(uint16_t addr) const;
+    [[nodiscard]] uint8_t read_control(uint16_t addr) const final;
     void write_control(uint16_t addr, uint8_t data) override ;
 
     // DMA transfer handling
-    void start_dma_transfer();
-    [[nodiscard]] bool is_dma_active() const;
+    void start_dma_transfer() final;
+    [[nodiscard]] bool is_dma_active() const final;
 
-    [[nodiscard]] bool is_vram_accessible() const;
-    [[nodiscard]] bool is_oam_accessible() const;
+    [[nodiscard]] bool is_vram_accessible() const final;
+    [[nodiscard]] bool is_oam_accessible() const final;
 
     // Interface for the frontend to get the final image
     [[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const;
@@ -65,10 +65,10 @@ private:
 
     // PPU Memory
     //std::array<uint8_t, 8192> vram;
-    uint8_t vram[8192];
+    uint8_t vram[8192]{};
 
     union {
-        uint8_t oam[160];
+        uint8_t oam[160]{};
         ppu_types::OAM_Sprite oam_sprites[40];
     };
 
@@ -76,10 +76,18 @@ private:
 
     // Final image buffer
     std::array<ppu_types::rgba, 160 * 144> framebuffer{};
-    uint8_t scanline_buffer[160]{};
+
+    struct scanline_element {
+        uint8_t color_id;
+        uint8_t bgp;
+
+    };
+
+
+    scanline_element scanline_buffer[160]{};
 
     //OAM Buffer
-    std::array<ppu_types::OAM_Sprite,10> sprite_buffer;
+    std::array<ppu_types::OAM_Sprite,10> sprite_buffer{};
     int sprite_buffer_index = 0;
 
     // PPU Registers using the types from ppu_types.h
