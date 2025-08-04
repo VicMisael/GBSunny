@@ -89,8 +89,10 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 cycle_counter -= HBLANK_CYCLES;
                 increment_ly();
                 if (ly == 144) {
+                    interrupt_controller->flag.VBlank = true;
                     set_mode(ppu_types::VBLANK);
                     // Correctly set the VBlank interrupt flag
+
                     
                 } else {
                     set_mode(ppu_types::OAM_SCAN);
@@ -167,7 +169,7 @@ ppu_types::rgba PPU_scanline::get_color_from_palette(uint8_t color_id, uint8_t p
 void PPU_scanline::render_scanline() {
     // This logic remains the same
     if (lcdc.bits.BG_window_enable) {
-        render_background();
+        //render_background();
         render_window();
     }
     if (lcdc.bits.OBJ_Enable) {
@@ -236,8 +238,8 @@ void PPU_scanline::render_window() {
         }
 
         uint8_t y_in_tile = y_in_map % 8;
-        uint8_t byte1 = vram[tile_data_addr + y_in_tile * 2 - 0x8000];
-        uint8_t byte2 = vram[tile_data_addr + y_in_tile * 2 + 1 - 0x8000];
+        uint8_t byte1 = read_vram(tile_data_addr + y_in_tile * 2);
+        uint8_t byte2 = read_vram(tile_data_addr + y_in_tile * 2 + 1);
         uint8_t x_in_tile = 7 - (x_in_map % 8);
         uint8_t color_id = (((byte2 >> x_in_tile) & 1) << 1) | ((byte1 >> x_in_tile) & 1);
 
@@ -251,7 +253,6 @@ void PPU_scanline::render_window() {
 void PPU_scanline::fill_oam_buffer()
 {
     const auto spriteheight = lcdc.bits.OBJ_SIZE ? 16 : 8;
-    
     for (const auto sprite : oam_sprites) {
 
         const auto ly_plus_16 = ly + 16;
@@ -283,8 +284,8 @@ void PPU_scanline::render_sprites() {
         if (y_flip) y_in_sprite = sprite_height - 1 - y_in_sprite;
 
         uint16_t tile_data_addr = 0x8000 + sprite.tile_index * 16;
-        uint8_t byte1 = vram[tile_data_addr + y_in_sprite * 2 - 0x8000];
-        uint8_t byte2 = vram[tile_data_addr + y_in_sprite * 2 + 1 - 0x8000];
+        uint8_t byte1 = read_vram(tile_data_addr + y_in_sprite * 2);
+        uint8_t byte2 = read_vram(tile_data_addr + y_in_sprite * 2 + 1);
 
         for (int x = 0; x < 8; ++x) {
             int pixel_x = (sprite.x - 8) + x;

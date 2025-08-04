@@ -11,7 +11,7 @@ namespace ppu_fifo_types {
 		bool bg_priority;
 	};
 
-	enum bg_fifo_state {
+	enum fifo_state {
 		GET_TILE,
 		GET_TILE_DATA_LOW,
 		GET_TILE_DATA_HIGH,
@@ -19,4 +19,11 @@ namespace ppu_fifo_types {
 		PUSH
 	} ;
 
+
+	struct OAM_priority_queue_element{
+		ppu_types::OAM_Sprite sprite;
+		uint16_t oam_index;
+
+
+	};
 };

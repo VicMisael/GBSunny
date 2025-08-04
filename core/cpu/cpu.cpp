@@ -471,9 +471,9 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 uint32_t cpu::cpu::step() {
 	uint32_t spent_cycles = 0;
 	
-	if(_registers.pc>=0x150){
-		//gb_doctor_print(this->log_file);
-	}
+	//if(_registers.pc>=0x150){
+	//	//gb_doctor_print(this->log_file);
+	//}
 	if (waiting_interrupt()) {
 		spent_cycles =  handle_interrupt();
 		return 4 * spent_cycles;

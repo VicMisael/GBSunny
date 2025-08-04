@@ -4,6 +4,7 @@
 #include "shared/interrupt.h"
 #include "ppu_fifo_types.h"
 #include <queue>
+#include "ppu_fifo_types.h"
 
 
 
@@ -35,9 +36,14 @@ public:
 	[[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const final;
 private:
 	void tick();
+	void oam_scan();
 	void increment_ly();
 	void check_lyc_coincidence();
-	void render_scanline();;
+	void render_scanline();
+	void render_bg();
+	void render_oam();
+	void render_window();
+	;
 	[[nodiscard]] ppu_types::rgba get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const;
 
 
@@ -69,13 +75,12 @@ private:
 	//OAM Buffer
 
 	struct {
-		std::array<ppu_types::OAM_Sprite, 10> sprite_buffer{};
+		std::priority_queue<ppu_fifo_types::OAM_priority_queue_element> sprite_buffer{};
 
 	};
 
 
 
-	int sprite_buffer_index = 0;
 
 	// PPU Registers using the types from ppu_types.h
 	ppu_types::_lcd_control lcdc;
@@ -91,9 +96,20 @@ private:
 	uint8_t wx{};
 	int32_t dma_cycles_remaining = 0;
 	
+
+	struct {
+		bool ly_equals_wy = false;
+
+		void reset() {
+			ly_equals_wy = false;
+		}
+
+	} frame_state;
+
 	struct {
 		ppu_types::ppu_mode current_mode;
-		ppu_fifo_types::bg_fifo_state background_fifo_state = ppu_fifo_types::bg_fifo_state::GET_TILE;
+		ppu_fifo_types::fifo_state background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
+		ppu_fifo_types::fifo_state sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 
 		std::queue<ppu_fifo_types::fifo_element> background_fifo;
 		std::queue<ppu_fifo_types::fifo_element> sprite_fifo;
@@ -102,11 +118,15 @@ private:
 		int bg_fetcher_cycle = 0;
 		int total_dots = 0;
 #pragma region Window
-		bool window_triggered = false;
 		uint16_t window_line = 0;
+		uint16_t current_window_line = 0;
+		bool window_triggered = false;
 #pragma endregion
 
-
+#pragma region Sprite
+		ppu_types::OAM_Sprite current_sprite;
+		ppu_types::line current_oam_line;
+#pragma endregion
 		ppu_types::line current_bg_line;
 
 		uint8_t bg_tile_id = 0;
@@ -124,15 +144,15 @@ private:
 
 
 
-		void reset() {
+		void reset_scanline_status() {
 			oam_cycle = 0;
 			current_x = 0;
 			first_fetch = 12;
 			current_pixel = 0;
 			bg_tile_id = 0;
-			window_triggered = false;
 			window_line = 0;
-			background_fifo_state = ppu_fifo_types::bg_fifo_state::GET_TILE;
+			window_triggered = false;
+			background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			total_dots = 0;
 			discard_delay = 0;
 			discard_delay_set = false;

@@ -15,12 +15,12 @@ gb::gb(const std::string &rompath,bool fast_ppu) {
   // 2. Create the other components, passing the necessary shared resources.
 
   if (fast_ppu) {
+
       _ppu = std::make_shared<PPU_scanline>(_interrupt_controller);
   }
   else {
       _ppu = std::make_shared<ppu_tick_fifo>(_interrupt_controller);
   }
-
 
   //
   _timer = std::make_shared<gb_timer>(_interrupt_controller);
