@@ -1,12 +1,13 @@
 #pragma once
 #include <cstdint>
+#include <optional>
 
 
 namespace ppu_fifo_types {
 
 	struct fifo_element {
 		uint8_t color;
-		uint8_t palette;
+		bool palette;
 		uint8_t priority;
 		bool bg_priority;
 	};
@@ -17,13 +18,13 @@ namespace ppu_fifo_types {
 		GET_TILE_DATA_HIGH,
 		SLEEP,
 		PUSH
-	} ;
+	};
 
 
-	struct OAM_priority_queue_element{
+	struct OAM_priority_queue_element {
 		ppu_types::OAM_Sprite sprite;
 		uint16_t oam_index;
-
-
 	};
+
+
 };

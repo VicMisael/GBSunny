@@ -41,9 +41,9 @@ private:
 	void check_lyc_coincidence();
 	void render_scanline();
 	void render_bg();
+	bool oam_render_possible();
 	void render_oam();
 	void render_window();
-	;
 	[[nodiscard]] ppu_types::rgba get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const;
 
 
@@ -73,11 +73,10 @@ private:
 
 
 	//OAM Buffer
+	std::array<ppu_fifo_types::OAM_priority_queue_element, 10>  sprite_buffer;
+	uint16_t sprite_buffer_index = 0;
+	uint16_t current_sprite_index = 0 ;
 
-	struct {
-		std::priority_queue<ppu_fifo_types::OAM_priority_queue_element> sprite_buffer{};
-
-	};
 
 
 
@@ -165,7 +164,7 @@ private:
 			while (!background_fifo.empty()) background_fifo.pop();
 		}
 		void reset_sprite_fifo() {
-			while (!sprite_fifo.empty()) background_fifo.pop();
+			while (!sprite_fifo.empty()) sprite_fifo.pop();
 		}
 
 	} line_state;

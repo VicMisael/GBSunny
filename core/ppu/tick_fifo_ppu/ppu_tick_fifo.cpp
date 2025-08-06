@@ -50,7 +50,7 @@ void inline ppu_tick_fifo::tick()
 		break;
 	}
 	case ppu_types::DRAWING: {
-		if (line_state.current_x < 160 && line_state.drawing_cycles++<DRAWING_MAX_CYCLES) { // Avoid locking on disabled cycles
+		if (line_state.current_x < 160 && line_state.drawing_cycles++ < DRAWING_MAX_CYCLES) { // Avoid locking on disabled cycles
 			render_scanline();
 			break;
 		}
@@ -99,6 +99,8 @@ inline void ppu_tick_fifo::oam_scan()
 		line_state.oam_cycle++;
 	}
 	else {
+		current_sprite_index = 0;
+		sprite_buffer_index = 0;
 		fill_oam_buffer();
 		set_mode(ppu_types::DRAWING);
 	};
@@ -128,21 +130,36 @@ void ppu_tick_fifo::render_scanline() {
 	}
 
 	//BG 32x32 Tiles
-	if (!is_window)
-	{
-		render_bg();
+	// if (!is_window)
+	// {
+	render_bg();
+	// }
+	// else render_window();
+	if (oam_render_possible()) {
+		render_oam();
 	}
-	else render_window();
 
-	render_oam();
 
 	if (!line_state.background_fifo.empty()) {
-		const ppu_fifo_types::fifo_element pixel = line_state.background_fifo.front();
+		const ppu_fifo_types::fifo_element bg = line_state.background_fifo.front();
 		line_state.background_fifo.pop();
-	
 
-		// Framebuffer write (using state.current_pixel or pixel_x++)
-		framebuffer[ly*160 + line_state.current_x++] = get_color_from_palette(pixel.color, bgp);
+
+		auto color = get_color_from_palette(bg.color, bgp);
+		if (!line_state.sprite_fifo.empty()) {
+			auto sprite = line_state.sprite_fifo.front();
+			line_state.sprite_fifo.pop();
+			uint8_t palette = sprite.palette? obp1 : obp0;;
+			const bool sprite_is_opaque = (sprite.color != 0);
+			const bool sprite_has_priority = !sprite.bg_priority;
+			const bool bg_is_transparent = (bg.color == 0);
+
+			if (sprite_is_opaque && (sprite_has_priority || bg_is_transparent)) {
+				color = get_color_from_palette(sprite.color, palette);
+			}
+		}
+
+		framebuffer[ly * 160 + line_state.current_x++] = color;
 	}
 
 
@@ -150,6 +167,10 @@ void ppu_tick_fifo::render_scanline() {
 
 }
 
+bool ppu_tick_fifo::oam_render_possible() {
+	
+		return sprite_buffer_index!=0 && line_state.background_fifo.size() <= 8;
+	}
 
 
 void ppu_tick_fifo::render_window()
@@ -216,7 +237,7 @@ void ppu_tick_fifo::render_window()
 			if (line_state.background_fifo.empty()) {
 				const auto pixels = line_state.current_bg_line.decoded_pixels();
 
-				for (const auto& color:pixels) {
+				for (const auto& color : pixels) {
 
 					ppu_fifo_types::fifo_element element{ .color = color,.bg_priority = color == 0 };
 
@@ -317,60 +338,59 @@ void ppu_tick_fifo::render_bg()
 	}
 }
 
-void ppu_tick_fifo::render_oam(){
+
+
+void ppu_tick_fifo::render_oam() {
+
 	switch (line_state.sprite_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE: {
-		line_state.current_sprite = sprite_buffer.top().sprite;
-		sprite_buffer.pop();//Pop the last element
-
-
+		const auto sprite = sprite_buffer[current_sprite_index++];
+		line_state.current_sprite = sprite.sprite;
 		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW;
-		}
-			break;
-		case ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW:{
-			const auto& sprite = line_state.current_sprite;
-			uint8_t y_offset = ly - (sprite.y - 16);
-			uint16_t addr = 0x8000 + sprite.tile_index * 16 + y_offset * 2;
-			line_state.current_oam_line.lsb  = read_vram(addr);
+	}
+											 break;
+	case ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW: {
+		const auto& sprite = line_state.current_sprite;
+		uint8_t y_offset = ly - (sprite.y - 16);
+		uint16_t addr = 0x8000 + sprite.tile_index * 16 + y_offset * 2;
+		line_state.current_oam_line.lsb = read_vram(addr);
 
-			line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH;
-		}
-			break;
-		case ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH:{
+		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH;
+	}
+													  break;
+	case ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH: {
 
-			const auto& sprite = line_state.current_sprite;
-			uint8_t y_offset = ly - (sprite.y - 16);
-			uint16_t addr = 1 + 0x8000 + sprite.tile_index * 16 + y_offset * 2;
-			line_state.current_oam_line.msb = read_vram(addr);
-			line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
-		}
-			break;
-		case ppu_fifo_types::fifo_state::SLEEP:
-		{
-			line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::PUSH;
-		}
-			break;
-		case ppu_fifo_types::fifo_state::PUSH: {
-			const auto pixel_list = line_state.current_oam_line.decoded_pixels();
+		const auto& sprite = line_state.current_sprite;
+		uint8_t y_offset = ly - (sprite.y - 16);
+		uint16_t addr = 1 + 0x8000 + sprite.tile_index * 16 + y_offset * 2;
+		line_state.current_oam_line.msb = read_vram(addr);
+		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
+	}
+													   break;
+	case ppu_fifo_types::fifo_state::SLEEP:
+	{
+		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::PUSH;
+	}
+	break;
+	case ppu_fifo_types::fifo_state::PUSH: {
+		const auto pixel_list = line_state.current_oam_line.decoded_pixels();
 
-			for (const auto pixel : pixel_list) {
-				if (pixel == 0) continue;
+		for (const auto pixel : pixel_list) {
+			if (pixel == 0) continue;
 
-				ppu_fifo_types::fifo_element element{
-					.color = pixel,
-					.palette = line_state.current_sprite.flags.palette_number,
-					.priority = 0,//TODO: CGB
-					.bg_priority = line_state.current_sprite.flags.obj_to_dbg_priority,
+			ppu_fifo_types::fifo_element element{
+				.color = pixel,
+				.palette = line_state.current_sprite.flags.palette_number,
+				.bg_priority = line_state.current_sprite.flags.obj_to_dbg_priority,
 
-				};
-				line_state.sprite_fifo.push(element);
-
-			}
-
+			};
+			line_state.sprite_fifo.push(element);
 
 		}
-		
-			break;
+		break;
+
+	}
+
 	}
 }
 
@@ -384,7 +404,7 @@ void ppu_tick_fifo::step(uint32_t cycles) {
 
 // Memory and Register Access
 uint8_t ppu_tick_fifo::read_vram(uint16_t address) const {
-	
+
 	return vram[address - 0x8000];
 }
 
@@ -505,9 +525,9 @@ void ppu_tick_fifo::fill_oam_buffer() {
 	for (const auto sprite : oam_sprites) {
 
 		const auto ly_plus_16 = ly + 16;
-		if (sprite_buffer.size() < 10 && sprite.x > 0 && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + spriteheight)) {
+		if (sprite_buffer_index < 10 && sprite.x > 0 && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + spriteheight)) {
 			ppu_fifo_types::OAM_priority_queue_element element{ .sprite = sprite,.oam_index = i };
-			sprite_buffer.push(element);
+			sprite_buffer[sprite_buffer_index++];
 		}
 		i++;
 	}

@@ -169,7 +169,7 @@ ppu_types::rgba PPU_scanline::get_color_from_palette(uint8_t color_id, uint8_t p
 void PPU_scanline::render_scanline() {
     // This logic remains the same
     if (lcdc.bits.BG_window_enable) {
-        //render_background();
+        render_background();
         render_window();
     }
     if (lcdc.bits.OBJ_Enable) {

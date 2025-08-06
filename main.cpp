@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     // Pass the first command-line argument (the path) to the constructor
     //gb gameboy(path_arg);
 
-    gb gameboy(R"(D:\Emulation\bgb\F-1 Race (World).gb)",true);
+    gb gameboy(R"(D:\Emulation\bgb\zelda.gb)",false);
 	//
 	 while (false) {
 	 	gameboy.run_one_frame();
