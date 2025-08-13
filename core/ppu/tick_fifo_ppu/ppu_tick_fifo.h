@@ -111,7 +111,7 @@ private:
 		ppu_fifo_types::fifo_state sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 
 		std::queue<ppu_fifo_types::fifo_element> background_fifo;
-		std::queue<ppu_fifo_types::fifo_element> sprite_fifo;
+		std::deque<ppu_fifo_types::fifo_element> sprite_fifo;
 
 		int current_pixel = 0;
 		int bg_fetcher_cycle = 0;
@@ -126,6 +126,7 @@ private:
 		ppu_types::OAM_Sprite current_sprite;
 		ppu_types::line current_oam_line;
 #pragma endregion
+		bool pause_bg_fetch = false;
 		ppu_types::line current_bg_line;
 
 		uint8_t bg_tile_id = 0;
@@ -155,6 +156,7 @@ private:
 			total_dots = 0;
 			discard_delay = 0;
 			discard_delay_set = false;
+			pause_bg_fetch = false;
 			drawing_cycles = 0;
 			reset_bg_fifo();
 			reset_sprite_fifo();
@@ -164,7 +166,7 @@ private:
 			while (!background_fifo.empty()) background_fifo.pop();
 		}
 		void reset_sprite_fifo() {
-			while (!sprite_fifo.empty()) sprite_fifo.pop();
+			while (!sprite_fifo.empty()) sprite_fifo.pop_back();
 		}
 
 	} line_state;

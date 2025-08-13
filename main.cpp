@@ -25,9 +25,6 @@ int main(int argc, char* argv[]) {
 
     gb gameboy(R"(D:\Emulation\bgb\zelda.gb)",false);
 	//
-	 while (false) {
-	 	gameboy.run_one_frame();
-	 }
 
      InitWindow(SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE, "GBsunny Emulator");
      //SetTargetFPS(60);  // Target frame rate
