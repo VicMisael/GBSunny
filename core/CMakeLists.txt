@@ -32,9 +32,6 @@ add_library(CoreModule STATIC gb.cpp
         shared/interrupt.h
         shared/interrupt.cpp
         ppu/ppu_base.h
-
-
-
 )
 
 

@@ -127,7 +127,7 @@ void ppu_tick_fifo::render_scanline() {
 	//BG 32x32 Tiles
 
 	if (oam_render_possible()) {
-		//render_oam();
+		render_oam();
 	}
 
 
@@ -255,10 +255,10 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 		if (line_state.background_fifo.empty()) {
 			const auto pixels = line_state.current_bg_line.decoded_pixels();
 
-			int discard = !fetching_window && (line_state.current_pixel == 0) ? (scx % 8) : 0;
+			const uint8_t discard = !fetching_window && (line_state.current_pixel == 0) ? (scx % 8) : 0;
 
-			for (int i = discard; i < 8; ++i) {
-				uint8_t color = pixels[i];
+			for (uint8_t i = discard; i < 8; ++i) {
+				const uint8_t color = pixels[i];
 
 				ppu_fifo_types::fifo_element element{ .color = color,.bg_priority = color == 0 };
 
@@ -330,7 +330,7 @@ void ppu_tick_fifo::render_oam() {
 			};
 			line_state.sprite_fifo.push_front(element);
 		}
-
+		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		break;
 
 	}

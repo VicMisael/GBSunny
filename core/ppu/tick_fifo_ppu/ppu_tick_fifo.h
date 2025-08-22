@@ -43,7 +43,7 @@ private:
 	void render_bg(bool window);
 	bool oam_render_possible();
 	void render_oam();
-	uint16_t extract_tile_map_addr(bool fetching_window) const; 
+	uint16_t extract_tile_map_addr(bool fetching_window) const;
 	[[nodiscard]] ppu_types::rgba get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const;
 
 
@@ -75,7 +75,7 @@ private:
 	//OAM Buffer
 	std::array<ppu_fifo_types::OAM_priority_queue_element, 10>  sprite_buffer{};
 	uint16_t sprite_buffer_index = 0;
-	uint16_t current_sprite_index = 0 ;
+	uint16_t current_sprite_index = 0;
 
 
 
@@ -94,7 +94,7 @@ private:
 	uint8_t wy{};
 	uint8_t wx{};
 	int32_t dma_cycles_remaining = 0;
-	
+
 
 	struct {
 		ppu_types::ppu_mode current_mode;
@@ -143,6 +143,7 @@ private:
 
 			window_triggered = false;
 			background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
+			sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			total_dots = 0;
 			discard_delay = 0;
 			discard_delay_set = false;
@@ -156,7 +157,7 @@ private:
 		{
 			window_line = -1;
 			hblank_reset();
-			
+
 		}
 		void reset_bg_fifo() {
 			while (!background_fifo.empty()) background_fifo.pop_back();

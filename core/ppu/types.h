@@ -31,7 +31,7 @@ namespace ppu_types {
 		uint8_t lsb;
 		uint8_t msb;
 		std::array<uint8_t, 8> decoded_pixels() const {
-			std::array<uint8_t, 8> pixels;
+			std::array<uint8_t, 8> pixels{};
 
 			for (int i = 7; i >= 0; --i) {
 				uint8_t hi = (msb >> i) & 1; // high bit
