@@ -117,21 +117,11 @@ void ppu_tick_fifo::render_scanline() {
 	}
 
 
-	bool fetching_window = false;
-	if (lcdc.bits.window_enable && wy <= ly) {
-		if (!line_state.window_triggered && line_state.current_pixel >= wx - 7) {
-			line_state.window_triggered = true;
-			line_state.window_line++;
-			line_state.reset_bg_fifo();
-			line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 
-		}
-		fetching_window = line_state.window_triggered;
-	}
 
 
 	if (!line_state.pause_bg_fetch && line_state.background_fifo.size() <= 8) {
-		render_bg(fetching_window);
+		render_bg(line_state.window_triggered);
 	}
 		
 	//BG 32x32 Tiles
@@ -164,7 +154,15 @@ void ppu_tick_fifo::render_scanline() {
 	}
 
 
+	if (lcdc.bits.window_enable && wy <= ly) {
+		if (!line_state.window_triggered && line_state.current_pixel >= wx - 7) {
+			line_state.window_triggered = true;
+			line_state.window_line++;
+			line_state.reset_bg_fifo();
+			line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 
+		}
+	}
 
 
 
@@ -176,82 +174,7 @@ bool ppu_tick_fifo::oam_render_possible() {
 	return current_sprite_index < sprite_buffer_index && any_match;
 }
 
-
-void ppu_tick_fifo::render_window()
-{
-	if (!line_state.pause_bg_fetch && lcdc.bits.BG_window_enable && line_state.background_fifo.size() <= 8) {
-		switch (line_state.background_fifo_state) {
-		case ppu_fifo_types::fifo_state::GET_TILE:
-		{
-			if (++line_state.bg_fetcher_cycle < 2) break;
-
-			line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW;
-			line_state.bg_fetcher_cycle = 0;
-			break;
-		};
-		case ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW: {
-			if (++line_state.bg_fetcher_cycle < 2) break;
-
-			uint16_t base = lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800;
-
-			int tile = lcdc.bits.BG_window_tiles_adressing
-				? line_state.bg_tile_id
-				: static_cast<int8_t>(line_state.bg_tile_id) + 128;
-
-			uint8_t y_in_tile = (line_state.window_line) % 8;
-			uint16_t addr = (base + tile * 16 + y_in_tile * 2);
-
-			line_state.current_bg_line.lsb = read_vram(addr);
-
-			line_state.bg_fetcher_cycle = 0;
-			line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH;
-			break;
-		};
-		case ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH: {
-
-			if (++line_state.bg_fetcher_cycle < 2) break;
-
-			uint16_t base = lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800;
-			int tile = lcdc.bits.BG_window_tiles_adressing
-				? line_state.bg_tile_id
-				: static_cast<int8_t>(line_state.bg_tile_id) + 128;
-
-			uint8_t y_in_tile = (line_state.window_line) % 8;
-			uint16_t addr = ((base + tile * 16 + y_in_tile * 2) + 1);
-
-			line_state.current_bg_line.msb = read_vram(addr);
-
-			line_state.bg_fetcher_cycle = 0;
-			line_state.background_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
-			break;
-		}
-		case ppu_fifo_types::fifo_state::SLEEP: {
-			line_state.background_fifo_state = ppu_fifo_types::fifo_state::PUSH;
-			[[fallthrough]];
-		}
-		case ppu_fifo_types::fifo_state::PUSH: {
-
-			if (line_state.background_fifo.empty()) {
-				const auto pixels = line_state.current_bg_line.decoded_pixels();
-
-				for (const auto& color : pixels) {
-
-					ppu_fifo_types::fifo_element element{ .color = color,.bg_priority = color == 0 };
-
-					line_state.background_fifo.push_front(element);
-				}
-
-				line_state.current_pixel += 8;
-				line_state.bg_fetcher_cycle = 0;
-				line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
-				break;
-			}
-		};
-		};
-	}
-}
-
-uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window)
+ uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
 {
 	if (fetching_window)
 	{
@@ -286,7 +209,7 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 		line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW;
 		line_state.bg_fetcher_cycle = 0;
 		break;
-	};
+	}
 	case ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW: {
 		if (++line_state.bg_fetcher_cycle < 2) break;
 
@@ -304,7 +227,7 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 		line_state.bg_fetcher_cycle = 0;
 		line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH;
 		break;
-	};
+	}
 	case ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH: {
 
 		if (++line_state.bg_fetcher_cycle < 2) break;
@@ -347,8 +270,8 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 			line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			break;
 		}
-	};
-	};
+	}
+	}
 }
 
 

@@ -43,8 +43,7 @@ private:
 	void render_bg(bool window);
 	bool oam_render_possible();
 	void render_oam();
-	void render_window();
-	uint16_t extract_tile_map_addr(bool fetching_window);
+	uint16_t extract_tile_map_addr(bool fetching_window) const; 
 	[[nodiscard]] ppu_types::rgba get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const;
 
 
