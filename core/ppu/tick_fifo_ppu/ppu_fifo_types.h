@@ -27,6 +27,7 @@ namespace ppu_fifo_types {
 	};
 
 
+	
 
 
 };

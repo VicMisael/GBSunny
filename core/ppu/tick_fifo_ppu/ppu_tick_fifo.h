@@ -40,10 +40,11 @@ private:
 	void increment_ly();
 	void check_lyc_coincidence();
 	void render_scanline();
-	void render_bg();
+	void render_bg(bool window);
 	bool oam_render_possible();
 	void render_oam();
 	void render_window();
+	uint16_t extract_tile_map_addr(bool fetching_window);
 	[[nodiscard]] ppu_types::rgba get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const;
 
 
@@ -73,7 +74,7 @@ private:
 
 
 	//OAM Buffer
-	std::array<ppu_fifo_types::OAM_priority_queue_element, 10>  sprite_buffer;
+	std::array<ppu_fifo_types::OAM_priority_queue_element, 10>  sprite_buffer{};
 	uint16_t sprite_buffer_index = 0;
 	uint16_t current_sprite_index = 0 ;
 
@@ -97,20 +98,11 @@ private:
 	
 
 	struct {
-		bool ly_equals_wy = false;
-
-		void reset() {
-			ly_equals_wy = false;
-		}
-
-	} frame_state;
-
-	struct {
 		ppu_types::ppu_mode current_mode;
 		ppu_fifo_types::fifo_state background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		ppu_fifo_types::fifo_state sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 
-		std::queue<ppu_fifo_types::fifo_element> background_fifo;
+		std::deque<ppu_fifo_types::fifo_element> background_fifo;
 		std::deque<ppu_fifo_types::fifo_element> sprite_fifo;
 
 		int current_pixel = 0;
@@ -118,7 +110,6 @@ private:
 		int total_dots = 0;
 #pragma region Window
 		uint16_t window_line = 0;
-		uint16_t current_window_line = 0;
 		bool window_triggered = false;
 #pragma endregion
 
@@ -144,13 +135,13 @@ private:
 
 
 
-		void reset_scanline_status() {
+		void hblank_reset() {
 			oam_cycle = 0;
 			current_x = 0;
 			first_fetch = 12;
 			current_pixel = 0;
 			bg_tile_id = 0;
-			window_line = 0;
+
 			window_triggered = false;
 			background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			total_dots = 0;
@@ -162,8 +153,14 @@ private:
 			reset_sprite_fifo();
 
 		}
+		void vblank_reset()
+		{
+			window_line = 0;
+			hblank_reset();
+			
+		}
 		void reset_bg_fifo() {
-			while (!background_fifo.empty()) background_fifo.pop();
+			while (!background_fifo.empty()) background_fifo.pop_back();
 		}
 		void reset_sprite_fifo() {
 			while (!sprite_fifo.empty()) sprite_fifo.pop_back();
