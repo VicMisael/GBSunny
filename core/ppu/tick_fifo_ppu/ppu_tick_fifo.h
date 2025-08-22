@@ -109,7 +109,7 @@ private:
 		int bg_fetcher_cycle = 0;
 		int total_dots = 0;
 #pragma region Window
-		uint16_t window_line = 0;
+		uint16_t window_line = -1;
 		bool window_triggered = false;
 #pragma endregion
 
@@ -155,7 +155,7 @@ private:
 		}
 		void vblank_reset()
 		{
-			window_line = 0;
+			window_line = -1;
 			hblank_reset();
 			
 		}

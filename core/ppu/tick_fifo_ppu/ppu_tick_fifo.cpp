@@ -129,10 +129,11 @@ void ppu_tick_fifo::render_scanline() {
 		fetching_window = line_state.window_triggered;
 	}
 
+
 	if (!line_state.pause_bg_fetch && line_state.background_fifo.size() <= 8) {
 		render_bg(fetching_window);
 	}
-
+		
 	//BG 32x32 Tiles
 
 	if (oam_render_possible()) {
@@ -516,11 +517,7 @@ const std::array<ppu_types::rgba, 160 * 144>& ppu_tick_fifo::get_framebuffer() c
 
 void ppu_tick_fifo::increment_ly() {
 	ly++;
-	if (ly >= 0x3E) {
-		check_lyc_coincidence();
-	}
-	else
-		check_lyc_coincidence();
+	check_lyc_coincidence();
 }
 
 void ppu_tick_fifo::check_lyc_coincidence() {
