@@ -49,7 +49,7 @@ enum class MemRegion {
 
 
 constexpr static MemRegion decode_region(uint16_t addr) {
-	static constexpr std::array<MemRegion, 16> region_lut = {
+	static constexpr std::array region_lut = {
 		MemRegion::ROM0,  MemRegion::ROM0,  MemRegion::ROM0,  MemRegion::ROM0,
 		MemRegion::ROMX,  MemRegion::ROMX,  MemRegion::ROMX,  MemRegion::ROMX,
 		MemRegion::VRAM,  MemRegion::VRAM,
@@ -86,92 +86,40 @@ uint8_t mmu::MMU::read(uint16_t addr) const {
 	}
 
 	switch (region) {
-		case MemRegion::ROM0:
-		case MemRegion::ROMX:
-			if (boot_rom_enabled() && addr < 0x100) {
-				return cartridge::bootDMG[addr];
-			}
-			return _cartridge->read(addr);
-		case MemRegion::VRAM:
-			return _ppu->is_vram_accessible() ? _ppu->read_vram(addr) : 0xFF;
-		case MemRegion::SRAM:
-			return _cartridge->read_sram(addr);
-		case MemRegion::WRAM0:
-			return internal_RAM[addr & 0x0FFF];
-		case MemRegion::WRAMX:
-			return internal_RAM2[addr & 0x0FFF]; // CGB
-		case MemRegion::ECHO:
-			return internal_RAM[(addr - 0x2000) & 0x0FFF];
-		case MemRegion::OAM:
-			return _ppu->is_oam_accessible() ? _ppu->read_oam(addr) : 0xFF;
-		case MemRegion::UNUSED:
-			return 0xFF;
-		case MemRegion::IO:
-			return io_read(addr);
-		case MemRegion::HRAM:
-			return HRAM[addr - HRAM_START];
-		case MemRegion::IE:
-			return read_interrupt_enable();
-		default:
-			std::cout << "Illegal Access: " << std::hex << addr << std::endl;
-			return 0xFF;
+	case MemRegion::ROM0:
+	case MemRegion::ROMX:
+		if (boot_rom_enabled() && addr < 0x100) {
+			return cartridge::bootDMG[addr];
+		}
+		return _cartridge->read(addr);
+	case MemRegion::VRAM:
+		return _ppu->is_vram_accessible() ? _ppu->read_vram(addr) : 0xFF;
+	case MemRegion::SRAM:
+		return _cartridge->read_sram(addr);
+	case MemRegion::WRAM0:
+		return internal_RAM[addr & 0x0FFF];
+	case MemRegion::WRAMX:
+		return internal_RAM2[addr & 0x0FFF]; // CGB
+	case MemRegion::ECHO:
+		return internal_RAM[(addr - 0x2000) & 0x0FFF];
+	case MemRegion::OAM:
+		return _ppu->is_oam_accessible() ? _ppu->read_oam(addr) : 0xFF;
+	case MemRegion::UNUSED:
+		return 0xFF;
+	case MemRegion::IO:
+		return io_read(addr);
+	case MemRegion::HRAM:
+		return HRAM[addr - HRAM_START];
+	case MemRegion::IE:
+		return read_interrupt_enable();
+	default:
+		std::cout << "Illegal Access: " << std::hex << addr << std::endl;
+		return 0xFF;
 	}
 
 
 
-	//if (_ppu->is_dma_active() && !utils::in_range(HRAM_START, HRAM_END, addr)) {
-	//    return 0xFF; // Bus \is inaccessible, returns 0xFF
-	//}
-
-	//if (utils::in_range(ROM0_START, ROMX_END, addr)) {
-	//    if (boot_rom_enabled() && addr<0x0100) {
-	//        return cartridge::bootDMG[addr];
-	//    }
-	//    return _cartridge->read(addr);
-	//}
-	//if (utils::in_range(VRAM_START, VRAM_END, addr)) {
-	//    // VRAM is inaccessible during Mode 3 (Drawing)
-	//    if (!_ppu->is_vram_accessible()) {
-	//        return 0xFF;
-	//    }
-	//    return _ppu->read_vram(addr);
-	//}
-	//if (utils::in_range(SRAM_START, SRAM_END, addr)) {
-	//    return _cartridge->read_sram(addr);
-	//}
-	//if (utils::in_range(WRAM0_START, WRAMX_END, addr)) {
-	//    // Combined WRAM check
-	//    if (addr < 0xD000) {
-	//        return internal_RAM[addr & 0x0FFF];
-	//    }
-	//    return internal_RAM2[addr & 0x0FFF]; // CGB
-	//}
-	//if (utils::in_range(ECHO_START, ECHO_END, addr)) {
-	//    return internal_RAM[(addr - 0x2000) & 0x0FFF];
-	//}
-	//if (utils::in_range(OAM_START, OAM_END, addr)) {
-	//    // OAM is inaccessible during Mode 2 (OAM Scan) and Mode 3 (Drawing)
-	//    if (!_ppu->is_oam_accessible()) {
-	//        return 0xFF;
-	//    }
-	//    return _ppu->read_oam(addr);
-	//}
-	//if (utils::in_range(UNUSED_START, UNUSED_END, addr)) {
-	//    return 0xFF;
-	//}
-	//if (utils::in_range(IO_REG_START, IO_REG_END, addr)) {
-	//    return io_read(addr);
-	//}
-	//if (utils::in_range(HRAM_START, HRAM_END, addr)) {
-	//    return HRAM[addr - HRAM_START];
-
-	//}
-	//if (addr == IE_REGISTER) {
-	//    return read_interrupt_enable();
-	//}
-
-	//std::cout << "Illegal Access" << std::hex << addr << std::endl;
-	//return 0XFF;
+	
 }
 
 
@@ -179,58 +127,43 @@ uint8_t mmu::MMU::read(uint16_t addr) const {
 
 void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 
-	if (_ppu->is_dma_active() && !utils::in_range(HRAM_START, HRAM_END, addr)) {
-		return; // Writes are ignored
-	}
+	const auto region = decode_region(addr);
 
-	if (utils::in_range(ROM0_START, ROMX_END, addr)) {
-		_cartridge->write(addr, data);
+
+	if (_ppu->is_dma_active() && region != MemRegion::HRAM) {
 		return;
 	}
-	else if (utils::in_range(VRAM_START, VRAM_END, addr)) {
 
-		_ppu->write_vram(addr, data);
-		return;
-
-	}
-	else if (utils::in_range(SRAM_START, SRAM_END, addr)) {
-		// Corrected: pass the data parameter
-		_cartridge->write_sram(addr, data);
-		return;
-	}
-	else if (utils::in_range(WRAM0_START, WRAMX_END, addr)) {
+	switch (region) {
+	case MemRegion::ROM0:
+	case MemRegion::ROMX: _cartridge->write(addr, data);  break;
+	case MemRegion::VRAM: _ppu->write_vram(addr, data);  break;
+	case MemRegion::SRAM:_cartridge->write_sram(addr, data);  break;
+	case MemRegion::WRAM0:;
+	case MemRegion::WRAMX:
+	{
 		if (addr < 0xD000) {
 			internal_RAM[addr & 0x0FFF] = data;
 		}
 		else {
 			internal_RAM2[addr & 0x0FFF] = data;
 		}
-		return;
-	}
-	else if (utils::in_range(ECHO_START, ECHO_END, addr)) {
-		internal_RAM[(addr - 0x2000) & 0x0FFF] = data;
-	}
-	else if (utils::in_range(OAM_START, OAM_END, addr)) {
+	} break;
+	case MemRegion::ECHO: internal_RAM[(addr - 0x2000) & 0x0FFF] = data;  break;
+	case MemRegion::OAM:
+	{
 		if (_ppu->is_oam_accessible()) {
 			_ppu->write_oam(addr, data);
 		}
+	} break;
+	case MemRegion::UNUSED: break;
+	case MemRegion::IO:io_write(addr, data); break;
+	case MemRegion::HRAM:	HRAM[addr - HRAM_START] = data; break;
+	case MemRegion::IE: set_interrupt_enable(data);  break;
+	case MemRegion::INVALID: break;
 	}
-	else if (utils::in_range(UNUSED_START, UNUSED_END, addr)) {
-		// Writes to unused memory are ignored
-		return;
-	}
-	else if (utils::in_range(IO_REG_START, IO_REG_END, addr)) {
-		io_write(addr, data);
-		return;
-	}
-	else if (utils::in_range(HRAM_START, HRAM_END, addr)) {
-		HRAM[addr - HRAM_START] = data;
-		return;
-	}
-	else if (addr == IE_REGISTER) {
-		set_interrupt_enable(data);
-		return;
-	}
+	return;
+
 	// std::cout<<"MMU::MMU::write: "<<std::hex<<addr<<std::endl;
 }
 
@@ -316,7 +249,7 @@ void mmu::MMU::set_interrupt_enable(uint8_t enable) {
 	interrupt->enable.flag = enable & 0x1F; // Only lower 5 bits are used
 }
 
-inline void mmu::MMU::oam_transfer(const uint8_t params)
+inline void mmu::MMU::oam_transfer(const uint8_t params) const
 {
 	for (uint8_t i = 0; i <= 0xA0; i++) {
 		const auto address = utils::uint16_little_endian(i, params);

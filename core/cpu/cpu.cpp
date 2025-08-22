@@ -32,7 +32,7 @@ void cpu::cpu::gb_doctor_print(std::ostream& out_stream) const
 	// Print memory at the Program Counter
 	out_stream << "PCMEM:";
 	for (int i = 0; i < 4; ++i) {
-		out_stream << std::setw(2) << static_cast<int>(_mmu->read((_registers.pc)+i));
+		out_stream << std::setw(2) << static_cast<int>(_mmu->read((_registers.pc) + i));
 		if (i < 3) {
 			out_stream << ",";
 		}
@@ -92,6 +92,37 @@ void cpu::cpu::reset() {
 }
 
 //Store Run Cycles on
+
+uint8_t& cpu::cpu::reg_ref(uint8_t index)
+{
+	switch (index) {
+	case 0: return _registers.b;
+	case 1: return _registers.c;
+	case 2: return _registers.d;
+	case 3: return _registers.e;
+	case 4: return _registers.h;
+	case 5: return _registers.l;
+	case 6: throw std::runtime_error("getting a reference to memory is not possible, write and read instead"); // Be careful when using this
+	case 7: return _registers.a;
+	default: throw std::out_of_range("Invalid register index");
+	}
+}
+
+inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
+	switch (index) {
+	case 0: return _registers.b;
+	case 1: return _registers.c;
+	case 2: return _registers.d;
+	case 3: return _registers.e;
+	case 4: return _registers.h;
+	case 5: return _registers.l;
+	case 6: return _mmu->read(_registers.hl); // Be careful when using this
+	case 7: return _registers.a;
+	default: throw std::out_of_range("Invalid register index");
+	}
+}
+
+
 
 void cpu::cpu::cb_prefixed()
 {
@@ -277,7 +308,7 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 
 void cpu::cpu::block2(const decoded_instruction& result) {
 	auto alu_operation = (alu_table[result.y]);
-	(this->*alu_operation)(this->reg_readonly(result.z));
+	(this->*alu_operation)(reg_readonly(result.z));
 }
 
 void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
@@ -470,12 +501,9 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 //return the number of T Cycles consumed by the CPU
 uint32_t cpu::cpu::step() {
 	uint32_t spent_cycles = 0;
-	
-	//if(_registers.pc>=0x150){
-	//	//gb_doctor_print(this->log_file);
-	//}
+
 	if (waiting_interrupt()) {
-		spent_cycles =  handle_interrupt();
+		spent_cycles = handle_interrupt();
 		return 4 * spent_cycles;
 	}
 

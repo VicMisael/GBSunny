@@ -29,8 +29,8 @@ void ppu_tick_fifo::reset() {
 	wx = 0;
 	set_mode(ppu_types::OAM_SCAN);
 
-	std::fill(std::begin(vram), std::end(vram), 0x00);
-	std::fill(std::begin(oam), std::end(oam), 0xff);
+	std::ranges::fill(vram, 0x00);
+	std::ranges::fill(oam, 0xff);
 }
 
 void inline ppu_tick_fifo::tick()

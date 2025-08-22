@@ -38,7 +38,7 @@ namespace mmu {
         void set_interrupt_flag(uint8_t);
         void set_interrupt_enable(uint8_t);
 
-        void oam_transfer(uint8_t params);
+        void oam_transfer(uint8_t params) const;
 
 
         [[nodiscard]] uint8_t io_read(uint16_t addr) const;

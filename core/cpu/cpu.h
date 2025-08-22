@@ -167,33 +167,9 @@ namespace cpu {
 
 
 
-		uint8_t& reg_ref(int index) {
-			switch (index) {
-				case 0: return _registers.b;
-				case 1: return _registers.c;
-				case 2: return _registers.d;
-				case 3: return _registers.e;
-				case 4: return _registers.h;
-				case 5: return _registers.l;
-				case 6: throw std::runtime_error("getting a reference to memory is not possible, write and read instead"); // Be careful when using this
-				case 7: return _registers.a;
-				default: throw std::out_of_range("Invalid register index");
-			}
-		}
+		uint8_t& reg_ref(uint8_t index);
 
-		inline uint8_t reg_readonly(int index) const {
-		 	switch (index) {
-		 		case 0: return _registers.b;
-		 		case 1: return _registers.c;
-		 		case 2: return _registers.d;
-		 		case 3: return _registers.e;
-		 		case 4: return _registers.h;
-		 		case 5: return _registers.l;
-		 		case 6: return _mmu->read(_registers.hl); // Be careful when using this
-		 		case 7: return _registers.a;
-		 		default: throw std::out_of_range("Invalid register index");
-		 	}
-		 }
+		uint8_t reg_readonly(uint8_t index) const;
 
 		 const std::array<uint16_t*, 4> reg_16_sp = {
 			&_registers.bc,
