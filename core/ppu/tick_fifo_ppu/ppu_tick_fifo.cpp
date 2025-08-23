@@ -100,8 +100,7 @@ inline void ppu_tick_fifo::oam_scan()
 		line_state.oam_cycle++;
 	}
 	else {
-		current_sprite_index = 0;
-		sprite_buffer_index = 0;
+		sprite_buffer.clear();
 		fill_oam_buffer();
 		set_mode(ppu_types::DRAWING);
 	};
@@ -123,10 +122,11 @@ void ppu_tick_fifo::render_scanline() {
 	if (!line_state.pause_bg_fetch && line_state.background_fifo.size() <= 8) {
 		render_bg(line_state.window_triggered);
 	}
-		
+
 	//BG 32x32 Tiles
 
 	if (oam_render_possible()) {
+
 		render_oam();
 	}
 
@@ -140,7 +140,7 @@ void ppu_tick_fifo::render_scanline() {
 		if (!line_state.sprite_fifo.empty()) {
 			auto sprite = line_state.sprite_fifo.back();
 			line_state.sprite_fifo.pop_back();
-			uint8_t palette = sprite.palette ? obp1 : obp0;;
+			uint8_t palette = sprite.palette ? obp1 : obp0;
 			const bool sprite_is_opaque = (sprite.color != 0);
 			const bool sprite_has_priority = !sprite.bg_priority;
 			const bool bg_is_transparent = (bg.color == 0);
@@ -169,12 +169,17 @@ void ppu_tick_fifo::render_scanline() {
 }
 
 bool ppu_tick_fifo::oam_render_possible() {
-	const bool any_match = std::any_of(sprite_buffer.begin(), sprite_buffer.begin() + sprite_buffer_index, [&](const ppu_fifo_types::OAM_priority_queue_element sprite) {
-		return sprite.sprite.x <= line_state.current_x + 8; });
-	return current_sprite_index < sprite_buffer_index && any_match;
+	for (const auto& element : sprite_buffer)
+	{
+		if (element.sprite.x <= line_state.current_x + 8)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
- uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
+uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
 {
 	if (fetching_window)
 	{
@@ -232,13 +237,13 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 
 		if (++line_state.bg_fetcher_cycle < 2) break;
 
-		uint16_t base = lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800;
-		int tile = lcdc.bits.BG_window_tiles_adressing
+		const uint16_t base = lcdc.bits.BG_window_tiles_adressing ? 0x8000 : 0x8800;
+		const int tile = lcdc.bits.BG_window_tiles_adressing
 			? line_state.bg_tile_id
 			: static_cast<int8_t>(line_state.bg_tile_id) + 128;
 
-		uint8_t y_in_tile = (fetching_window ? line_state.window_line : (scy + ly)) % 8;
-		uint16_t addr = ((base + tile * 16 + y_in_tile * 2) + 1);
+		const uint8_t y_in_tile = (fetching_window ? line_state.window_line : (scy + ly)) % 8;
+		const uint16_t addr = ((base + tile * 16 + y_in_tile * 2) + 1);
 
 		line_state.current_bg_line.msb = read_vram(addr);
 
@@ -280,7 +285,9 @@ void ppu_tick_fifo::render_oam() {
 	const auto sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
 	switch (line_state.sprite_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE: {
-		const auto sprite = sprite_buffer[current_sprite_index++];
+		const auto sprite = sprite_buffer.front();
+		sprite_buffer.pop();
+
 		line_state.current_sprite = sprite.sprite;
 		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW;
 	}
@@ -306,7 +313,7 @@ void ppu_tick_fifo::render_oam() {
 		if (y_flip) {
 			y_offset = sprite_height - 1 - y_offset;
 		}
-		const auto addr = 1 + 0x8000 + sprite.tile_index * 16 + y_offset * 2;
+		const uint16_t addr = 1 + 0x8000 + sprite.tile_index * 16 + y_offset * 2;
 		line_state.current_oam_line.msb = read_vram(addr);
 		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
 	}
@@ -318,17 +325,35 @@ void ppu_tick_fifo::render_oam() {
 	break;
 	case ppu_fifo_types::fifo_state::PUSH: {
 		const auto pixel_list = line_state.current_oam_line.decoded_pixels();
-		line_state.reset_sprite_fifo();
+		const auto sprite = line_state.current_sprite;
+		uint8_t current_pixel_idx = 0;
+		const bool empty_buffer = line_state.sprite_fifo.empty();
 		for (const auto [x, pixel] : std::views::enumerate(pixel_list)) {
 			if ((line_state.current_sprite.x + x) < 8 || (line_state.current_sprite.x + x) >= 160) continue;
 
 			ppu_fifo_types::fifo_element element{
-				.color = pixel,
-				.palette = line_state.current_sprite.flags.palette_number,
-				.bg_priority = line_state.current_sprite.flags.obj_to_dbg_priority,
-
+					.color = pixel,
+					.palette = line_state.current_sprite.flags.palette_number,
+					.bg_priority = line_state.current_sprite.flags.obj_to_dbg_priority
 			};
-			line_state.sprite_fifo.push_front(element);
+
+			if(!empty_buffer)
+			{
+				current_pixel_idx = sprite.flags.x_flip ? 7 - current_pixel_idx : current_pixel_idx;
+				const auto current_pixel = line_state.sprite_fifo[current_pixel_idx];
+				if (current_pixel.color == 0)
+				{
+					line_state.sprite_fifo[current_pixel_idx] = element;
+				}
+				current_pixel_idx++;
+			}else
+			{
+				if (!sprite.flags.x_flip)
+					line_state.sprite_fifo.push_front(element);
+				else
+					line_state.sprite_fifo.push_back(element);
+			}
+
 		}
 		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		break;
@@ -434,7 +459,8 @@ bool ppu_tick_fifo::is_oam_accessible() const {
 	return line_state.current_mode != ppu_types::OAM_SCAN && line_state.current_mode != ppu_types::DRAWING;
 }
 
-const std::array<ppu_types::rgba, 160 * 144>& ppu_tick_fifo::get_framebuffer() const {
+auto ppu_tick_fifo::get_framebuffer() const -> const std::array<ppu_types::rgba, 160 * 144>&
+{
 	return framebuffer;
 }
 
@@ -464,21 +490,25 @@ void ppu_tick_fifo::fill_oam_buffer() {
 	for (const auto sprite : oam_sprites) {
 
 		const auto ly_plus_16 = ly + 16;
-		if (sprite_buffer_index < 10 && sprite.x > 0 && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + sprite_height)) {
+		if (!sprite_buffer.full() && sprite.x > 0 && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + sprite_height)) {
 			ppu_fifo_types::OAM_priority_queue_element element{ .sprite = sprite,.oam_index = i };
-			sprite_buffer[sprite_buffer_index++] = element;
+			sprite_buffer.push(element);
 		}
-		i++;
 	}
 
 	const auto comparator = [](const ppu_fifo_types::OAM_priority_queue_element& lhs, const ppu_fifo_types::OAM_priority_queue_element& rhs) {
 		if (lhs.sprite.x == rhs.sprite.x) {
-			return lhs.oam_index > rhs.oam_index;
+			return lhs.oam_index < rhs.oam_index;
+
 		}
 
-		return lhs.sprite.x > rhs.sprite.x;
+		return lhs.sprite.x < rhs.sprite.x;
 
 		};
-	std::sort(sprite_buffer.begin(), sprite_buffer.begin() + sprite_buffer_index, comparator);
+
+	sprite_buffer.sort(comparator);
+
+
+
 }
 

@@ -4,8 +4,8 @@
 #include "shared/interrupt.h"
 #include "ppu_fifo_types.h"
 #include <queue>
-#include "ppu_fifo_types.h"
 
+#include "utils/utils.h"
 
 
 class ppu_tick_fifo :public PPU_Base {
@@ -72,12 +72,13 @@ private:
 
 
 
+
 	//OAM Buffer
-	std::array<ppu_fifo_types::OAM_priority_queue_element, 10>  sprite_buffer{};
-	uint16_t sprite_buffer_index = 0;
-	uint16_t current_sprite_index = 0;
+	ppu_fifo_types::oam_ring_buffer<10>  sprite_buffer{};
 
 
+
+		
 
 
 
@@ -101,8 +102,8 @@ private:
 		ppu_fifo_types::fifo_state background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		ppu_fifo_types::fifo_state sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 
-		std::deque<ppu_fifo_types::fifo_element> background_fifo;
-		std::deque<ppu_fifo_types::fifo_element> sprite_fifo;
+		utils::FixedDeque<ppu_fifo_types::fifo_element> background_fifo;
+		utils::FixedDeque<ppu_fifo_types::fifo_element> sprite_fifo;
 
 		int current_pixel = 0;
 		int bg_fetcher_cycle = 0;
@@ -160,10 +161,10 @@ private:
 
 		}
 		void reset_bg_fifo() {
-			while (!background_fifo.empty()) background_fifo.pop_back();
+			background_fifo.clear();
 		}
 		void reset_sprite_fifo() {
-			while (!sprite_fifo.empty()) sprite_fifo.pop_back();
+			sprite_fifo.clear();
 		}
 
 	} line_state;

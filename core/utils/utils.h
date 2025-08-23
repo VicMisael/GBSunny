@@ -52,6 +52,72 @@ namespace  utils {
         return data;
     }
 
+    template <typename T, std::size_t ARRAY_SIZE = 8>
+    class FixedDeque {
+    public:
+        FixedDeque() : head(0), tail(0), count(0) {}
+
+        bool push_back(const T& value) {
+            
+            if (full()) return false;
+            buffer[tail] = value;
+            tail = (tail + 1) % ARRAY_SIZE;
+            ++count;
+            return true;
+        }
+
+        bool push_front(const T& value) {
+            if (full()) return false;
+            head = (head + ARRAY_SIZE - 1) % ARRAY_SIZE;
+            buffer[head] = value;
+            ++count;
+            return true;
+        }
+
+        bool pop_back() {
+           
+            if (empty()) return false;
+            tail = (tail + ARRAY_SIZE - 1) % ARRAY_SIZE;
+            --count;
+            return true;
+        }
+
+        bool pop_front() {
+            if (empty()) return false;
+            head = (head + 1) % ARRAY_SIZE;
+            --count;
+            return true;
+        }
+
+        T& front() { return buffer[head]; }
+        const T& front() const { return buffer[head]; }
+
+        T& back() { return buffer[(tail + ARRAY_SIZE - 1) % ARRAY_SIZE]; }
+        const T& back() const { return buffer[(tail + ARRAY_SIZE - 1) % ARRAY_SIZE]; }
+
+        bool empty() const;
+        bool full() const { return count == ARRAY_SIZE; }
+        std::size_t size() const { return count; }
+        void clear() { head = tail = count = 0; }
+
+        T& operator[](size_t index) {
+            return buffer[(head + index) % ARRAY_SIZE];
+        }
+
+        const T& operator[](size_t index) const {
+            return buffer[(head + index) % ARRAY_SIZE];
+        }
+
+    private:
+        std::array<T, ARRAY_SIZE> buffer;
+        std::size_t head;
+        std::size_t tail;
+        std::size_t count;
+    };
+
+    template <typename T, std::size_t ARRAY_SIZE>
+    bool FixedDeque<T, ARRAY_SIZE>::empty() const
+    { return count == 0; }
 };
 
 
