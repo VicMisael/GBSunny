@@ -119,13 +119,13 @@ void ppu_tick_fifo::render_scanline() {
 
 
 
-	if (!line_state.pause_bg_fetch && line_state.background_fifo.size() <= 8) {
+	if (lcdc.bits.BG_window_enable && !line_state.pause_bg_fetch && line_state.background_fifo.size() <= 8) {
 		render_bg(line_state.window_triggered);
 	}
 
 	//BG 32x32 Tiles
 
-	if (oam_render_possible()) {
+	if (lcdc.bits.OBJ_Enable && oam_render_possible()) {
 
 		render_oam();
 	}
@@ -169,6 +169,7 @@ void ppu_tick_fifo::render_scanline() {
 }
 
 bool ppu_tick_fifo::oam_render_possible() {
+	if (line_state.background_fifo.empty()) return false;
 	for (const auto& element : sprite_buffer)
 	{
 		if (element.sprite.x <= line_state.current_x + 8)
@@ -337,16 +338,17 @@ void ppu_tick_fifo::render_oam() {
 					.bg_priority = line_state.current_sprite.flags.obj_to_dbg_priority
 			};
 
-			if(!empty_buffer)
+			if (!empty_buffer)
 			{
-				current_pixel_idx = sprite.flags.x_flip ? 7 - current_pixel_idx : current_pixel_idx;
-				const auto current_pixel = line_state.sprite_fifo[current_pixel_idx];
+				const auto idx = sprite.flags.x_flip ? 7 - current_pixel_idx : current_pixel_idx;
+				const auto current_pixel = line_state.sprite_fifo[idx];
 				if (current_pixel.color == 0)
 				{
-					line_state.sprite_fifo[current_pixel_idx] = element;
+					line_state.sprite_fifo[idx] = element;
 				}
 				current_pixel_idx++;
-			}else
+			}
+			else
 			{
 				if (!sprite.flags.x_flip)
 					line_state.sprite_fifo.push_front(element);
