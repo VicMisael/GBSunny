@@ -95,7 +95,7 @@ namespace  utils {
         T& back() { return buffer[(tail + ARRAY_SIZE - 1) % ARRAY_SIZE]; }
         const T& back() const { return buffer[(tail + ARRAY_SIZE - 1) % ARRAY_SIZE]; }
 
-        bool empty() const;
+        bool empty() const     { return count == 0; };
         bool full() const { return count == ARRAY_SIZE; }
         std::size_t size() const { return count; }
         void clear() { head = tail = count = 0; }
@@ -115,9 +115,37 @@ namespace  utils {
         std::size_t count;
     };
 
-    template <typename T, std::size_t ARRAY_SIZE>
-    bool FixedDeque<T, ARRAY_SIZE>::empty() const
-    { return count == 0; }
+    inline void gb_debug_break() {
+#if defined(_MSC_VER)
+        // Microsoft Visual C++: a dedicated intrinsic function.
+        __debugbreak();
+
+#elif defined(__clang__)
+        // Clang: a dedicated intrinsic for debug traps.
+        __builtin_debugtrap();
+
+#elif defined(__GNUC__)
+        // GCC: check for specific architectures for the most common instruction.
+#if defined(__i386__) || defined(__x86_64__)
+        // For x86/x64, the 'int3' instruction is the standard breakpoint.
+        __asm__ volatile("int3");
+#else
+        // For other architectures (like ARM), __builtin_trap() is a generic
+        // instruction that causes the program to halt in a way a debugger can catch.
+        __builtin_trap();
+#endif
+
+#else
+        // Generic fallback for other compilers/platforms.
+        // SIGTRAP is a POSIX standard signal for trace/breakpoint traps.
+        // A debugger attached to the process can intercept this signal.
+        raise(SIGTRAP);
+
+#endif
+    }
+
+
+
 };
 
 

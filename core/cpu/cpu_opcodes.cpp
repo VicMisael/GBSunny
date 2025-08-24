@@ -9,6 +9,7 @@ void cpu::cpu::ADD_a(uint8_t data) {
     _registers.f.CARRY = result > 0xFF;
     _registers.a = static_cast<uint8_t>(result);
     _registers.f.ZERO = (_registers.a == 0);
+    
 }
 
 void cpu::cpu::ADC_a(uint8_t data) {

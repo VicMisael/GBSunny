@@ -106,6 +106,29 @@ inline void ppu_tick_fifo::oam_scan()
 	};
 }
 
+uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
+{
+	if (fetching_window)
+	{
+
+		uint16_t tile_map_area = lcdc.bits.window_tile_map_area ? 0x9C00 : 0x9800;
+		uint8_t y_in_map = (line_state.window_line);
+		uint8_t tile_row = y_in_map / 8;
+		uint8_t x_in_map = (line_state.current_pixel - (wx - 7));
+		uint8_t tile_col = x_in_map / 8;
+		return tile_map_area + tile_row * 32 + tile_col;
+
+
+
+	}
+	uint16_t tile_map_area = lcdc.bits.BG_tile_map ? 0x9C00 : 0x9800;
+	uint8_t y_in_map = (scy + ly) & 0xFF;
+	uint8_t tile_row = y_in_map / 8;
+	uint8_t x_in_map = scx + line_state.current_pixel;
+	uint8_t tile_col = x_in_map / 8;
+	return tile_map_area + tile_row * 32 + tile_col;
+}
+
 void ppu_tick_fifo::render_scanline() {
 	//if (line_state.first_fetch > 0) {
 	//	//delay 12 cycles
@@ -118,15 +141,15 @@ void ppu_tick_fifo::render_scanline() {
 
 
 
-
 	if (lcdc.bits.BG_window_enable && !line_state.pause_bg_fetch ) {
 		render_bg(line_state.window_triggered);
 	}
 
-	if (lcdc.bits.OBJ_Enable && oam_render_possible()) {
 
-		render_oam();
-	}
+	//if (lcdc.bits.OBJ_Enable && oam_render_possible()) {
+
+	//	render_oam();
+	//}
 
 
 	if (!line_state.background_fifo.empty()) {
@@ -140,7 +163,7 @@ void ppu_tick_fifo::render_scanline() {
 			line_state.sprite_fifo.pop_back();
 			uint8_t palette = sprite.palette ? obp1 : obp0;
 			const bool sprite_is_opaque = (sprite.color != 0);
-			const bool sprite_has_priority = !sprite.bg_priority;
+			const bool sprite_has_priority = true;
 			const bool bg_is_transparent = (bg.color == 0);
 
 			if (sprite_is_opaque && (sprite_has_priority || bg_is_transparent)) {
@@ -169,10 +192,9 @@ void ppu_tick_fifo::render_scanline() {
 
 bool ppu_tick_fifo::oam_render_possible() {
 	if (line_state.background_fifo.empty()) return false;
-	//if(!line_state.bg_fetcher_finished) return false;
 	for (const auto& element : sprite_buffer)
 	{
-		if (element.sprite.x <= line_state.current_x + 8)
+		if (element.sprite.x +8<= line_state.current_x )
 		{
 			return true;
 		}
@@ -180,27 +202,7 @@ bool ppu_tick_fifo::oam_render_possible() {
 	return false;
 }
 
-uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
-{
-	if (fetching_window)
-	{
 
-		uint16_t tile_map_area = lcdc.bits.window_tile_map_area ? 0x9C00 : 0x9800;
-		uint8_t y_in_map = (line_state.window_line);
-		uint8_t tile_row = y_in_map / 8;
-		uint8_t x_in_map = (line_state.current_pixel - (wx - 7));
-		uint8_t tile_col = x_in_map / 8;
-		return tile_map_area + tile_row * 32 + tile_col;
-
-
-	}
-	uint16_t tile_map_area = lcdc.bits.BG_tile_map ? 0x9C00 : 0x9800;
-	uint8_t y_in_map = (scy + ly) & 0xFF;
-	uint8_t tile_row = y_in_map / 8;
-	uint8_t x_in_map = scx + line_state.current_pixel;
-	uint8_t tile_col = x_in_map / 8;
-	return tile_map_area + tile_row * 32 + tile_col;
-}
 
 void ppu_tick_fifo::render_bg(bool fetching_window)
 {
@@ -341,7 +343,6 @@ void ppu_tick_fifo::render_oam() {
 
 			if (!empty_buffer)
 			{
-				;
 				const auto current_pixel = line_state.sprite_fifo[current_pixel_idx];
 				if (current_pixel.color == 0)
 				{
