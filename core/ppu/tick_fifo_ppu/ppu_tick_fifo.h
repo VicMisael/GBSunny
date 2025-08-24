@@ -78,7 +78,7 @@ private:
 
 
 
-		
+
 
 
 
@@ -128,6 +128,7 @@ private:
 		int discard_delay = 0;
 		int discard_delay_set = false;
 		int drawing_cycles = 0;
+		bool bg_fetcher_finished =true;
 
 		[[nodiscard]] bool render_complete() const {
 			return current_x > 160;
@@ -141,7 +142,7 @@ private:
 			first_fetch = 12;
 			current_pixel = 0;
 			bg_tile_id = 0;
-
+			bg_fetcher_finished = true;
 			window_triggered = false;
 			background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
@@ -153,6 +154,16 @@ private:
 			reset_bg_fifo();
 			reset_sprite_fifo();
 
+		}
+		void fill_sprite_fifo_transparent()
+		{
+			for (int i = 0; i < 8; i++)
+			{
+				ppu_fifo_types::fifo_element element{
+					.color = 0,
+				};
+				sprite_fifo.push_front(element);
+			}
 		}
 		void vblank_reset()
 		{

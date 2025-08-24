@@ -30,15 +30,18 @@ namespace ppu_types {
 	struct line {
 		uint8_t lsb;
 		uint8_t msb;
-		std::array<uint8_t, 8> decoded_pixels() const {
+		std::array<uint8_t, 8> decoded_pixels(bool x_flip = false) const {
 			std::array<uint8_t, 8> pixels{};
 
 			for (int i = 7; i >= 0; --i) {
-				uint8_t hi = (msb >> i) & 1; // high bit
-				uint8_t lo = (lsb >> i) & 1; // low bit
-				pixels[7-i] = (hi << 1) | lo; // combine into 2-bit pixel
-			}
+				uint8_t hi = (msb >> i) & 1;
+				uint8_t lo = (lsb >> i) & 1;
+				uint8_t color = (hi << 1) | lo;
 
+				int idx = 7 - i;             // normal index
+				if (x_flip) idx = i;         // reversed
+				pixels[idx] = color;
+			}
 			return pixels;
 		}
 
