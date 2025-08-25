@@ -97,7 +97,6 @@ namespace ppu_fifo_types {
 		{
 			if (full())
 			{
-				__debugbreak();
 				return false;
 			}
 			elements[tail] = element;

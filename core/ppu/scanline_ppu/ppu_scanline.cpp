@@ -266,11 +266,12 @@ void PPU_scanline::fill_oam_buffer()
 void PPU_scanline::render_sprites() {
     uint8_t sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
 
-
-    std::sort(sprite_buffer.begin(), sprite_buffer.begin()+sprite_buffer_index, [](const auto& a, const auto& b) {
+    const auto comparator = [](const ppu_types::OAM_Sprite& a, const ppu_types::OAM_Sprite& b) {
         if (a.x != b.x) return a.x >= b.x;
         return &a < &b; // Stable sort for sprites with same X
-    });
+    };
+
+    std::sort(sprite_buffer.begin(), sprite_buffer.begin()+sprite_buffer_index, comparator);
 
 
     for (int i = 0; i < sprite_buffer_index;i++) {

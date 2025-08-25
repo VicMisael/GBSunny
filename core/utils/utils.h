@@ -115,7 +115,7 @@ namespace  utils {
         std::size_t count;
     };
 
-    inline void gb_debug_break() {
+    inline void gb_debug_break() noexcept{
 #if defined(_MSC_VER)
         // Microsoft Visual C++: a dedicated intrinsic function.
         __debugbreak();

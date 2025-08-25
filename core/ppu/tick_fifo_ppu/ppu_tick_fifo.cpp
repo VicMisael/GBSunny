@@ -502,7 +502,6 @@ void ppu_tick_fifo::fill_oam_buffer() {
 			return lhs.oam_index < rhs.oam_index;
 
 		}
-
 		return lhs.sprite.x < rhs.sprite.x;
 
 		};
