@@ -10,3 +10,8 @@
 /cmake-build-release-wsl/
 /cmake-build-release-wsl-1/
 /cmake-build-relwithdebinfo-wsl/
+/.idea
+/cmake-build-debug
+/cmake-build-minsizerel
+/cmake-build-release
+/cmake-build-relwithdebinfo

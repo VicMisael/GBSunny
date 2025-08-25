@@ -189,7 +189,7 @@ void ppu_tick_fifo::render_scanline() {
 
 }
 
-bool ppu_tick_fifo::oam_render_possible() {
+bool ppu_tick_fifo::oam_render_possible() const {
 	if (line_state.oam_fetcher_running) return true;
 	for (const auto& element : sprite_buffer)
 	{
@@ -286,6 +286,10 @@ void ppu_tick_fifo::render_oam() {
 	const auto sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
 	switch (line_state.sprite_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE: {
+
+		if (line_state.bg_fetcher_running) {
+			break; // Stall and wait for the background fetcher to finish.
+		}
 		line_state.oam_fetcher_running = true;
 		const auto sprite = sprite_buffer.front();
 		sprite_buffer.pop();
