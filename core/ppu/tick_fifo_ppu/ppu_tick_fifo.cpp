@@ -141,16 +141,15 @@ void ppu_tick_fifo::render_scanline() {
 
 
 
-	if (lcdc.bits.BG_window_enable && !line_state.pause_bg_fetch ) {
+	if (lcdc.bits.BG_window_enable) {
 		render_bg(line_state.window_triggered);
 	}
 
 
-	//if (lcdc.bits.OBJ_Enable && oam_render_possible()) {
+	if (lcdc.bits.OBJ_Enable && oam_render_possible()) {
 
-	//	render_oam();
-	//}
-
+		render_oam();
+	}
 
 	if (!line_state.background_fifo.empty()) {
 		const ppu_fifo_types::fifo_element bg = line_state.background_fifo.back();
@@ -191,10 +190,10 @@ void ppu_tick_fifo::render_scanline() {
 }
 
 bool ppu_tick_fifo::oam_render_possible() {
-	if (line_state.background_fifo.empty()) return false;
+	if (line_state.oam_fetcher_running) return true;
 	for (const auto& element : sprite_buffer)
 	{
-		if (element.sprite.x +8<= line_state.current_x )
+		if (element.sprite.x <= line_state.current_x +8)
 		{
 			return true;
 		}
@@ -202,15 +201,13 @@ bool ppu_tick_fifo::oam_render_possible() {
 	return false;
 }
 
-
-
 void ppu_tick_fifo::render_bg(bool fetching_window)
 {
 
 	switch (line_state.background_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE:
 	{
-		line_state.bg_fetcher_finished = false;
+		line_state.bg_fetcher_running = true;
 		if (++line_state.bg_fetcher_cycle < 2) break;
 
 
@@ -277,7 +274,7 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 			line_state.current_pixel += 8;
 			line_state.bg_fetcher_cycle = 0;
 			line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
-			line_state.bg_fetcher_finished = true;
+			line_state.bg_fetcher_running = false;
 			break;
 		}
 		break;
@@ -289,6 +286,7 @@ void ppu_tick_fifo::render_oam() {
 	const auto sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
 	switch (line_state.sprite_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE: {
+		line_state.oam_fetcher_running = true;
 		const auto sprite = sprite_buffer.front();
 		sprite_buffer.pop();
 		line_state.current_sprite = sprite.sprite;
@@ -357,6 +355,7 @@ void ppu_tick_fifo::render_oam() {
 
 		}
 		line_state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
+		line_state.oam_fetcher_running = false;
 		break;
 
 	}

@@ -117,7 +117,6 @@ private:
 		ppu_types::OAM_Sprite current_sprite;
 		ppu_types::line current_oam_line;
 #pragma endregion
-		bool pause_bg_fetch = false;
 		ppu_types::line current_bg_line;
 
 		uint8_t bg_tile_id = 0;
@@ -128,7 +127,8 @@ private:
 		int discard_delay = 0;
 		int discard_delay_set = false;
 		int drawing_cycles = 0;
-		bool bg_fetcher_finished =true;
+		bool bg_fetcher_running = false;
+		bool oam_fetcher_running = false;
 
 		[[nodiscard]] bool render_complete() const {
 			return current_x > 160;
@@ -142,14 +142,14 @@ private:
 			first_fetch = 12;
 			current_pixel = 0;
 			bg_tile_id = 0;
-			bg_fetcher_finished = true;
+			bg_fetcher_running = false;
+			oam_fetcher_running = false;
 			window_triggered = false;
 			background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			total_dots = 0;
 			discard_delay = 0;
 			discard_delay_set = false;
-			pause_bg_fetch = false;
 			drawing_cycles = 0;
 			reset_bg_fifo();
 			reset_sprite_fifo();
