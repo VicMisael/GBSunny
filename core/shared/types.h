@@ -12,7 +12,7 @@ namespace shared{
         //std::bitset<8> bitset;
         struct {
             bool VBlank : 1;
-            bool LCD: 1;
+            bool STAT: 1;
             bool timer : 1;
             bool serial : 1;
             bool joypad : 1;

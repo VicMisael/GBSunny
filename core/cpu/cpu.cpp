@@ -47,6 +47,7 @@ void cpu::cpu::gb_doctor_print(std::ostream& out_stream) const
 
 bool cpu::cpu::waiting_interrupt() const {
 	const auto interrupt = this->interrupt_control->allowed();
+	
 	return ime && (interrupt.flag != 0);
 }
 
@@ -54,7 +55,7 @@ uint32_t cpu::cpu::handle_interrupt() {
 	static constexpr std::array<uint16_t, 5> jmp_table = { 0x40, 0x48, 0x50, 0x58, 0x60 };
 
 	// Interrupt handling takes 5 M-cycles (20 T-cycles)
-	ime = false;
+	
 	halted = false;
 
 	// Manually PUSH PC to stack
@@ -62,26 +63,28 @@ uint32_t cpu::cpu::handle_interrupt() {
 
 	const auto interrupt = this->interrupt_control->allowed();
 
+
 	if (interrupt.VBlank) {
-		interrupt_control->flag.VBlank = false;
+		interrupt_control->requested.VBlank = false;
 		_registers.pc = jmp_table[0];
 	}
-	else if (interrupt.LCD) {
-		interrupt_control->flag.LCD = false;
+	else if (interrupt.STAT) {
+		interrupt_control->requested.STAT = false;
 		_registers.pc = jmp_table[1];
 	}
 	else if (interrupt.timer) {
-		interrupt_control->flag.timer = false;
+		interrupt_control->requested.timer = false;
 		_registers.pc = jmp_table[2];
 	}
 	else if (interrupt.serial) {
-		interrupt_control->flag.serial = false;
+		interrupt_control->requested.serial = false;
 		_registers.pc = jmp_table[3];
 	}
 	else if (interrupt.joypad) {
-		interrupt_control->flag.joypad = false;
+		interrupt_control->requested.joypad = false;
 		_registers.pc = jmp_table[4];
 	}
+	ime = false;
 	return 5;
 }
 
@@ -302,7 +305,7 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 		LD_mem(_registers.hl, src);
 	}
 	else {
-		cpu::cpu::LD_8bit(reg_ref(result.y), src);
+		LD_8bit(reg_ref(result.y), src);
 	}
 }
 
@@ -500,8 +503,7 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 }
 //return the number of T Cycles consumed by the CPU
 uint32_t cpu::cpu::step() {
-	uint32_t spent_cycles = 0;
-
+	uint32_t spent_cycles;
 	if (waiting_interrupt()) {
 		spent_cycles = handle_interrupt();
 		return 4 * spent_cycles;

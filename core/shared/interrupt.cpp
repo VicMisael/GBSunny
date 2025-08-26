@@ -9,6 +9,7 @@
 
 
 shared::interrupt_register shared::interrupt::allowed() const {
-    const uint8_t allowed = flag.flag & enable.flag & 0x1f;
-    return interrupt_register{allowed};
+    const auto  allowed =  interrupt_register{static_cast<uint8_t>(requested.flag & enable.flag) };
+
+    return allowed;
 }

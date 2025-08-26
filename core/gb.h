@@ -15,10 +15,11 @@ class gb {
     std::shared_ptr<gb_timer> _timer;
     std::unique_ptr<cpu::cpu> _cpu;
     std::shared_ptr<spu> _spu;
-    std::shared_ptr<mmu::MMU> _mmu;
+    
 
     void init();
 public:
+    std::shared_ptr<mmu::MMU> _mmu;
     explicit gb(const std::string& rompath,bool fast_ppu=true);
     void reset();
     void run_one_frame();

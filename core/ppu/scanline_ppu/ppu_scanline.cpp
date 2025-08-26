@@ -89,9 +89,9 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 cycle_counter -= HBLANK_CYCLES;
                 increment_ly();
                 if (ly == 144) {
-                    interrupt_controller->flag.VBlank = true;
+                    interrupt_controller->requested.VBlank = true;
                     set_mode(ppu_types::VBLANK);
-                    // Correctly set the VBlank interrupt flag
+                    // Correctly set the VBlank interrupt requested
 
                     
                 } else {
@@ -121,7 +121,7 @@ void PPU_scanline::increment_ly() {
 void PPU_scanline::check_lyc_coincidence() {
     stat.LYC_eq_LY = (ly == lyc);
     if (stat.LYC_eq_LY && stat.LYC_INT_SELECT) {
-        interrupt_controller->flag.LCD = true;
+        interrupt_controller->requested.STAT = true;
     }
 }
 
@@ -137,7 +137,7 @@ void PPU_scanline::set_mode(ppu_types::ppu_mode new_mode) {
     }
 
     if (interrupt_requested) {
-        interrupt_controller->flag.LCD = true;
+        interrupt_controller->requested.STAT = true;
     }
 }
 

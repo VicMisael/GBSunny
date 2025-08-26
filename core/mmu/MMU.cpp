@@ -242,7 +242,7 @@ uint8_t mmu::MMU::read_interrupt_enable() const {
 }
 
 uint8_t mmu::MMU::read_interrupt_flag() const {
-	return interrupt->flag.flag;
+	return interrupt->requested.flag;
 }
 
 void mmu::MMU::set_interrupt_enable(uint8_t enable) {
@@ -259,5 +259,5 @@ inline void mmu::MMU::oam_transfer(const uint8_t params) const
 }
 
 void mmu::MMU::set_interrupt_flag(uint8_t input) {
-	interrupt->flag.flag = input & 0x1F; // Only lower 5 bits are used
+	interrupt->requested.flag = input & 0x1F; // Only lower 5 bits are used
 }

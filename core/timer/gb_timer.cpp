@@ -39,7 +39,7 @@ void gb_timer::step(uint32_t cycles) {
             // TIMA overflows. Reset it to the value in TMA.
             tima_reg = tma_reg;
             // Request a timer interrupt.
-            interrupt_controller->flag.timer = true;
+            interrupt_controller->requested.timer = true;
         } else {
             tima_reg++;
         }

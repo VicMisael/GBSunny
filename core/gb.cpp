@@ -59,7 +59,6 @@ void gb::run_one_frame() {
     // 3. Accumulate the cycles for this frame.
     cycles_this_frame += spent_cycles;
   }
-
 }
 
 const std::array<ppu_types::rgba, 160 * 144>& gb::get_framebuffer() const{

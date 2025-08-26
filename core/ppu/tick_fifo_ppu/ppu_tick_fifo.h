@@ -50,6 +50,7 @@ private:
 
 	void fill_oam_buffer();
 	void set_mode(ppu_types::ppu_mode new_mode);
+	void set_stat();
 
 	[[nodiscard]] uint8_t read_vram_internal(uint16_t addr) const;
 
@@ -101,7 +102,6 @@ private:
 
 
 	struct {
-		ppu_types::ppu_mode current_mode;
 		ppu_fifo_types::fifo_state background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		ppu_fifo_types::fifo_state sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 
@@ -126,13 +126,14 @@ private:
 
 		int oam_cycle = 0;
 		int current_x = 0;
-		int first_fetch = 12;
-		int discard_delay = 0;
-		int discard_delay_set = false;
+
 		int drawing_cycles = 0;
+
 		bool bg_fetcher_running = false;
 		bool oam_fetcher_running = false;
 		bool window_ly_equals_wy = false;
+
+
 		[[nodiscard]] bool render_complete() const {
 			return current_x > 160;
 		}
@@ -142,7 +143,6 @@ private:
 		void hblank_reset() {
 			oam_cycle = 0;
 			current_x = 0;
-			first_fetch = 12;
 			current_pixel = 0;
 			bg_tile_id = 0;
 			bg_fetcher_running = false;
@@ -151,8 +151,7 @@ private:
 			background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 			total_dots = 0;
-			discard_delay = 0;
-			discard_delay_set = false;
+
 			drawing_cycles = 0;
 			reset_bg_fifo();
 			reset_sprite_fifo();
@@ -172,7 +171,7 @@ private:
 			sprite_fifo.clear();
 		}
 
-	} line_state;
+	} state;
 
 	const std::array<ppu_types::rgba, 4> colors = {
 	0xFFFFFFFF, // White

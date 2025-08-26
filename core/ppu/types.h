@@ -124,21 +124,20 @@ namespace ppu_types {
 	};
 
 	union _lcd_stat {
-	public:
 		struct {
 			uint8_t ppu_mode : 2;
-			uint8_t LYC_eq_LY : 1;
-			uint8_t MODE_0_INT_SELECT : 1; // H-Blank Interrupt
-			uint8_t MODE_1_INT_SELECT : 1; // V-Blank Interrupt
-			uint8_t MODE_2_INT_SELECT : 1; // OAM Interrupt
-			uint8_t LYC_INT_SELECT : 1;
-			uint8_t unused : 1;
+			bool LYC_eq_LY : 1;
+			bool MODE_0_INT_SELECT : 1; // H-Blank Interrupt
+			bool MODE_1_INT_SELECT : 1; // V-Blank Interrupt
+			bool MODE_2_INT_SELECT : 1; // OAM Interrupt
+			bool LYC_INT_SELECT : 1;
+			bool unused : 1;
 		};
 		uint8_t data = 0;
 
 		void write(const uint8_t input) {
 			// Corrected write logic: only bits 3-6 are writable.
-			// The lower 3 bits (mode and LYC flag) are read-only.
+			// The lower 3 bits (mode and LYC requested) are read-only.
 			data = (input & 0b01111000) | (data & 0b10000111);
 		};
 
