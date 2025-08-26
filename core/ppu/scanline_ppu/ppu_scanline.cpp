@@ -19,16 +19,8 @@ constexpr int VBLANK_LINES = 10;
 constexpr int FRAME_LINES = 154;
 
 PPU_scanline::PPU_scanline(std::shared_ptr<shared::interrupt> interrupt_controller)
-    : interrupt_controller(std::move(interrupt_controller)),
-      lcdc(0),
-      colors{{
-          { .value = 0xFFFFFFFF }, // White
-          { .value = 0xFFAAAAAA }, // Light Grey
-          { .value = 0xFF555555 }, // Dark Grey
-          { .value = 0xFF000000 }  // Black
-      }} {
-
-    reset();
+    : interrupt_controller(std::move(interrupt_controller)) {
+    PPU_scanline::reset();
 }
 
 void PPU_scanline::reset() {
@@ -48,8 +40,8 @@ void PPU_scanline::reset() {
     window_line_counter = 0;
     set_mode(ppu_types::OAM_SCAN);
 
-    std::fill(std::begin(vram), std::end(vram), 0xff);
-    std::fill(std::begin(oam), std::end(oam), 0xff);
+    std::ranges::fill(vram, 0xff);
+    std::ranges::fill(oam, 0xff);
 }
 
 void PPU_scanline::step(uint32_t cycles_to_run) {
@@ -73,6 +65,7 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 cycle_counter -= OAM_SCAN_CYCLES;
                 sprite_buffer_index=0;
                 fill_oam_buffer();
+                scanline_checks();
                 set_mode(ppu_types::DRAWING);
             }
             break;
@@ -91,12 +84,12 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 if (ly == 144) {
                     interrupt_controller->requested.VBlank = true;
                     set_mode(ppu_types::VBLANK);
-                    // Correctly set the VBlank interrupt requested
 
                     
                 } else {
                     set_mode(ppu_types::OAM_SCAN);
                 }
+                state.hblank_reset();
             }
             break;
         case ppu_types::VBLANK:
@@ -106,7 +99,7 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 if (ly >= FRAME_LINES) {
                     ly = 0;
                     window_line_counter = 0;
-                    set_mode(ppu_types::OAM_SCAN);
+                    set_mode(ppu_types::OAM_SCAN); state.vblank_reset();
                 }
             }
             break;
@@ -115,7 +108,6 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
 
 void PPU_scanline::increment_ly() {
     ly++;
-    check_lyc_coincidence();
 }
 
 void PPU_scanline::check_lyc_coincidence() {
@@ -259,6 +251,15 @@ void PPU_scanline::fill_oam_buffer()
         if (sprite_buffer_index < 10 && sprite.x > 0 && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + spriteheight)) {
            sprite_buffer[sprite_buffer_index++]=sprite;
         }
+    }
+}
+
+void PPU_scanline::scanline_checks()
+{
+    check_lyc_coincidence();
+    if (ly == wy)
+    {
+        state.window_triggered = true;
     }
 }
 

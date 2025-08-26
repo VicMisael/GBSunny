@@ -90,6 +90,7 @@
       "inherits": "x64-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "TRUE",
         "CMAKE_CXX_FLAGS_RELEASE": "/Ob2"
       }
     },

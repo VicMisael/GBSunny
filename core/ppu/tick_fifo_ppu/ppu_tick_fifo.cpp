@@ -9,8 +9,7 @@ constexpr int DRAWING_MAX_CYCLES = 289;
 constexpr int FRAME_LINES = 154;
 
 ppu_tick_fifo::ppu_tick_fifo(std::shared_ptr<shared::interrupt> interrupt_controller) :
-	interrupt_controller(std::move(interrupt_controller)),
-	lcdc(0) {
+	interrupt_controller(std::move(interrupt_controller)){
 	ppu_tick_fifo::reset();
 }
 
@@ -155,8 +154,6 @@ void ppu_tick_fifo::render_scanline() {
 	if ( !state.background_fifo.empty()) {
 		const ppu_fifo_types::fifo_element bg = state.background_fifo.back();
 		state.background_fifo.pop_back();
-
-		//if()
 
 		auto color = get_color_from_palette(bg.color, bgp);
 		if (!state.sprite_fifo.empty()) {
@@ -371,7 +368,6 @@ void ppu_tick_fifo::render_oam() {
 				const auto current_pixel = state.sprite_fifo[x];
 				if (current_pixel.color == 0)
 				{
-					utils::gb_debug_break();
 					state.sprite_fifo[x] = element;
 				}
 			}

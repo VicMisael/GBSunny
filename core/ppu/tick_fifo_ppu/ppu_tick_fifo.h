@@ -50,7 +50,6 @@ private:
 
 	void fill_oam_buffer();
 	void set_mode(ppu_types::ppu_mode new_mode);
-	void set_stat();
 
 	[[nodiscard]] uint8_t read_vram_internal(uint16_t addr) const;
 
@@ -86,19 +85,6 @@ private:
 
 
 
-	// PPU Registers using the types from ppu_types.h
-	ppu_types::_lcd_control lcdc;
-	ppu_types::_lcd_stat stat;
-	uint8_t scy{};
-	uint8_t scx{};
-	uint8_t ly{};
-	uint8_t lyc{};
-	uint8_t bgp{};
-	uint8_t obp0{};
-	uint8_t obp1{};
-	uint8_t wy{};
-	uint8_t wx{};
-	int32_t dma_cycles_remaining = 0;
 
 
 	struct {
@@ -173,11 +159,5 @@ private:
 
 	} state;
 
-	const std::array<ppu_types::rgba, 4> colors = {
-	0xFFFFFFFF, // White
-	0xC0C0C0FF, // Light gray
-	0x606060FF, // Dark gray
-	0x000000FF  // Black
-	};
 };
 #endif

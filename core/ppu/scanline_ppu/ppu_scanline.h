@@ -91,26 +91,24 @@ private:
     int sprite_buffer_index = 0;
 
     // PPU Registers using the types from ppu_types.h
-    ppu_types::_lcd_control lcdc;
-    ppu_types::_lcd_stat stat;
-    uint8_t scy{};
-    uint8_t scx{};
-    uint8_t ly{};
-    uint8_t lyc{};
-    uint8_t bgp{};
-    uint8_t obp0{};
-    uint8_t obp1{};
-    uint8_t wy{};
-    uint8_t wx{};
 
     // Internal PPU State
     ppu_types::ppu_mode current_mode;
     uint32_t cycle_counter{};
     int32_t dma_cycles_remaining {};
     int window_line_counter {};
+    void scanline_checks();
 
-    // The color palette
-    const std::array<ppu_types::rgba, 4> colors;
+    struct
+    {
+        bool window_triggered = false;
+        void hblank_reset(){}
+        void vblank_reset()
+        {
+            window_triggered = false;
+            hblank_reset();
+        }
+    } state;
 };
 
 
