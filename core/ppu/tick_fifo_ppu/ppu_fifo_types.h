@@ -78,6 +78,53 @@ namespace ppu_fifo_types {
 			size_t idx; // logical index (0..size()-1), NOT the raw array index
 		};
 
+		class const_iterator {
+		public:
+			using difference_type = std::ptrdiff_t;
+			using value_type = OAM_priority_queue_element;
+			using pointer = const value_type*;
+			using reference = const value_type&;
+			using iterator_category = std::random_access_iterator_tag;
+
+			const_iterator(const oam_ring_buffer* buf, size_t idx)
+				: buf(buf), idx(idx) {
+			}
+
+			// Converting constructor from non-const iterator
+			const_iterator(const iterator& other) : buf(other.buf), idx(other.idx) {}
+
+			reference operator*() const { return (*buf)[idx]; }
+			pointer   operator->() const { return &(*buf)[idx]; }
+
+			// --- increment / decrement ---
+			const_iterator& operator++() { ++idx; return *this; } // pre-increment
+			const_iterator& operator--() { --idx; return *this; } // pre-decrement
+			const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; } // post-increment
+			const_iterator operator--(int) { const_iterator tmp = *this; --(*this); return tmp; } // post-decrement
+
+			// --- arithmetic ---
+			const_iterator operator+(difference_type n) const { return const_iterator(buf, idx + n); }
+			const_iterator operator-(difference_type n) const { return const_iterator(buf, idx - n); }
+			difference_type operator-(const const_iterator& other) const { return idx - other.idx; }
+
+			const_iterator& operator+=(difference_type n) { idx += n; return *this; }
+			const_iterator& operator-=(difference_type n) { idx -= n; return *this; }
+
+			reference operator[](difference_type n) const { return (*buf)[idx + n]; }
+
+			// --- comparison ---
+			bool operator==(const const_iterator& other) const { return idx == other.idx; }
+			bool operator!=(const const_iterator& other) const { return idx != other.idx; }
+			bool operator<(const const_iterator& other)  const { return idx < other.idx; }
+			bool operator>(const const_iterator& other)  const { return idx > other.idx; }
+			bool operator<=(const const_iterator& other) const { return idx <= other.idx; }
+			bool operator>=(const const_iterator& other) const { return idx >= other.idx; }
+
+		private:
+			const oam_ring_buffer* buf;
+			size_t idx; // logical index (0..size()-1), NOT the raw array index
+		};
+
 		[[nodiscard]] bool empty() const
 		{
 			return total_elements == 0;
@@ -132,6 +179,12 @@ namespace ppu_fifo_types {
 
 		iterator begin() { return iterator(this, 0); }
 		iterator end() { return iterator(this, size()); }
+
+		const_iterator begin() const { return const_iterator(this, 0); }
+		const_iterator end() const { return const_iterator(this, size()); }
+		const_iterator cbegin() const { return const_iterator(this, 0); }
+		const_iterator cend() const { return const_iterator(this, size()); }
+
 
 		template <typename Compare>
 		void sort(Compare comp) {
