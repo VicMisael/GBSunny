@@ -35,6 +35,7 @@ public:
 	//Interface for the frontend to get the final image
 	[[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const final;
 private:
+	void scanline_checks();
 	void tick();
 	void oam_scan();
 	void increment_ly();
@@ -129,7 +130,7 @@ private:
 		int drawing_cycles = 0;
 		bool bg_fetcher_running = false;
 		bool oam_fetcher_running = false;
-
+		bool window_ly_equals_wy = false;
 		[[nodiscard]] bool render_complete() const {
 			return current_x > 160;
 		}
@@ -168,6 +169,7 @@ private:
 		void vblank_reset()
 		{
 			window_line = -1;
+			window_ly_equals_wy = false;
 			hblank_reset();
 
 		}

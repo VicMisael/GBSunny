@@ -33,6 +33,8 @@ void ppu_tick_fifo::reset() {
 	std::ranges::fill(oam, 0xff);
 }
 
+
+
 void inline ppu_tick_fifo::tick()
 {
 	if (!lcdc.bits.LCD_PPU_enable) {
@@ -47,6 +49,8 @@ void inline ppu_tick_fifo::tick()
 	}
 
 	line_state.total_dots++;
+	scanline_checks();
+
 	switch (stat.ppu_mode) {
 	case ppu_types::OAM_SCAN: {
 		oam_scan();
@@ -93,6 +97,13 @@ void inline ppu_tick_fifo::tick()
 	default:;
 	};
 }
+void ppu_tick_fifo::scanline_checks()
+{
+	if(ly==wy)
+	{
+		line_state.window_ly_equals_wy = true;
+	}
+}
 
 inline void ppu_tick_fifo::oam_scan()
 {
@@ -103,6 +114,10 @@ inline void ppu_tick_fifo::oam_scan()
 		sprite_buffer.clear();
 		fill_oam_buffer();
 		set_mode(ppu_types::DRAWING);
+		if (ly == wy)
+		{
+			line_state.window_ly_equals_wy = true;
+		}
 	};
 }
 
@@ -141,7 +156,7 @@ void ppu_tick_fifo::render_scanline() {
 
 
 
-	if (lcdc.bits.BG_window_enable) {
+	if (!line_state.oam_fetcher_running && lcdc.bits.BG_window_enable) {
 		render_bg(line_state.window_triggered);
 	}
 
@@ -162,7 +177,7 @@ void ppu_tick_fifo::render_scanline() {
 			line_state.sprite_fifo.pop_back();
 			uint8_t palette = sprite.palette ? obp1 : obp0;
 			const bool sprite_is_opaque = (sprite.color != 0);
-			const bool sprite_has_priority = true;
+			const bool sprite_has_priority = !sprite.bg_priority;
 			const bool bg_is_transparent = (bg.color == 0);
 
 			if (sprite_is_opaque && (sprite_has_priority || bg_is_transparent)) {
@@ -175,14 +190,11 @@ void ppu_tick_fifo::render_scanline() {
 
 
 
-	if (lcdc.bits.window_enable && wy <= ly) {
-		if (!line_state.window_triggered && line_state.current_pixel >= wx - 7) {
-			line_state.window_triggered = true;
-			line_state.window_line++;
-			line_state.reset_bg_fifo();
-			line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
-
-		}
+	if (lcdc.bits.window_enable && line_state.window_ly_equals_wy && !line_state.window_triggered && line_state.current_pixel >= wx - 7) {
+		line_state.window_triggered = true;
+		line_state.window_line++;
+		line_state.reset_bg_fifo();
+		line_state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 	}
 
 
@@ -193,7 +205,7 @@ bool ppu_tick_fifo::oam_render_possible() {
 	if (line_state.oam_fetcher_running) return true;
 	for (const auto& element : sprite_buffer)
 	{
-		if (element.sprite.x <= line_state.current_x +8)
+		if (element.sprite.x <= line_state.current_x + 8)
 		{
 			return true;
 		}
@@ -286,6 +298,10 @@ void ppu_tick_fifo::render_oam() {
 	const auto sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
 	switch (line_state.sprite_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE: {
+		if (line_state.bg_fetcher_running)
+		{
+			break;
+		}
 		line_state.oam_fetcher_running = true;
 		const auto sprite = sprite_buffer.front();
 		sprite_buffer.pop();
