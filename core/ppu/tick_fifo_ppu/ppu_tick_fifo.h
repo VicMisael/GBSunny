@@ -42,16 +42,18 @@ private:
 	void check_lyc_coincidence();
 	void render_scanline();
 	void render_bg(bool window);
-	bool oam_render_possible() const;
+	[[nodiscard]] bool oam_render_possible() const;
 	void render_oam();
-	uint16_t extract_tile_map_addr(bool fetching_window) const;
+	[[nodiscard]] uint16_t extract_tile_map_addr(bool fetching_window) const;
 	[[nodiscard]] ppu_types::rgba get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const;
-
 
 
 	void fill_oam_buffer();
 	void set_mode(ppu_types::ppu_mode new_mode);
 
+	[[nodiscard]] uint8_t read_vram_internal(uint16_t addr) const;
+
+	void write_vram_internal(uint16_t addr, uint8_t data);
 
 
 	std::array<ppu_types::rgba, 160 * 144> framebuffer{};
@@ -155,16 +157,6 @@ private:
 			reset_bg_fifo();
 			reset_sprite_fifo();
 
-		}
-		void fill_sprite_fifo_transparent()
-		{
-			for (int i = 0; i < 8; i++)
-			{
-				ppu_fifo_types::fifo_element element{
-					.color = 0,
-				};
-				sprite_fifo.push_front(element);
-			}
 		}
 		void vblank_reset()
 		{
