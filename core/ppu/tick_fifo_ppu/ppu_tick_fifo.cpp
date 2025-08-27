@@ -184,7 +184,8 @@ void ppu_tick_fifo::render_scanline() {
 }
 
 bool ppu_tick_fifo::oam_render_possible() const{
-	
+	if (state.background_fifo.empty()) return false;
+	if (state.bg_fetcher_running) return false;
 	if (state.oam_fetcher_running) return true;
 	for (const auto& element : sprite_buffer)
 	{
@@ -270,6 +271,7 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 		state.current_bg_line.msb = read_vram_internal(addr);
 
 		state.bg_fetcher_cycle = 0;
+		state.bg_fetcher_running = false;
 		state.background_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
 		break;
 	}
@@ -296,7 +298,6 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 			
 			
 			state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
-			state.bg_fetcher_running = false;
 		}
 		state.bg_fetcher_cycle = 0;
 		break;
