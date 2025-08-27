@@ -7,10 +7,11 @@
 #include <cstdint>
 #include <memory>
 
+#include "base_timer.h"
 #include "shared/interrupt.h"
 
-
-class gb_timer {
+//REALLY BAD
+class gb_timer:public base_timer {
     public:
     gb_timer( const std::shared_ptr<shared::interrupt>& interrupt_controller):interrupt_controller(interrupt_controller){};
     [[nodiscard]] uint8_t read(uint16_t addr) const;

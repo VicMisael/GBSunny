@@ -14,7 +14,6 @@ add_library(CoreModule STATIC gb.cpp
         ppu/tick_fifo_ppu/ppu_fifo_types.h
         ppu/tick_fifo_ppu/ppu_tick_fifo.h
         ppu/tick_fifo_ppu/ppu_tick_fifo.cpp
-
         cartridge/cartridge_info.h
         cartridge/cartridge_info.cc
         cartridge/cartridge.cc
@@ -23,6 +22,8 @@ add_library(CoreModule STATIC gb.cpp
         cartridge/modes/mbc2.cpp
         cartridge/modes/mbc3.cpp
         cartridge/boot_rom.h
+        timer/gb_timer2.cpp
+        timer/gb_timer2.h
         timer/gb_timer.cpp
         timer/gb_timer.h
         spu/spu.cpp
@@ -32,7 +33,7 @@ add_library(CoreModule STATIC gb.cpp
         shared/interrupt.h
         shared/interrupt.cpp
         ppu/ppu_base.h
-)
+ timer/base_timer.h)
 
 
 target_include_directories(CoreModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

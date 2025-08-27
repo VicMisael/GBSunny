@@ -2,6 +2,7 @@
 
 #include "ppu/scanline_ppu/ppu_scanline.h"
 #include "ppu/tick_fifo_ppu/ppu_tick_fifo.h"
+#include <timer/gb_timer.h>
 //
 // Created by Misael on 07/03/2025.
 //
@@ -23,11 +24,10 @@ gb::gb(const std::string &rompath,bool fast_ppu) {
   }
 
   //
-  _timer = std::make_shared<gb_timer>(_interrupt_controller);
+  _timer = std::make_shared<gb_timer2>(_interrupt_controller);
 
   _spu = std::make_shared<spu>();
 
-  _timer = std::make_shared<gb_timer>(_interrupt_controller);
   _cartridge = std::move(Cartridge::get_cartridge(rompath));
   _mmu =  std::make_shared<mmu::MMU>(_cartridge,_ppu,_timer,_interrupt_controller,_spu);
 

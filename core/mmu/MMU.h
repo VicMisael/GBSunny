@@ -9,7 +9,7 @@
 
 #include "cartridge/cartridge.h"
 #include "spu/spu.h"
-#include "timer/gb_timer.h"
+#include "timer/gb_timer2.h"
 #include "shared/interrupt.h"
 #include <ppu/ppu_base.h>
 
@@ -27,7 +27,7 @@ namespace mmu {
         uint8_t bootRomControl = 0;
 
         std::shared_ptr<PPU_Base> _ppu;
-        std::shared_ptr<gb_timer> _timer;
+        std::shared_ptr<base_timer> _timer;
         std::shared_ptr<Cartridge> _cartridge;
         std::shared_ptr<spu> _spu;
         std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
@@ -50,11 +50,11 @@ namespace mmu {
 
     public:
         MMU(const std::shared_ptr<Cartridge>& cart,
-            const std::shared_ptr<PPU_Base>& ppu_ptr,
-            const std::shared_ptr<gb_timer>& timer_ptr,
+            std::shared_ptr<PPU_Base> ppu_ptr,
+            const std::shared_ptr<base_timer>& timer_ptr,
             const std::shared_ptr<shared::interrupt>& interrupt_ptr,
             const std::shared_ptr<spu>& spu_ptr
-        ) : _ppu(ppu_ptr), _cartridge(cart), _timer(timer_ptr),
+        ) : _ppu(std::move(ppu_ptr)), _cartridge(cart), _timer(timer_ptr),
             interrupt(interrupt_ptr),
             _spu(spu_ptr) {
             // Constructor body can be empty if all initialization is done in the list.
