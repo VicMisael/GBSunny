@@ -8,43 +8,6 @@
 
 
 
-void cpu::cpu::gb_doctor_print(std::ostream& out_stream) const
-{
-	std::ios_base::fmtflags old_flags = out_stream.flags();
-	char old_fill = out_stream.fill('0');
-
-	out_stream << std::hex << std::uppercase;
-
-	// Print 8-bit registers
-	out_stream << "A:" << std::setw(2) << static_cast<int>(_registers.a) << " ";
-	out_stream << "F:" << std::setw(2) << static_cast<int>(_registers.f.f) << " ";
-	out_stream << "B:" << std::setw(2) << static_cast<int>(_registers.b) << " ";
-	out_stream << "C:" << std::setw(2) << static_cast<int>(_registers.c) << " ";
-	out_stream << "D:" << std::setw(2) << static_cast<int>(_registers.d) << " ";
-	out_stream << "E:" << std::setw(2) << static_cast<int>(_registers.e) << " ";
-	out_stream << "H:" << std::setw(2) << static_cast<int>(_registers.h) << " ";
-	out_stream << "L:" << std::setw(2) << static_cast<int>(_registers.l) << " ";
-
-	// Print 16-bit registers
-	out_stream << "SP:" << std::setw(4) << _registers.sp << " ";
-	out_stream << "PC:" << std::setw(4) << _registers.pc << " ";
-
-	// Print memory at the Program Counter
-	out_stream << "PCMEM:";
-	for (int i = 0; i < 4; ++i) {
-		out_stream << std::setw(2) << static_cast<int>(_mmu->read((_registers.pc) + i));
-		if (i < 3) {
-			out_stream << ",";
-		}
-	}
-	out_stream << std::endl;
-
-
-	// Restore original stream formatting
-	out_stream.flags(old_flags);
-	out_stream.fill(old_fill);
-}
-
 bool cpu::cpu::waiting_interrupt() const {
 	const auto interrupt = this->interrupt_control->allowed();
 	
