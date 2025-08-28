@@ -33,7 +33,7 @@ add_library(CoreModule STATIC gb.cpp
         shared/interrupt.h
         shared/interrupt.cpp
         ppu/ppu_base.h
- timer/base_timer.h)
+ timer/base_timer.h "cartridge/modes/mbc5.cpp")
 
 
 target_include_directories(CoreModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

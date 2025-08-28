@@ -24,12 +24,15 @@ void MBC1::write(const uint16_t& address, uint8_t value) {
         if (current_rom_bank == 0) current_rom_bank = 1;
     }
     else if (address <= 0x5FFF) {
-        if (rom_banking_mode) {
+        if (!rom_banking_mode) {
+            // ROM banking mode: use upper 2 bits for ROM bank
             current_rom_bank = (current_rom_bank & 0x1F) | ((value & 0x03) << 5);
-            current_rom_bank %= rom.size() / 0x4000;
+            uint32_t max_banks = rom.size() / 0x4000;
+            if (current_rom_bank >= max_banks) current_rom_bank %= max_banks;
             if (current_rom_bank == 0) current_rom_bank = 1;
         }
         else {
+            // RAM banking mode
             current_ram_bank = value & 0x03;
         }
     }

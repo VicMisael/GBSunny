@@ -16,14 +16,14 @@ int main(int argc, char* argv[]) {
     //    std::cerr << "Error: Please provide a path to the ROM file." << std::endl;
     //    std::cerr << "Usage: " << argv[0] << " <path_to_rom>" << std::endl;
     //    
-    //    return 1; // Return an error code
+    //    //return 1; // Return an error code
     //}
-    // std::string path_arg(argv[1]);
-    // std::cout << path_arg << std::endl;;
-    // Pass the first command-line argument (the path) to the constructor
-    //gb gameboy(path_arg);
+     //std::string path_arg(argv[1]);
+     //std::cout << path_arg << std::endl;;
+     //Pass the first command-line argument (the path) to the constructor
+     //gb gameboy(path_arg,true);
 
-    gb gameboy(R"(D:\Emulation\bgb\zelda.gb)",false);
+    gb gameboy(R"(D:\Emulation\bgb\killerinstinct.gb)",false);
 	//
 
      InitWindow(SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE, "GBsunny Emulator");
