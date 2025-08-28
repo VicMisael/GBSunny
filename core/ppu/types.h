@@ -39,7 +39,8 @@ namespace ppu_types {
 				uint8_t color = (hi << 1) | lo;
 
 				int idx = 7 - i;             // normal index
-				if (x_flip) idx = i;         // reversed
+				if (x_flip) 
+					idx = i;         // reversed
 				pixels[idx] = color;
 			}
 			return pixels;

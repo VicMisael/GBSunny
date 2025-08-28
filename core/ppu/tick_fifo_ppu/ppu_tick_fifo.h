@@ -88,6 +88,7 @@ private:
 
 
 	struct {
+
 		ppu_fifo_types::fifo_state background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		ppu_fifo_types::fifo_state sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 

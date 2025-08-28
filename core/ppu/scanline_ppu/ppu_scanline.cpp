@@ -108,6 +108,7 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
 
 void PPU_scanline::increment_ly() {
     ly++;
+    check_lyc_coincidence();
 }
 
 void PPU_scanline::check_lyc_coincidence() {
@@ -349,7 +350,11 @@ void PPU_scanline::write_control(uint16_t addr, uint8_t data) {
         case 0xFF42: scy = data; break;
         case 0xFF43: scx = data; break;
         case 0xFF44: /* LY is read-only */ break;
-        case 0xFF45: lyc = data; break;
+        case 0xFF45:
+	        {
+		        lyc = data;
+                check_lyc_coincidence();
+	        } break;
         case 0xFF47: bgp = data; break;
         case 0xFF48: obp0 = data; break;
         case 0xFF49: obp1 = data; break;

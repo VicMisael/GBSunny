@@ -66,7 +66,7 @@ void inline ppu_tick_fifo::tick()
 	case ppu_types::HBLANK: {
 		if (state.total_dots == SCANLINE_CYCLES) {
 			increment_ly();
-			check_lyc_coincidence();
+
 			if (ly == 144) {
 				set_mode(ppu_types::VBLANK);
 
@@ -88,8 +88,10 @@ void inline ppu_tick_fifo::tick()
 			if (ly == FRAME_LINES) {
 				ly = 0;
 				set_mode(ppu_types::OAM_SCAN);
+				state.vblank_reset();
 			}
-			state.vblank_reset();
+			state.hblank_reset();//Use the same hblank reset
+		
 		}
 
 		break;
@@ -103,8 +105,6 @@ void ppu_tick_fifo::scanline_checks()
 	{
 		state.window_ly_equals_wy = true;
 	}
-
-	//check_lyc_coincidence();
 }
 
 inline void ppu_tick_fifo::oam_scan()
@@ -226,9 +226,6 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 	switch (state.background_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE:
 	{
-		//if (state.oam_fetcher_running) {
-		//	break;
-		//}
 		state.bg_fetcher_running = true;
 		if (++state.bg_fetcher_cycle < 2) break;
 
@@ -307,6 +304,13 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 	}
 }
 
+uint8_t reverse_bits(uint8_t n) {
+	n = (n >> 4) | (n << 4);                 // swap nibbles
+	n = ((n & 0xCC) >> 2) | ((n & 0x33) << 2); // swap pairs
+	n = ((n & 0xAA) >> 1) | ((n & 0x55) << 1); // swap individual bits
+	return n;
+}
+
 void ppu_tick_fifo::render_oam() {
 	const auto sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
 	switch (state.sprite_fifo_state) {
@@ -326,6 +330,12 @@ void ppu_tick_fifo::render_oam() {
 			y_offset = sprite_height - 1 - y_offset;
 		}
 		const auto addr = 0x8000 + sprite.tile_index * 16 + y_offset * 2;
+		//if (sprite.flags.x_flip) {
+		//	state.current_oam_line.msb = reverse_bits(read_vram_internal(addr));
+		//}else
+		//{
+		//	state.current_oam_line.lsb = read_vram_internal(addr);
+		//}
 		state.current_oam_line.lsb = read_vram_internal(addr);
 
 		state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH;
@@ -340,6 +350,14 @@ void ppu_tick_fifo::render_oam() {
 			y_offset = sprite_height - 1 - y_offset;
 		}
 		const uint16_t addr = 1 + 0x8000 + sprite.tile_index * 16 + y_offset * 2;
+		
+		//if (sprite.flags.x_flip) {
+		//	state.current_oam_line.lsb = reverse_bits(read_vram_internal(addr));
+		//}
+		//else
+		//{
+		//	state.current_oam_line.msb = read_vram_internal(addr);
+		//}
 		state.current_oam_line.msb = read_vram_internal(addr);
 		state.sprite_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
 	}
@@ -459,7 +477,11 @@ void ppu_tick_fifo::write_control(uint16_t addr, uint8_t data) {
 	case 0xFF42: scy = data; break;
 	case 0xFF43: scx = data; break;
 	case 0xFF44: /* LY is read-only */ break;
-	case 0xFF45: lyc = data; break;
+	case 0xFF45:
+	{
+		lyc = data;
+		check_lyc_coincidence();
+	} break;
 	case 0xFF47: bgp = data; break;
 	case 0xFF48: obp0 = data; break;
 	case 0xFF49: obp1 = data; break;
@@ -492,6 +514,7 @@ auto ppu_tick_fifo::get_framebuffer() const -> const std::array<ppu_types::rgba,
 
 void ppu_tick_fifo::increment_ly() {
 	ly++;
+	check_lyc_coincidence();
 }
 
 void ppu_tick_fifo::check_lyc_coincidence() {
