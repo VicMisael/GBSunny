@@ -34,7 +34,7 @@ void gb_timer2::tick()
 				// Start reload sequence
 				tima_reload_pending = true;
 				tima_reload_delay = 4;
-				interrupt_controller->requested.timer = true;
+
 			}
 			else {
 				tima_reg++;
@@ -46,6 +46,7 @@ void gb_timer2::tick()
 			if (--tima_reload_delay == 0) {
 				tima_reg = tma_reg;
 				tima_reload_pending = false;
+				interrupt_controller->requested.timer = true;
 			}
 		}
 
