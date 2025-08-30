@@ -84,14 +84,14 @@
       }
     },
     {
-      "name": "x64-release",
-      "displayName": "x64 Release",
+      "name": "x64-release-deb-info",
+      "displayName": "x64 Release DebInfo",
       "description": "Destine ao Windows (64 bits) com o ambiente de desenvolvimento do Visual Studio. (RelWithDebInfo)",
       "inherits": "x64-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "TRUE",
-        "CMAKE_CXX_FLAGS_RELEASE": "/Ob2"
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "/Ob2"
       }
     },
     {
