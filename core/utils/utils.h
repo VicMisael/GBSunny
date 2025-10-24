@@ -11,7 +11,7 @@
 namespace  utils {
     
 
-    constexpr std::pair<uint8_t, uint8_t> split16Bit(const uint16_t value) {
+    constexpr std::pair<uint8_t, uint8_t> split_16_bit_little_endian(const uint16_t value) {
         uint8_t lowByte = value & 0xFF;        // Extract LSB (least significant byte)
         uint8_t highByte = (value >> 8) & 0xFF; // Extract MSB (most significant byte)
 

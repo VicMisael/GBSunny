@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
      //Pass the first command-line argument (the path) to the constructor
      //gb gameboy(path_arg,true);
 
-    gb gameboy(R"(D:\Emulation\bgb\killerinstinct.gb)",false);
+    gb gameboy(R"(D:\Emulation\bgb\zelda.gb)",false);
 	//
 
      InitWindow(SCREEN_WIDTH * SCREEN_SCALE, SCREEN_HEIGHT * SCREEN_SCALE, "GBsunny Emulator");

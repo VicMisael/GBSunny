@@ -340,7 +340,7 @@ void cpu::cpu::JP_offset(const int8_t offset) {
 }
 
 void cpu::cpu::PUSH(uint16_t &val) {
-    const auto [lo, hi] = utils::split16Bit(val);
+    const auto [lo, hi] = utils::split_16_bit_little_endian(val);
     _mmu->write(--_registers.sp, hi);  // MSB pushed first
     _mmu->write(--_registers.sp, lo); ;
 

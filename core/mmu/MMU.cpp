@@ -257,7 +257,3 @@ inline void mmu::MMU::oam_transfer(const uint8_t params) const
 	}
 
 }
-
-void mmu::MMU::set_interrupt_flag(uint8_t input) {
-	interrupt->requested.flag = input & 0x1F; // Only lower 5 bits are used
-}

@@ -54,7 +54,7 @@ void gb::run_one_frame() {
     // 2. Update all other components by the exact same amount of time.
     _ppu->step(spent_cycles);
     _timer->step(spent_cycles);
-    // spu->step(spent_cycles); // Add this if your SPU needs cycle-based updates
+    // spu->step(spent_cycles); 
 
     // 3. Accumulate the cycles for this frame.
     cycles_this_frame += spent_cycles;
