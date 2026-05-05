@@ -8,5 +8,6 @@
 
 
 
-shared::interrupt_register shared::interrupt::allowed() const {
-   return interrupt_register{static_cast<uint8_t>(requested.flag & enable.flag) };
+	shared::interrupt_register shared::interrupt::allowed() const {
+		return interrupt_register{ static_cast<uint8_t>(requested.flag & enable.flag) };
+	};

@@ -15,7 +15,7 @@ public:
     [[nodiscard]] interrupt_register allowed() const;
 };
 
-}
+}   
 
 
 #endif //INTERRUPT_
