@@ -13,6 +13,8 @@
 
 namespace cpu {
     //Assumes LittleEndian
+    static_assert(std::endian::native == std::endian::little,
+        "register_file assumes little-endian layout");
     class register_file {
     public:
         register_file();

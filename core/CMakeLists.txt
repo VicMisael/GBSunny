@@ -27,13 +27,14 @@ add_library(CoreModule STATIC gb.cpp
         timer/gb_timer.cpp
         timer/gb_timer.h
         spu/spu.cpp
-        spu/spu.h
+        "spu/spu.h"
         cpu/register_types.h
         shared/types.h
         shared/interrupt.h
         shared/interrupt.cpp
         ppu/ppu_base.h
- timer/base_timer.h "cartridge/modes/mbc5.cpp")
+ timer/base_timer.h 
+ cartridge/modes/mbc5.cpp events/event_aggregator.h events/events.h  )
 
 
 target_include_directories(CoreModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

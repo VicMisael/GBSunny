@@ -50,10 +50,11 @@ public:
     virtual void write_sram(uint16_t addr,uint8_t value) = 0;
 
     static std::shared_ptr<Cartridge> get_cartridge(const std::string &path);
+    std::unique_ptr<CartridgeInfo> cartridge_info;
 
 protected:
 
-    std::unique_ptr<CartridgeInfo> cartridge_info;
+
 };
 
 

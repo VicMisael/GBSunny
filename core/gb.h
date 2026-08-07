@@ -7,6 +7,8 @@
 #include "cpu/cpu.h"
 #include "spu/spu.h"
 #include <ppu/ppu_base.h>
+#include <events/event_aggregator.h>
+#include <events/events.h>
 
 class gb {
     std::shared_ptr<Cartridge> _cartridge;
@@ -15,11 +17,12 @@ class gb {
     std::shared_ptr<base_timer> _timer;
     std::unique_ptr<cpu::cpu> _cpu;
     std::shared_ptr<spu> _spu;
-    
+
 
     void init();
 public:
     std::shared_ptr<mmu::MMU> _mmu;
+    EmulatorEventAggregator bus;
     explicit gb(const std::string& rompath,bool fast_ppu=true);
     void reset();
     void run_one_frame();
