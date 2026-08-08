@@ -1,6 +1,6 @@
 #include "gb.h"
-#include "portable-file-dialogs.h"
 #include "raylib.h"
+#include "utils/file_dialog.h"
 
 #include <algorithm>
 #include <array>
@@ -27,7 +27,7 @@ struct AppState {
 	double last_stat_update = 0.0;
 };
 
-bool button(Rectangle bounds, const char* label)
+bool ui_button(Rectangle bounds, const char* label)
 {
 	const Vector2 mouse = GetMousePosition();
 	const bool hovered = CheckCollisionPointRec(mouse, bounds);
@@ -44,7 +44,6 @@ bool button(Rectangle bounds, const char* label)
 		static_cast<int>(bounds.y + (bounds.height - font_size) / 2.0f),
 		font_size,
 		RAYWHITE);
-
 	return hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 }
 
@@ -70,11 +69,10 @@ void load_rom(AppState& app, const std::string& path)
 
 void open_rom_dialog(AppState& app)
 {
-	const auto paths = pfd::open_file(
+	const auto paths = open_file_dialog(
 		"Open Game Boy ROM",
 		"",
-		{ "Game Boy ROMs", "*.gb *.gbc", "All files", "*" },
-		pfd::opt::none).result();
+		{ "Game Boy ROMs", "*.gb *.gbc", "All files", "*" });
 
 	if (!paths.empty()) {
 		load_rom(app, paths.front());
@@ -85,16 +83,16 @@ void draw_top_bar(AppState& app)
 {
 	DrawRectangle(0, 0, GetScreenWidth(), TopBarHeight, Color{ 24, 28, 36, 255 });
 
-	if (button(Rectangle{ 12, 8, 120, 28 }, "Open ROM")) {
+	if (ui_button(Rectangle{ 12, 8, 120, 28 }, "Open ROM")) {
 		open_rom_dialog(app);
 	}
 
-	if (button(Rectangle{ 144, 8, 84, 28 }, app.paused ? "Resume" : "Pause") && app.gameboy != nullptr) {
+	if (ui_button(Rectangle{ 144, 8, 84, 28 }, app.paused ? "Resume" : "Pause") && app.gameboy != nullptr) {
 		app.paused = !app.paused;
 		app.status = app.paused ? "Paused" : "Running";
 	}
 
-	if (button(Rectangle{ 240, 8, 74, 28 }, "Reset") && app.gameboy != nullptr) {
+	if (ui_button(Rectangle{ 240, 8, 74, 28 }, "Reset") && app.gameboy != nullptr) {
 		app.gameboy->reset();
 		app.status = "Reset";
 		app.frames_since_stat_update = 0;
@@ -102,7 +100,7 @@ void draw_top_bar(AppState& app)
 		app.last_stat_update = GetTime();
 	}
 
-	if (button(Rectangle{ 326, 8, 140, 28 }, app.unlimited_speed ? "Limit Speed" : "Unlimited") && app.gameboy != nullptr) {
+	if (ui_button(Rectangle{ 326, 8, 140, 28 }, app.unlimited_speed ? "Limit Speed" : "Unlimited") && app.gameboy != nullptr) {
 		app.unlimited_speed = !app.unlimited_speed;
 		app.status = app.unlimited_speed ? "Running unlimited" : "Running";
 		app.frames_since_stat_update = 0;
