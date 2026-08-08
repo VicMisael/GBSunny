@@ -1,6 +1,7 @@
 {
   "dependencies" : [
-  "raylib"
+  "raylib",
+  "portable-file-dialogs"
   ],
   "version" : "0.0.1",
   "name" : "gbsunny",

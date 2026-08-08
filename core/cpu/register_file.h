@@ -4,6 +4,7 @@
 
 #ifndef REGISTER_FILE_H
 #define REGISTER_FILE_H
+#include <bit>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>

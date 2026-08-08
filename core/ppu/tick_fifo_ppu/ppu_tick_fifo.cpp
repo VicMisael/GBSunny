@@ -2,6 +2,7 @@
 
 #include "ppu_tick_fifo.h"
 #include <algorithm>
+#include <cstddef>
 #include <ranges>
 
 constexpr int SCANLINE_CYCLES = 456;
@@ -372,8 +373,9 @@ void ppu_tick_fifo::render_oam() {
 		const auto sprite = state.current_sprite;
 		state.sprite_fifo.clear();
 		const bool empty_buffer = state.sprite_fifo.empty();
-		for (const auto [x, pixel] : std::views::enumerate(pixel_list)) {
-			const int screen_x = sprite.x - 8 + x;
+		for (std::size_t x = 0; x < pixel_list.size(); ++x) {
+			const auto pixel = pixel_list[x];
+			const int screen_x = sprite.x - 8 + static_cast<int>(x);
 			if (screen_x < 0 || screen_x >= 160) continue;
 
 			ppu_fifo_types::fifo_element element{
@@ -558,4 +560,3 @@ void ppu_tick_fifo::fill_oam_buffer() {
 
 
 }
-
