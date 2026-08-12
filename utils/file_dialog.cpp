@@ -1,8 +1,8 @@
 #include "file_dialog.h"
 
 #if defined(__has_include)
-#  if __has_include("portable-file-dialogs.h")
-#    include "portable-file-dialogs.h"
+#  if __has_include("portable_file_dialogs.h")
+#    include "portable_file_dialogs.h"
 #    define HAVE_PFD 1
 #  endif
 #endif
