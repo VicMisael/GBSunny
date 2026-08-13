@@ -15,11 +15,14 @@ constexpr int ScreenWidth = 160;
 constexpr int ScreenHeight = 144;
 constexpr int InitialScale = 4;
 constexpr int TopBarHeight = 44;
+constexpr int AudioBufferFrames = 1024;
+constexpr size_t MaxQueuedAudioFrames = AudioBufferFrames * 4;
 
 struct AppState {
 	std::unique_ptr<gb> gameboy;
 	std::string rom_path;
 	std::string status = "Select a ROM to start";
+	std::vector<spu::stereo_sample> pending_audio;
 	bool paused = false;
 	bool unlimited_speed = false;
 	int frames_since_stat_update = 0;
@@ -52,6 +55,7 @@ void load_rom(AppState& app, const std::string& path)
 	try {
 		app.gameboy = std::make_unique<gb>(path, false);
 		app.rom_path = path;
+		app.pending_audio.clear();
 		app.paused = false;
 		app.unlimited_speed = false;
 		app.frames_since_stat_update = 0;
@@ -61,8 +65,9 @@ void load_rom(AppState& app, const std::string& path)
 		SetTargetFPS(60);
 	}
 	catch (const std::exception& error) {
-		app.gameboy.reset();
+		//app.gameboy.reset();
 		app.rom_path.clear();
+		app.pending_audio.clear();
 		app.status = std::string("Failed to load ROM: ") + error.what();
 	}
 }
@@ -94,6 +99,7 @@ void draw_top_bar(AppState& app)
 
 	if (ui_button(Rectangle{ 240, 8, 74, 28 }, "Reset") && app.gameboy != nullptr) {
 		app.gameboy->reset();
+		app.pending_audio.clear();
 		app.status = "Reset";
 		app.frames_since_stat_update = 0;
 		app.emulated_fps = 0;
@@ -147,6 +153,33 @@ void draw_screen(const Texture2D& texture)
 		static_cast<int>(height),
 		Color{ 80, 90, 110, 255 });
 }
+
+void queue_audio_samples(AppState& app)
+{
+	if (app.gameboy == nullptr) {
+		return;
+	}
+
+	auto samples = app.gameboy->consume_audio_samples();
+	app.pending_audio.insert(app.pending_audio.end(), samples.begin(), samples.end());
+
+	if (app.pending_audio.size() > MaxQueuedAudioFrames) {
+		app.pending_audio.erase(
+			app.pending_audio.begin(),
+			app.pending_audio.end() - MaxQueuedAudioFrames);
+	}
+}
+
+void submit_audio_samples(AppState& app, AudioStream& audio_stream)
+{
+	if (app.pending_audio.empty() || !IsAudioStreamProcessed(audio_stream)) {
+		return;
+	}
+
+	const size_t frames_to_submit = std::min(app.pending_audio.size(), static_cast<size_t>(AudioBufferFrames));
+	UpdateAudioStream(audio_stream, app.pending_audio.data(), static_cast<int>(frames_to_submit));
+	app.pending_audio.erase(app.pending_audio.begin(), app.pending_audio.begin() + frames_to_submit);
+}
 }
 
 int main(int argc, char* argv[])
@@ -156,9 +189,14 @@ int main(int argc, char* argv[])
 		app.rom_path = argv[1];
 	}
 
-	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
+ 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
 	InitWindow(ScreenWidth * InitialScale, ScreenHeight * InitialScale + TopBarHeight, "GBSunny Emulator");
 	SetTargetFPS(60);
+
+	InitAudioDevice();
+	SetAudioStreamBufferSizeDefault(AudioBufferFrames);
+	AudioStream audio_stream = LoadAudioStream(spu::sample_rate, 32, 2);
+	PlayAudioStream(audio_stream);
 
 	Image image = GenImageColor(ScreenWidth, ScreenHeight, BLACK);
 	Texture2D texture = LoadTextureFromImage(image);
@@ -183,11 +221,13 @@ int main(int argc, char* argv[])
 			const int frames_to_run = app.unlimited_speed ? 32 : 1;
 			for (int i = 0; i < frames_to_run; ++i) {
 				app.gameboy->run_one_frame();
+				queue_audio_samples(app);
 				app.frames_since_stat_update++;
 			}
 			const auto& framebuffer = app.gameboy->get_framebuffer();
 			UpdateTexture(texture, framebuffer.data());
 		}
+		submit_audio_samples(app, audio_stream);
 
 		const double now = GetTime();
 		if (app.last_stat_update == 0.0) {
@@ -217,6 +257,8 @@ int main(int argc, char* argv[])
 	}
 
 	UnloadTexture(texture);
+	UnloadAudioStream(audio_stream);
+	CloseAudioDevice();
 	CloseWindow();
 	return 0;
 }

@@ -50,9 +50,9 @@ void gb::reset() {
 
 
 void gb::run_one_frame() {
-	const int CYCLES_PER_FRAME = 69905;
+	//const int CYCLES_PER_FRAME = 69905;
 
-	// constexpr int CYCLES_PER_FRAME = 70224;
+	constexpr int CYCLES_PER_FRAME = 70224;
 	int cycles_this_frame = 0;
 
 	while (cycles_this_frame < CYCLES_PER_FRAME) {
@@ -75,3 +75,6 @@ const std::array<ppu_types::rgba, 160 * 144>& gb::get_framebuffer() const {
 	return _ppu->get_framebuffer();
 }
 
+std::vector<spu::stereo_sample> gb::consume_audio_samples() {
+	return _spu->consume_samples();
+}

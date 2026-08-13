@@ -9,6 +9,7 @@
 #include <ppu/ppu_base.h>
 #include <events/event_aggregator.h>
 #include <events/events.h>
+#include <vector>
 
 class gb {
     std::shared_ptr<Cartridge> _cartridge;
@@ -27,6 +28,7 @@ public:
     void reset();
     void run_one_frame();
     [[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const;
+    std::vector<spu::stereo_sample> consume_audio_samples();
 
 
 

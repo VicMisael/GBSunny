@@ -4,60 +4,28 @@
 
 #ifndef SPU_H
 #define SPU_H
+
+#include <array>
 #include <cstdint>
-#include <shared/interrupt.h>
 #include <memory>
+#include <shared/interrupt.h>
+#include <vector>
 
-
-class base_channel {
-	uint8_t nrx1;
-
-};
-
-//Sound processing UNIT
+// Sound processing unit.
+//
+// This is intentionally scaffold-only: the MMU can read/write audio registers,
+// gb/main can drain samples into raylib, and the real channel generation can be
+// filled in step by step.
 class spu {
-	std::shared_ptr<shared::interrupt> interrupts;
-	void tick();
-    union {
-        uint8_t nr_50_data;
-        struct {
-            uint8_t right_volume : 3;  // bits 0-2
-            bool vin_right : 1;  // bit 3
-            uint8_t left_volume : 3;  // bits 4-6
-            bool vin_left : 1;  // bit 7
-        };
-    } nr_50;
-
-    union {
-        uint8_t nr_51_data;
-        struct {
-            bool ch1_right : 1; // bit 0
-            bool ch2_right : 1; // bit 1
-            bool ch3_right : 1; // bit 2
-            bool ch4_right : 1; // bit 3
-
-            bool ch1_left : 1; // bit 4
-            bool ch2_left : 1; // bit 5
-            bool ch3_left : 1; // bit 6
-            bool ch4_left : 1; // bit 7
-        };
-    } nr_51;
-
-    union {
-        uint8_t nr_52_data;
-        struct {
-            bool ch1_on : 1; // bit 0
-            bool ch2_on : 1; // bit 1
-            bool ch3_on : 1; // bit 2
-            bool ch4_on : 1; // bit 3
-            uint8_t unused : 3; // bits 4-6
-            bool power_on : 1; // bit 7
-        };
-    } nr_52;
 public:
-	explicit spu(std::shared_ptr<shared::interrupt> interrupts) {
-		this->interrupts = std::move(interrupts);
-	}
+	struct stereo_sample {
+		float left;
+		float right;
+	};
+
+	static constexpr uint32_t sample_rate = 48000;
+
+	explicit spu(std::shared_ptr<shared::interrupt> interrupts);
 
 	uint8_t read(uint16_t addr);
 	uint8_t read_wave(uint16_t addr);
@@ -65,8 +33,31 @@ public:
 	void write_wave(uint16_t addr, uint8_t data);
 
 	void step(uint32_t cycles);
+	std::vector<stereo_sample> consume_samples();
+
+private:
+	static constexpr uint16_t AudioRegisterStart = 0xFF10;
+	static constexpr uint16_t WaveRamStart = 0xFF30;
+
+	std::shared_ptr<shared::interrupt> interrupts;
+
+	std::array<uint8_t, 0x17> registers{};
+	std::array<uint8_t, 16> wave_ram{};
+	std::vector<stereo_sample> sample_buffer;
+
+	bool powered_on = false;
+	uint32_t frame_sequencer_cycles = 0;
+	uint8_t frame_sequencer_step = 0;
+	double sample_cycles = 0.0;
+
+	void tick();
+	void reset_audio_registers();
+	void tick_frame_sequencer();
+	void tick_channels();
+	void mix_sample();
+
+	[[nodiscard]] uint8_t register_index(uint16_t addr) const;
+	[[nodiscard]] uint8_t read_mask(uint16_t addr) const;
 };
-
-
 
 #endif //SPU_H
