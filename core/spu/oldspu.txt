@@ -1,0 +1,526 @@
+#include "spu.h"
+
+#include <algorithm>
+
+namespace {
+constexpr uint32_t CpuFrequency = 4194304;
+constexpr uint32_t FrameSequencerPeriod = CpuFrequency / 512;
+constexpr double CyclesPerSample = static_cast<double>(CpuFrequency) / spu::sample_rate;
+
+
+constexpr uint8_t read_mask(uint16_t addr)
+{
+	switch (addr) {
+	case 0xFF10: return 0x80;
+	case 0xFF11: return 0x3F;
+	case 0xFF13: return 0xFF;
+	case 0xFF14: return 0xBF;
+	case 0xFF15: return 0xFF;
+	case 0xFF16: return 0x3F;
+	case 0xFF18: return 0xFF;
+	case 0xFF19: return 0xBF;
+	case 0xFF1A: return 0x7F;
+	case 0xFF1B: return 0xFF;
+	case 0xFF1C: return 0x9F;
+	case 0xFF1D: return 0xFF;
+	case 0xFF1E: return 0xBF;
+	case 0xFF1F: return 0xFF;
+	case 0xFF20: return 0xFF;
+	case 0xFF23: return 0xBF;
+	default: return 0x00;
+	}
+}
+}
+
+bool spu::powered() const
+{
+	return nr_52.power_on;
+}
+
+uint8_t spu::register_index(uint16_t addr) const
+{
+	return static_cast<uint8_t>(addr - 0xFF10);
+}
+
+void spu::power_off()
+{
+	registers.fill(0);
+	nr_50.nr_50_data = 0;
+	nr_51.nr_51_data = 0;
+	nr_52.nr_52_data = 0;
+	ch1 = {};
+	ch2 = {};
+	ch3 = {};
+	ch4 = {};
+	frame_sequencer_cycles = 0;
+	frame_sequencer_step = 0;
+	sample_cycles = 0.0;
+}
+
+uint16_t spu::pulse_period(const pulse_channel& channel) const
+{
+	return static_cast<uint16_t>((2048 - channel.frequency) * 4);
+}
+
+uint16_t spu::wave_period() const
+{
+	return static_cast<uint16_t>((2048 - ch3.frequency) * 2);
+}
+
+uint16_t spu::noise_period() const
+{
+	const uint8_t nr43 = registers[0x12];
+	const uint8_t divisor_code = nr43 & 0x07;
+	const uint8_t shift = nr43 >> 4;
+	const uint16_t divisor = divisor_code == 0 ? 8 : static_cast<uint16_t>(divisor_code * 16);
+	return static_cast<uint16_t>(divisor << shift);
+}
+
+bool spu::pulse_dac_enabled(uint8_t envelope_register) const
+{
+	return (envelope_register & 0xF8) != 0;
+}
+
+bool spu::wave_dac_enabled() const
+{
+	return (registers[0x0A] & 0x80) != 0;
+}
+
+bool spu::noise_dac_enabled() const
+{
+	return (registers[0x11] & 0xF8) != 0;
+}
+
+void spu::tick()
+{
+	if (!powered()) {
+		return;
+	}
+
+	pulse_tick(ch1);
+	pulse_tick(ch2);
+	wave_tick();
+	noise_tick();
+
+	frame_sequencer_cycles++;
+	if (frame_sequencer_cycles >= FrameSequencerPeriod) {
+		frame_sequencer_cycles = 0;
+		frame_sequencer_tick();
+	}
+
+	sample_cycles += 1.0;
+	if (sample_cycles >= CyclesPerSample) {
+		sample_cycles -= CyclesPerSample;
+		mix_sample();
+	}
+}
+
+void spu::frame_sequencer_tick()
+{
+	switch (frame_sequencer_step) {
+	case 0:
+	case 4:
+		length_tick();
+		break;
+	case 2:
+	case 6:
+		length_tick();
+		sweep_tick();
+		break;
+	case 7:
+		envelope_tick(ch1.env);
+		envelope_tick(ch2.env);
+		envelope_tick(ch4.env);
+		break;
+	default:
+		break;
+	}
+
+	frame_sequencer_step = (frame_sequencer_step + 1) & 0x07;
+}
+
+void spu::length_tick()
+{
+	auto tick_pulse_length = [](pulse_channel& channel, uint8_t control) {
+		if ((control & 0x40) != 0 && channel.length_timer > 0) {
+			channel.length_timer--;
+			if (channel.length_timer == 0) {
+				channel.enabled = false;
+			}
+		}
+	};
+
+	tick_pulse_length(ch1, registers[0x04]);
+	tick_pulse_length(ch2, registers[0x09]);
+
+	if ((registers[0x0E] & 0x40) != 0 && ch3.length_timer > 0) {
+		ch3.length_timer--;
+		if (ch3.length_timer == 0) {
+			ch3.enabled = false;
+		}
+	}
+
+	if ((registers[0x13] & 0x40) != 0 && ch4.length_timer > 0) {
+		ch4.length_timer--;
+		if (ch4.length_timer == 0) {
+			ch4.enabled = false;
+		}
+	}
+}
+
+void spu::envelope_tick(envelope& env)
+{
+	if (env.pace == 0 || env.timer == 0) {
+		return;
+	}
+
+	env.timer--;
+	if (env.timer != 0) {
+		return;
+	}
+
+	env.timer = env.pace;
+	if (env.increase && env.volume < 15) {
+		env.volume++;
+	}
+	else if (!env.increase && env.volume > 0) {
+		env.volume--;
+	}
+}
+
+uint16_t spu::sweep_calculate(bool update)
+{
+	uint16_t delta = static_cast<uint16_t>(ch1.sweep_shadow >> (registers[0] & 0x07));
+	uint16_t frequency = (registers[0] & 0x08) != 0
+		? static_cast<uint16_t>(ch1.sweep_shadow - delta)
+		: static_cast<uint16_t>(ch1.sweep_shadow + delta);
+
+	if (frequency > 2047) {
+		ch1.enabled = false;
+	}
+	else if (update) {
+		ch1.sweep_shadow = frequency;
+		ch1.frequency = frequency;
+		registers[0x03] = static_cast<uint8_t>(frequency & 0xFF);
+		registers[0x04] = static_cast<uint8_t>((registers[0x04] & 0xF8) | ((frequency >> 8) & 0x07));
+	}
+
+	return frequency;
+}
+
+void spu::sweep_tick()
+{
+	if (!ch1.sweep_enabled || ch1.sweep_timer == 0) {
+		return;
+	}
+
+	ch1.sweep_timer--;
+	if (ch1.sweep_timer != 0) {
+		return;
+	}
+
+	const uint8_t pace = (registers[0] >> 4) & 0x07;
+	ch1.sweep_timer = pace == 0 ? 8 : pace;
+
+	if (pace != 0 && (registers[0] & 0x07) != 0) {
+		const uint16_t frequency = sweep_calculate(true);
+		if (frequency <= 2047) {
+			sweep_calculate(false);
+		}
+	}
+}
+
+void spu::pulse_tick(pulse_channel& channel)
+{
+	if (channel.timer > 0) {
+		channel.timer--;
+	}
+	if (channel.timer == 0) {
+		channel.timer = std::max<uint16_t>(pulse_period(channel), 1);
+		channel.duty_step = (channel.duty_step + 1) & 0x07;
+	}
+}
+
+void spu::wave_tick()
+{
+	if (ch3.timer > 0) {
+		ch3.timer--;
+	}
+	if (ch3.timer == 0) {
+		ch3.timer = std::max<uint16_t>(wave_period(), 1);
+		ch3.position = (ch3.position + 1) & 0x1F;
+	}
+}
+
+void spu::noise_tick()
+{
+	if (ch4.timer > 0) {
+		ch4.timer--;
+	}
+	if (ch4.timer != 0) {
+		return;
+	}
+
+	ch4.timer = std::max<uint16_t>(noise_period(), 1);
+	const uint16_t xor_bit = (ch4.lfsr ^ (ch4.lfsr >> 1)) & 0x01;
+	ch4.lfsr = static_cast<uint16_t>((ch4.lfsr >> 1) | (xor_bit << 14));
+	if ((registers[0x12] & 0x08) != 0) {
+		ch4.lfsr = static_cast<uint16_t>((ch4.lfsr & ~(1 << 6)) | (xor_bit << 6));
+	}
+}
+
+uint8_t spu::pulse_output(const pulse_channel& channel) const
+{
+	if (!channel.enabled) {
+		return 0;
+	}
+
+	const uint8_t duty = registers[&channel == &ch1 ? 0x01 : 0x06] >> 6;
+	return DutyPatterns[duty][channel.duty_step] == 0 ? 0 : channel.env.volume;
+}
+
+uint8_t spu::wave_output() const
+{
+	if (!ch3.enabled || !wave_dac_enabled()) {
+		return 0;
+	}
+
+	const uint8_t sample_byte = wave_ram[ch3.position / 2];
+	uint8_t sample = (ch3.position & 1) == 0 ? sample_byte >> 4 : sample_byte & 0x0F;
+	switch ((registers[0x0C] >> 5) & 0x03) {
+	case 0: return 0;
+	case 1: return sample;
+	case 2: return sample >> 1;
+	case 3: return sample >> 2;
+	default: return 0;
+	}
+}
+
+uint8_t spu::noise_output() const
+{
+	if (!ch4.enabled || !noise_dac_enabled()) {
+		return 0;
+	}
+
+	return (ch4.lfsr & 0x01) == 0 ? ch4.env.volume : 0;
+}
+
+void spu::mix_sample()
+{
+	const std::array<uint8_t, 4> outputs = {
+		pulse_output(ch1),
+		pulse_output(ch2),
+		wave_output(),
+		noise_output(),
+	};
+
+	float left = 0.0f;
+	float right = 0.0f;
+	for (size_t i = 0; i < outputs.size(); i++) {
+		const float normalized = (static_cast<float>(outputs[i]) / 7.5f) - 1.0f;
+		if ((nr_51.nr_51_data & (1 << i)) != 0) {
+			right += normalized;
+		}
+		if ((nr_51.nr_51_data & (1 << (i + 4))) != 0) {
+			left += normalized;
+		}
+	}
+
+	right *= static_cast<float>(nr_50.right_volume + 1) / 32.0f;
+	left *= static_cast<float>(nr_50.left_volume + 1) / 32.0f;
+
+	sample_buffer.push_back({ std::clamp(left, -1.0f, 1.0f), std::clamp(right, -1.0f, 1.0f) });
+}
+
+void spu::trigger_ch1()
+{
+	ch1.enabled = pulse_dac_enabled(registers[0x02]);
+	ch1.frequency = static_cast<uint16_t>(registers[0x03] | ((registers[0x04] & 0x07) << 8));
+	ch1.timer = std::max<uint16_t>(pulse_period(ch1), 1);
+	if (ch1.length_timer == 0) {
+		ch1.length_timer = 64;
+	}
+	ch1.env.initial_volume = registers[0x02] >> 4;
+	ch1.env.volume = ch1.env.initial_volume;
+	ch1.env.increase = (registers[0x02] & 0x08) != 0;
+	ch1.env.pace = registers[0x02] & 0x07;
+	ch1.env.timer = ch1.env.pace == 0 ? 8 : ch1.env.pace;
+
+	ch1.sweep_shadow = ch1.frequency;
+	const uint8_t pace = (registers[0] >> 4) & 0x07;
+	ch1.sweep_timer = pace == 0 ? 8 : pace;
+	ch1.sweep_enabled = pace != 0 || (registers[0] & 0x07) != 0;
+	if ((registers[0] & 0x07) != 0) {
+		sweep_calculate(false);
+	}
+}
+
+void spu::trigger_ch2()
+{
+	ch2.enabled = pulse_dac_enabled(registers[0x07]);
+	ch2.frequency = static_cast<uint16_t>(registers[0x08] | ((registers[0x09] & 0x07) << 8));
+	ch2.timer = std::max<uint16_t>(pulse_period(ch2), 1);
+	if (ch2.length_timer == 0) {
+		ch2.length_timer = 64;
+	}
+	ch2.env.initial_volume = registers[0x07] >> 4;
+	ch2.env.volume = ch2.env.initial_volume;
+	ch2.env.increase = (registers[0x07] & 0x08) != 0;
+	ch2.env.pace = registers[0x07] & 0x07;
+	ch2.env.timer = ch2.env.pace == 0 ? 8 : ch2.env.pace;
+}
+
+void spu::trigger_ch3()
+{
+	ch3.enabled = wave_dac_enabled();
+	ch3.frequency = static_cast<uint16_t>(registers[0x0D] | ((registers[0x0E] & 0x07) << 8));
+	ch3.timer = std::max<uint16_t>(wave_period(), 1);
+	ch3.position = 0;
+	if (ch3.length_timer == 0) {
+		ch3.length_timer = 256;
+	}
+}
+
+void spu::trigger_ch4()
+{
+	ch4.enabled = noise_dac_enabled();
+	ch4.timer = std::max<uint16_t>(noise_period(), 1);
+	ch4.lfsr = 0x7FFF;
+	if (ch4.length_timer == 0) {
+		ch4.length_timer = 64;
+	}
+	ch4.env.initial_volume = registers[0x11] >> 4;
+	ch4.env.volume = ch4.env.initial_volume;
+	ch4.env.increase = (registers[0x11] & 0x08) != 0;
+	ch4.env.pace = registers[0x11] & 0x07;
+	ch4.env.timer = ch4.env.pace == 0 ? 8 : ch4.env.pace;
+}
+
+uint8_t spu::read(uint16_t addr)
+{
+	if (addr == 0xFF26) {
+		return static_cast<uint8_t>(0x70 | (powered() ? 0x80 : 0x00)
+			| (ch1.enabled ? 0x01 : 0x00)
+			| (ch2.enabled ? 0x02 : 0x00)
+			| (ch3.enabled ? 0x04 : 0x00)
+			| (ch4.enabled ? 0x08 : 0x00));
+	}
+
+	if (addr == 0xFF15 || addr == 0xFF1F) {
+		return 0xFF;
+	}
+
+	return static_cast<uint8_t>(registers[register_index(addr)] | read_mask(addr));
+}
+
+uint8_t spu::read_wave(uint16_t addr)
+{
+	return wave_ram[addr - 0xFF30];
+}
+
+void spu::write(uint16_t addr, uint8_t data)
+{
+	if (addr == 0xFF26) {
+		if ((data & 0x80) == 0) {
+			power_off();
+		}
+		else {
+			nr_52.power_on = true;
+		}
+		return;
+	}
+
+	if (!powered() || addr == 0xFF15 || addr == 0xFF1F) {
+		return;
+	}
+
+	registers[register_index(addr)] = data;
+
+	switch (addr) {
+	case 0xFF11:
+		ch1.length_timer = 64 - (data & 0x3F);
+		break;
+	case 0xFF12:
+		if (!pulse_dac_enabled(data)) {
+			ch1.enabled = false;
+		}
+		break;
+	case 0xFF13:
+	case 0xFF14:
+		ch1.frequency = static_cast<uint16_t>(registers[0x03] | ((registers[0x04] & 0x07) << 8));
+		if (addr == 0xFF14 && (data & 0x80) != 0) {
+			trigger_ch1();
+		}
+		break;
+	case 0xFF16:
+		ch2.length_timer = 64 - (data & 0x3F);
+		break;
+	case 0xFF17:
+		if (!pulse_dac_enabled(data)) {
+			ch2.enabled = false;
+		}
+		break;
+	case 0xFF18:
+	case 0xFF19:
+		ch2.frequency = static_cast<uint16_t>(registers[0x08] | ((registers[0x09] & 0x07) << 8));
+		if (addr == 0xFF19 && (data & 0x80) != 0) {
+			trigger_ch2();
+		}
+		break;
+	case 0xFF1A:
+		if (!wave_dac_enabled()) {
+			ch3.enabled = false;
+		}
+		break;
+	case 0xFF1B:
+		ch3.length_timer = 256 - data;
+		break;
+	case 0xFF1D:
+	case 0xFF1E:
+		ch3.frequency = static_cast<uint16_t>(registers[0x0D] | ((registers[0x0E] & 0x07) << 8));
+		if (addr == 0xFF1E && (data & 0x80) != 0) {
+			trigger_ch3();
+		}
+		break;
+	case 0xFF20:
+		ch4.length_timer = 64 - (data & 0x3F);
+		break;
+	case 0xFF21:
+		if (!noise_dac_enabled()) {
+			ch4.enabled = false;
+		}
+		break;
+	case 0xFF23:
+		if ((data & 0x80) != 0) {
+			trigger_ch4();
+		}
+		break;
+	case 0xFF24:
+		nr_50.nr_50_data = data;
+		break;
+	case 0xFF25:
+		nr_51.nr_51_data = data;
+		break;
+	default:
+		break;
+	}
+}
+
+void spu::write_wave(uint16_t addr, uint8_t data)
+{
+	wave_ram[addr - 0xFF30] = data;
+}
+
+void spu::step(uint32_t cycles)
+{
+	for (uint32_t i = 0; i < cycles; i++) {
+		tick();
+	}
+}
+
+std::vector<spu::stereo_sample> spu::consume_samples()
+{
+	std::vector<stereo_sample> samples;
+	samples.swap(sample_buffer);
+	return samples;
+}
