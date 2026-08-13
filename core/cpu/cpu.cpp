@@ -90,7 +90,7 @@ uint32_t cpu::cpu::handle_interrupt() {
 }
 
 void cpu::cpu::reset() {
-	_mmu.reset();
+	_mmu->reset();
 	_registers.reset();
 
 }
