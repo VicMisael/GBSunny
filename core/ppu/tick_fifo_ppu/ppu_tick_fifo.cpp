@@ -3,11 +3,8 @@
 #include "ppu_tick_fifo.h"
 #include <algorithm>
 #include <cstddef>
-#include <ranges>
 
-constexpr int SCANLINE_CYCLES = 456;
 constexpr int DRAWING_MAX_CYCLES = 289;
-constexpr int FRAME_LINES = 154;
 
 ppu_tick_fifo::ppu_tick_fifo(std::shared_ptr<shared::interrupt> interrupt_controller) :
 	interrupt_controller(std::move(interrupt_controller)) {
@@ -57,7 +54,7 @@ void inline ppu_tick_fifo::tick()
 		break;
 	}
 	case ppu_types::DRAWING: {
-		if (state.current_x < 160 && state.drawing_cycles++ < DRAWING_MAX_CYCLES) { // Avoid locking on disabled cycles
+		if (state.current_x < gb_hardware::display::Width && state.drawing_cycles++ < DRAWING_MAX_CYCLES) { // Avoid locking on disabled cycles
 			render_scanline();
 			break;
 		}
@@ -65,10 +62,10 @@ void inline ppu_tick_fifo::tick()
 		break;
 	}
 	case ppu_types::HBLANK: {
-		if (state.total_dots == SCANLINE_CYCLES) {
+		if (state.total_dots == gb_hardware::ppu::DotsPerLine) {
 			increment_ly();
 
-			if (ly == 144) {
+			if (ly == gb_hardware::ppu::VisibleLines) {
 				set_mode(ppu_types::VBLANK);
 
 			}
@@ -83,10 +80,10 @@ void inline ppu_tick_fifo::tick()
 		break;
 	}
 	case ppu_types::VBLANK: {
-		if (state.total_dots == SCANLINE_CYCLES) {
+		if (state.total_dots == gb_hardware::ppu::DotsPerLine) {
 
 			increment_ly();
-			if (ly == FRAME_LINES) {
+			if (ly == gb_hardware::ppu::TotalLines) {
 				ly = 0;
 				set_mode(ppu_types::OAM_SCAN);
 				state.vblank_reset();
@@ -115,7 +112,7 @@ inline void ppu_tick_fifo::oam_scan()
 		scanline_checks();
 		check_lyc_coincidence();
 	}
-	if (state.oam_cycle != 80) {
+	if (state.oam_cycle != gb_hardware::ppu::OamScanDots) {
 		state.oam_cycle++;
 	}
 	else {
@@ -170,7 +167,7 @@ void ppu_tick_fifo::render_scanline() {
 			}
 		}
 
-		framebuffer[ly * 160 + state.current_x++] = color;
+		framebuffer[ly * gb_hardware::display::Width + state.current_x++] = color;
 	}
 
 
@@ -376,7 +373,7 @@ void ppu_tick_fifo::render_oam() {
 		for (std::size_t x = 0; x < pixel_list.size(); ++x) {
 			const auto pixel = pixel_list[x];
 			const int screen_x = sprite.x - 8 + static_cast<int>(x);
-			if (screen_x < 0 || screen_x >= 160) continue;
+			if (screen_x < 0 || screen_x >= static_cast<int>(gb_hardware::display::Width)) continue;
 
 			ppu_fifo_types::fifo_element element{
 					.color = pixel,
@@ -494,7 +491,7 @@ void ppu_tick_fifo::write_control(uint16_t addr, uint8_t data) {
 }
 
 void ppu_tick_fifo::start_dma_transfer() {
-	dma_cycles_remaining = 640;
+	dma_cycles_remaining = gb_hardware::ppu::DmaCycles;
 }
 
 bool ppu_tick_fifo::is_dma_active() const {
@@ -509,7 +506,7 @@ bool ppu_tick_fifo::is_oam_accessible() const {
 	return stat.ppu_mode != ppu_types::OAM_SCAN && stat.ppu_mode != ppu_types::DRAWING;
 }
 
-auto ppu_tick_fifo::get_framebuffer() const -> const std::array<ppu_types::rgba, 160 * 144>&
+auto ppu_tick_fifo::get_framebuffer() const -> const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>&
 {
 	return framebuffer;
 }

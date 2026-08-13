@@ -9,6 +9,7 @@
 #include <ppu/ppu_base.h>
 #include <events/event_aggregator.h>
 #include <events/events.h>
+#include <shared/hardware_constants.h>
 #include <vector>
 
 class gb {
@@ -27,7 +28,7 @@ public:
     explicit gb(const std::string& rompath,bool fast_ppu=true);
     void reset();
     void run_one_frame();
-    [[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const;
+    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const;
     std::vector<spu::stereo_sample> consume_audio_samples();
 
 

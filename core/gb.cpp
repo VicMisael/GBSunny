@@ -4,6 +4,7 @@
 #include "ppu/tick_fifo_ppu/ppu_tick_fifo.h"
 #include <timer/gb_timer.h>
 #include <events/events.h>
+#include <shared/hardware_constants.h>
 //
 // Created by Misael on 07/03/2025.
 //
@@ -50,12 +51,9 @@ void gb::reset() {
 
 
 void gb::run_one_frame() {
-	//const int CYCLES_PER_FRAME = 69905;
+	uint32_t cycles_this_frame = 0;
 
-	constexpr int CYCLES_PER_FRAME = 70224;
-	int cycles_this_frame = 0;
-
-	while (cycles_this_frame < CYCLES_PER_FRAME) {
+	while (cycles_this_frame < gb_hardware::ppu::DotsPerFrame) {
 
 		uint32_t spent_cycles = _cpu->step();
 
@@ -71,7 +69,7 @@ void gb::run_one_frame() {
 	bus.send(FrameCompleteEvent{});
 }
 
-const std::array<ppu_types::rgba, 160 * 144>& gb::get_framebuffer() const {
+const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& gb::get_framebuffer() const {
 	return _ppu->get_framebuffer();
 }
 

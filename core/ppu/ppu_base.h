@@ -3,6 +3,7 @@
 #include <memory>
 #include <array>
 #include <cstdint>
+#include "shared/hardware_constants.h"
 #include "types.h"
 
 class PPU_Base {
@@ -34,7 +35,7 @@ public:
 	[[nodiscard]] virtual bool is_oam_accessible() const = 0;
 
 	// Framebuffer access
-	[[nodiscard]] virtual const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const = 0;
+	[[nodiscard]] virtual const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const = 0;
 protected:
 	// PPU Registers using the types from ppu_types.h
 	PPU_Base() :lcdc(0)

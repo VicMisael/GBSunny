@@ -39,7 +39,7 @@ public:
     [[nodiscard]] bool is_oam_accessible() const final;
 
     // Interface for the frontend to get the final image
-    [[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const;
+    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const;
 
 
 
@@ -75,7 +75,7 @@ private:
 
 
     // Final image buffer
-    std::array<ppu_types::rgba, 160 * 144> framebuffer{};
+    std::array<ppu_types::rgba, gb_hardware::display::PixelCount> framebuffer{};
 
     struct scanline_element {
         uint8_t color_id;
@@ -84,7 +84,7 @@ private:
     };
 
 
-    scanline_element scanline_buffer[160]{};
+    scanline_element scanline_buffer[gb_hardware::display::Width]{};
 
     //OAM Buffer
     std::array<ppu_types::OAM_Sprite,10> sprite_buffer{};

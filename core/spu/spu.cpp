@@ -1,10 +1,6 @@
 #include "spu.h"
-
-namespace {
-constexpr uint32_t CpuFrequency = 4194304;
-constexpr uint32_t FrameSequencerPeriod = CpuFrequency / 512;
-constexpr double CyclesPerSample = static_cast<double>(CpuFrequency) / spu::sample_rate;
-}
+#include <cmath>
+#include "shared/hardware_constants.h"
 
 spu::spu(std::shared_ptr<shared::interrupt> interrupts)
 	: interrupts(std::move(interrupts))
@@ -103,14 +99,14 @@ void spu::tick()
 	tick_channels();
 
 	frame_sequencer_cycles++;
-	if (frame_sequencer_cycles >= FrameSequencerPeriod) {
+	if (frame_sequencer_cycles >= gb_hardware::apu::FrameSequencerPeriod) {
 		frame_sequencer_cycles = 0;
 		tick_frame_sequencer();
 	}
 
 	sample_cycles += 1.0;
-	if (sample_cycles >= CyclesPerSample) {
-		sample_cycles -= CyclesPerSample;
+	if (sample_cycles >= gb_hardware::apu::CyclesPerSample) {
+		sample_cycles -= gb_hardware::apu::CyclesPerSample;
 		mix_sample();
 	}
 }
@@ -136,12 +132,25 @@ void spu::tick_channels()
 
 void spu::mix_sample()
 {
-	// Silence for now. Replace this with:
-	// 1. Read each channel's current 4-bit output.
-	// 2. Apply NR51 panning.
-	// 3. Apply NR50 left/right volume.
-	// 4. Push the final stereo sample.
-	sample_buffer.push_back({ 0.0f, 0.0f });
+	static double phase = 0.0;
+
+	constexpr double frequency = 440.0;
+	constexpr double amplitude = 0.2;
+
+	constexpr double twoPi = 6.28318530717958647692;
+
+	const double phaseIncrement =
+		twoPi * frequency / gb_hardware::apu::SampleRate;
+
+	const float sample =
+		static_cast<float>(std::sin(phase) * amplitude);
+
+	phase += phaseIncrement;
+
+	if (phase >= twoPi)
+		phase -= twoPi;
+
+	sample_buffer.push_back({ sample, sample });
 }
 
 void spu::step(uint32_t cycles)

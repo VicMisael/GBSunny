@@ -33,7 +33,7 @@ public:
 	[[nodiscard]] bool is_oam_accessible() const final;
 
 	//Interface for the frontend to get the final image
-	[[nodiscard]] const std::array<ppu_types::rgba, 160 * 144>& get_framebuffer() const final;
+    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const final;
 private:
 	void scanline_checks();
 	void tick();
@@ -56,7 +56,7 @@ private:
 	void write_vram_internal(uint16_t addr, uint8_t data);
 
 
-	std::array<ppu_types::rgba, 160 * 144> framebuffer{};
+	std::array<ppu_types::rgba, gb_hardware::display::PixelCount> framebuffer{};
 
 	std::shared_ptr<shared::interrupt> interrupt_controller;
 
@@ -122,7 +122,7 @@ private:
 
 
 		[[nodiscard]] bool render_complete() const {
-			return current_x > 160;
+			return current_x > gb_hardware::display::Width;
 		}
 
 

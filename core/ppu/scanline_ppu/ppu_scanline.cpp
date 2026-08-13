@@ -11,12 +11,8 @@
 #include <vector>
 
 // PPU timings in T-cycles
-constexpr int OAM_SCAN_CYCLES = 80;
 constexpr int DRAWING_CYCLES = 172;
 constexpr int HBLANK_CYCLES = 204;
-constexpr int SCANLINE_CYCLES = 456;
-constexpr int VBLANK_LINES = 10;
-constexpr int FRAME_LINES = 154;
 
 PPU_scanline::PPU_scanline(std::shared_ptr<shared::interrupt> interrupt_controller)
     : interrupt_controller(std::move(interrupt_controller)) {
@@ -61,8 +57,8 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
 
     switch (current_mode) {
         case ppu_types::OAM_SCAN:
-            if (cycle_counter >= OAM_SCAN_CYCLES) {
-                cycle_counter -= OAM_SCAN_CYCLES;
+            if (cycle_counter >= gb_hardware::ppu::OamScanDots) {
+                cycle_counter -= gb_hardware::ppu::OamScanDots;
                 sprite_buffer_index=0;
                 fill_oam_buffer();
                 scanline_checks();
@@ -81,7 +77,7 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
             if (cycle_counter >= HBLANK_CYCLES) {
                 cycle_counter -= HBLANK_CYCLES;
                 increment_ly();
-                if (ly == 144) {
+                if (ly == gb_hardware::ppu::VisibleLines) {
                     interrupt_controller->requested.VBlank = true;
                     set_mode(ppu_types::VBLANK);
 
@@ -93,10 +89,10 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
             }
             break;
         case ppu_types::VBLANK:
-            if (cycle_counter >= SCANLINE_CYCLES) {
-                cycle_counter -= SCANLINE_CYCLES;
+            if (cycle_counter >= gb_hardware::ppu::DotsPerLine) {
+                cycle_counter -= gb_hardware::ppu::DotsPerLine;
                 increment_ly();
-                if (ly >= FRAME_LINES) {
+                if (ly >= gb_hardware::ppu::TotalLines) {
                     ly = 0;
                     window_line_counter = 0;
                     set_mode(ppu_types::OAM_SCAN); state.vblank_reset();
@@ -135,7 +131,7 @@ void PPU_scanline::set_mode(ppu_types::ppu_mode new_mode) {
 }
 
 void PPU_scanline::start_dma_transfer() {
-    dma_cycles_remaining = 640;
+    dma_cycles_remaining = gb_hardware::ppu::DmaCycles;
 }
 
 bool PPU_scanline::is_dma_active() const {
@@ -150,7 +146,7 @@ bool PPU_scanline::is_oam_accessible() const {
     return current_mode != ppu_types::OAM_SCAN && current_mode != ppu_types::DRAWING;
 }
 
-const std::array<ppu_types::rgba, 160 * 144>& PPU_scanline::get_framebuffer() const {
+const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& PPU_scanline::get_framebuffer() const {
     return framebuffer;
 }
 
@@ -169,9 +165,9 @@ void PPU_scanline::render_scanline() {
         render_sprites();
     }
 
-    for (int i = 0; i < 160; i++) {
+    for (size_t i = 0; i < gb_hardware::display::Width; i++) {
         const auto [ color_id, bgp ] = scanline_buffer[i];
-        framebuffer[ly * 160 + i] = get_color_from_palette(color_id, bgp);
+        framebuffer[ly * gb_hardware::display::Width + i] = get_color_from_palette(color_id, bgp);
     }
 }
 
@@ -181,7 +177,7 @@ void PPU_scanline::render_background() {
     uint8_t y_in_map = scy + ly;
     uint8_t tile_row = y_in_map / 8;
 
-    for (int pixel = 0; pixel < 160; ++pixel) {
+    for (int pixel = 0; pixel < static_cast<int>(gb_hardware::display::Width); ++pixel) {
         uint8_t x_in_map = scx + pixel;
         uint8_t tile_col = x_in_map / 8;
 
@@ -214,7 +210,7 @@ void PPU_scanline::render_window() {
     uint8_t y_in_map = window_line_counter;
     uint8_t tile_row = y_in_map / 8;
 
-    for (int pixel = 0; pixel < 160; ++pixel) {
+    for (int pixel = 0; pixel < static_cast<int>(gb_hardware::display::Width); ++pixel) {
         if (pixel < (wx - 7)) continue;
 
         uint8_t x_in_map = pixel - (wx - 7);
@@ -292,7 +288,7 @@ void PPU_scanline::render_sprites() {
 
         for (int x = 0; x < 8; ++x) {
             int pixel_x = (sprite.x - 8) + x;
-            if (pixel_x < 0 || pixel_x >= 160) continue;
+            if (pixel_x < 0 || pixel_x >= static_cast<int>(gb_hardware::display::Width)) continue;
 
             if (bg_priority && scanline_buffer[pixel_x].color_id != 0) continue;
 

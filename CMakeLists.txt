@@ -8,12 +8,17 @@ add_subdirectory(core)
 
 
 
-add_executable(GBAsunny main.cpp utils/file_dialog.cpp)
+add_executable(GBAsunny
+        main.cpp
+        frontend/frontend.cpp
+        frontend/frontend.h
+        frontend/audio_ring_buffer.h
+        utils/file_dialog.cpp
+)
 
-target_include_directories(GBAsunny PRIVATE ${CMAKE_SOURCE_DIR}/utils)
+target_include_directories(GBAsunny PRIVATE ${CMAKE_SOURCE_DIR})
 
 target_link_libraries(GBAsunny PRIVATE CoreModule
         raylib
         glfw
 )
-

@@ -23,8 +23,6 @@ public:
 		float right;
 	};
 
-	static constexpr uint32_t sample_rate = 48000;
-
 	explicit spu(std::shared_ptr<shared::interrupt> interrupts);
 
 	uint8_t read(uint16_t addr);
