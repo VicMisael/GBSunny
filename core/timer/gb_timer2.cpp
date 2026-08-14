@@ -17,11 +17,11 @@ void gb_timer2::step(uint32_t cycles) {
 	}
 }
 
-const uint8_t div_bit[4] = { 9, 3, 5, 7 };
+
 void gb_timer2::tick()
 {
 	div_reg++;
-
+	constexpr static uint8_t div_bit[4] = { 9, 3, 5, 7 };
 	const uint8_t bit = div_bit[tac_reg & 0b11];
 	const bool divbit = (div_reg >> bit) & 0b1;
 	const bool tac_enable = tac_reg & 0x4;

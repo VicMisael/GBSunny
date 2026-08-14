@@ -8,37 +8,9 @@ spu::spu(std::shared_ptr<shared::interrupt> interrupts)
 	reset_audio_registers();
 }
 
-uint8_t spu::register_index(uint16_t addr) const
-{
-	return static_cast<uint8_t>(addr - AudioRegisterStart);
-}
-
-uint8_t spu::read_mask(uint16_t addr) const
-{
-	switch (addr) {
-	case 0xFF10: return 0x80;
-	case 0xFF11: return 0x3F;
-	case 0xFF13: return 0xFF;
-	case 0xFF14: return 0xBF;
-	case 0xFF15: return 0xFF;
-	case 0xFF16: return 0x3F;
-	case 0xFF18: return 0xFF;
-	case 0xFF19: return 0xBF;
-	case 0xFF1A: return 0x7F;
-	case 0xFF1B: return 0xFF;
-	case 0xFF1C: return 0x9F;
-	case 0xFF1D: return 0xFF;
-	case 0xFF1E: return 0xBF;
-	case 0xFF1F: return 0xFF;
-	case 0xFF20: return 0xFF;
-	case 0xFF23: return 0xBF;
-	default: return 0x00;
-	}
-}
-
 void spu::reset_audio_registers()
 {
-	registers.fill(0);
+	registers.reset();
 	powered_on = false;
 	frame_sequencer_cycles = 0;
 	frame_sequencer_step = 0;
@@ -46,18 +18,14 @@ void spu::reset_audio_registers()
 	sample_buffer.clear();
 }
 
-uint8_t spu::read(uint16_t addr)
+uint8_t spu::read(uint16_t addr) const
 {
-	if (addr == 0xFF26) {
-		return static_cast<uint8_t>(0x70 | (powered_on ? 0x80 : 0x00));
-	}
-
-	return static_cast<uint8_t>(registers[register_index(addr)] | read_mask(addr));
+	return registers.read(addr, powered_on);
 }
 
-uint8_t spu::read_wave(uint16_t addr)
+uint8_t spu::read_wave(uint16_t addr) const
 {
-	return wave_ram[addr - WaveRamStart];
+	return registers.read_wave(addr);
 }
 
 void spu::write(uint16_t addr, uint8_t data)
@@ -76,18 +44,12 @@ void spu::write(uint16_t addr, uint8_t data)
 		return;
 	}
 
-	registers[register_index(addr)] = data;
-
-	// Later implementation points:
-	// - NRx1 writes load length timers.
-	// - NRx2 writes configure DAC/envelope.
-	// - NRx3/NRx4 writes configure period and trigger channels.
-	// - NR50/NR51 configure final stereo volume and panning.
+	registers.write(addr, data);
 }
 
 void spu::write_wave(uint16_t addr, uint8_t data)
 {
-	wave_ram[addr - WaveRamStart] = data;
+	registers.write_wave(addr, data);
 }
 
 void spu::tick()
