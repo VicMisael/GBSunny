@@ -13,6 +13,7 @@ public:
 	// Lifecycle
 	virtual void reset() = 0;
 	virtual void step(uint32_t cycles) = 0;
+	virtual void tick() = 0;
 
 	// VRAM access
 	[[nodiscard]] virtual uint8_t read_vram(uint16_t address) const = 0;

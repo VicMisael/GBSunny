@@ -4,6 +4,7 @@
 #include "gb.h"
 #include "raylib.h"
 #include "shared/hardware_constants.h"
+#include "utils/emu_flags.h"
 #include "utils/file_dialog.h"
 
 #include <algorithm>
@@ -97,7 +98,11 @@ void load_rom(AppState& app, const std::string& path, AudioStream& audio_stream)
 {
 	try {
 		stop_and_clear_audio(app, audio_stream);
-		app.gameboy = std::make_unique<gb>(path, false);
+		EmuFlags flags;
+		flags.useFastPPU = false;
+		flags.useNewTimer = false;
+		flags.useParallelTicks = true;
+		app.gameboy = std::make_unique<gb>(path, flags);
 		app.rom_path = path;
 		app.paused = false;
 		app.unlimited_speed = false;

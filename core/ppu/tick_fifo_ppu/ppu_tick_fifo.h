@@ -16,6 +16,7 @@ public:
 	//Main PPU lifecycle methods
 	void reset() override;
 	void step(uint32_t cycles) override;
+	void tick() override;
 
 	//Memory-mapped I/O handlers for the MMU to call
 	[[nodiscard]] uint8_t read_vram(uint16_t address) const final;
@@ -36,7 +37,6 @@ public:
     [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const final;
 private:
 	void scanline_checks();
-	void tick();
 	void oam_scan();
 	void increment_ly();
 	void check_lyc_coincidence();

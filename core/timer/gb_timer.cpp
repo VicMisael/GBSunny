@@ -12,6 +12,10 @@ void gb_timer::reset() {
     tima_counter = 0;
 }
 
+void gb_timer::tick() {
+    step(1);
+}
+
 void gb_timer::step(uint32_t cycles) {
     // 1. Handle the DIV register. It increments at a fixed rate of 16384 Hz,
     // which is equivalent to every 256 T-cycles (4194304 / 16384 = 256).

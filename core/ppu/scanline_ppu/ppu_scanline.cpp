@@ -102,6 +102,10 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
     }
 }
 
+void PPU_scanline::tick() {
+    step(1);
+}
+
 void PPU_scanline::increment_ly() {
     ly++;
     check_lyc_coincidence();

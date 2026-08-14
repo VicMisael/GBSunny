@@ -22,6 +22,7 @@ public:
     // Main PPU lifecycle methods
     void reset() override;
     void step(uint32_t cycles) override;
+    void tick() override;
 
     // Memory-mapped I/O handlers for the MMU to call
     [[nodiscard]] uint8_t read_vram(uint16_t address) const override;

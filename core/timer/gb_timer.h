@@ -15,10 +15,11 @@ class gb_timer:public base_timer {
     public:
     gb_timer( const std::shared_ptr<shared::interrupt>& interrupt_controller):interrupt_controller(interrupt_controller){};
     [[nodiscard]] uint8_t read(uint16_t addr) const;
-    void write(uint16_t addr, uint8_t data);
+    void write(uint16_t addr, uint8_t data) override;
 
-    void reset();
-    void step(uint32_t cycles);
+    void reset() override;
+    void step(uint32_t cycles) override;
+    void tick() override;
 
 
 private:

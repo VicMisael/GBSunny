@@ -3,6 +3,7 @@
 #include "ppu/scanline_ppu/ppu_scanline.h"
 #include "ppu/tick_fifo_ppu/ppu_tick_fifo.h"
 #include <timer/gb_timer.h>
+#include <timer/gb_timer2.h>
 #include <events/events.h>
 #include <shared/hardware_constants.h>
 //
@@ -12,7 +13,8 @@
 void gb::init()
 {
 }
-gb::gb(const std::string& rompath, bool fast_ppu) {
+gb::gb(const std::string& rompath, EmuFlags flags)
+	: _flags(flags) {
 
 
 
@@ -21,7 +23,7 @@ gb::gb(const std::string& rompath, bool fast_ppu) {
 
 	// 2. Create the other components, passing the necessary shared resources.
 
-	if (fast_ppu) {
+	if (_flags.useFastPPU) {
 
 		_ppu = std::make_shared<PPU_scanline>(_interrupt_controller);
 	}
@@ -30,7 +32,12 @@ gb::gb(const std::string& rompath, bool fast_ppu) {
 	}
 
 	//
-	_timer = std::make_shared<gb_timer2>(_interrupt_controller);
+	if (_flags.useNewTimer) {
+		_timer = std::make_shared<gb_timer2>(_interrupt_controller);
+	}
+	else {
+		_timer = std::make_shared<gb_timer>(_interrupt_controller);
+	}
 
 	_spu = std::make_shared<spu>(_interrupt_controller);
 
@@ -57,10 +64,20 @@ void gb::run_one_frame() {
 
 		uint32_t spent_cycles = _cpu->step();
 
+		if (this->_flags.useParallelTicks) {
+			for (uint32_t i = 0; i < spent_cycles; ++i) {
+				_ppu->tick();
+				_timer->tick();
+				_spu->tick();
+			}
+		} else {
+			_ppu->step(spent_cycles);
+			_timer->step(spent_cycles);
+			_spu->step(spent_cycles);
+
+		}
 		// 2. Update all other components by the exact same amount of time.
-		_ppu->step(spent_cycles);
-		_timer->step(spent_cycles);
-		_spu->step(spent_cycles);
+
 
 		// 3. Accumulate the cycles for this frame.
 		cycles_this_frame += spent_cycles;

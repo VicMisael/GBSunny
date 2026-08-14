@@ -6,6 +6,7 @@
 #define GB_H
 #include "cpu/cpu.h"
 #include "spu/spu.h"
+#include "utils/emu_flags.h"
 #include <ppu/ppu_base.h>
 #include <events/event_aggregator.h>
 #include <events/events.h>
@@ -13,6 +14,7 @@
 #include <vector>
 
 class gb {
+    EmuFlags _flags;
     std::shared_ptr<Cartridge> _cartridge;
     std::shared_ptr<shared::interrupt> _interrupt_controller;
     std::shared_ptr<PPU_Base> _ppu;
@@ -25,7 +27,7 @@ class gb {
 public:
     std::shared_ptr<mmu::MMU> _mmu;
     EmulatorEventAggregator bus;
-    explicit gb(const std::string& rompath,bool fast_ppu=true);
+    explicit gb(const std::string& rompath, EmuFlags flags = { false, true, true });
     void reset();
     void run_one_frame();
     [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const;
