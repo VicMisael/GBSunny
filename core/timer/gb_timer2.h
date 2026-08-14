@@ -18,6 +18,7 @@ class gb_timer2:public base_timer {
     void write(uint16_t addr, uint8_t data) override;
 
     void reset();
+    void tick();
     void step(uint32_t cycles) override;
 
 
@@ -25,7 +26,7 @@ private:
     bool last_cycle_and_result = false;
     bool tima_reload_pending = false;
     uint8_t tima_reload_delay = 0;
-    void tick();
+
     std::shared_ptr<shared::interrupt> interrupt_controller;
 
     uint16_t div_reg; 

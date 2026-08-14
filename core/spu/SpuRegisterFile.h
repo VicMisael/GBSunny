@@ -20,13 +20,20 @@ public:
         nr51_sound_panning = 0;
     }
 
-    [[nodiscard]] uint8_t read(std::size_t register_id, bool powered_on) const
+    [[nodiscard]] uint8_t read(
+        std::size_t register_id,
+        bool powered_on,
+        uint8_t channel_status) const
     {
         switch (register_id)
         {
         case 0: return nr50_master_volume_vin;
         case 1: return nr51_sound_panning;
-        case 2: return static_cast<uint8_t>(0x70 | (powered_on ? 0x80 : 0x00));
+        case 2:
+            return static_cast<uint8_t>(
+                0x70
+                | (powered_on ? 0x80 : 0x00)
+                | (channel_status & 0x0F));
         default: return 0xFF;
         }
     }
@@ -76,7 +83,10 @@ public:
         global.reset();
     }
 
-    [[nodiscard]] uint8_t read(uint16_t addr, bool powered_on) const
+    [[nodiscard]] uint8_t read(
+        uint16_t addr,
+        bool powered_on,
+        uint8_t channel_status) const
     {
         const auto register_id = channel_register_id(addr);
 
@@ -86,7 +96,11 @@ public:
         case 2: return channel2.read(register_id);
         case 3: return channel3.read(register_id);
         case 4: return channel4.read(register_id);
-        case 5: return global.read(addr - SpuGlobalRegisters::FirstAddress, powered_on);
+        case 5:
+            return global.read(
+                addr - SpuGlobalRegisters::FirstAddress,
+                powered_on,
+                channel_status);
         default: return 0xFF;
         }
     }
