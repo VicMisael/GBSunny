@@ -16,21 +16,14 @@
 namespace cpu {
 
 
-	union decoded_instruction {
-		struct {
-			uint8_t z : 3;  // Bits 2-0 (3 bits)
-			uint8_t y : 3;  // Bits 5-3 (3 bits)
-			uint8_t x : 2;  // Bits 7-6 (2 bits)
-
-		};
-
-		struct {
-			uint8_t :3; // 2-0
-			uint8_t q:1;//bit 3
-			uint8_t p:2;//bits 5-4
-			uint8_t :2;//bits 7-6
-		};
+	struct decoded_instruction {
 		uint8_t opcode;
+
+		[[nodiscard]] constexpr uint8_t x() const { return opcode >> 6; }
+		[[nodiscard]] constexpr uint8_t y() const { return (opcode >> 3) & 0x07; }
+		[[nodiscard]] constexpr uint8_t z() const { return opcode & 0x07; }
+		[[nodiscard]] constexpr uint8_t p() const { return (opcode >> 4) & 0x03; }
+		[[nodiscard]] constexpr uint8_t q() const { return (opcode >> 3) & 0x01; }
 	};
 
 	class cpu {
@@ -43,6 +36,7 @@ namespace cpu {
 		bool ime = false;
 		uint8_t ime_enable_delay = 0;
 		bool halted = false;
+		bool stopped = false;
 		bool halt_bug = false;
 
 		//All of the methods change the state of this object
@@ -50,7 +44,7 @@ namespace cpu {
 		void block0(const decoded_instruction &result, bool &branch_taken);
 		void block1(const decoded_instruction& result);
 		void block2(const decoded_instruction& result);
-		void cb_prefixed();
+		uint8_t cb_prefixed();
 		void block3(decoded_instruction &result, bool &branch_taken);
 
 		void JP_16(uint16_t uint16);

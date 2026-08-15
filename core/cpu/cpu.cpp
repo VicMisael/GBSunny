@@ -96,6 +96,7 @@ void cpu::cpu::reset() {
 	ime = false;
 	ime_enable_delay = 0;
 	halted = false;
+	stopped = false;
 	halt_bug = false;
 	interrupt_control->requested.flag = 0;
 	interrupt_control->enable.flag = 0;
@@ -135,57 +136,58 @@ inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
 
 
 
-void cpu::cpu::cb_prefixed()
+uint8_t cpu::cpu::cb_prefixed()
 {
 	decoded_instruction result = { .opcode = _mmu->read(_registers.pc++) };
-	switch (result.x) {
+	switch (result.x()) {
 	case 0: {
-		const auto func = rot_table[result.y];
-		if (result.z == 6) {
+		const auto func = rot_table[result.y()];
+		if (result.z() == 6) {
 			uint16_t hl = _registers.hl;
 			uint8_t operand = _mmu->read(hl);
 			(this->*func)(operand);
 			_mmu->write(hl, operand);
 		}
 		else {
-			(this->*func)(reg_ref(result.z));
+			(this->*func)(reg_ref(result.z()));
 		}
 
 		break;
 	}
 	case 1:
-		this->BIT(result.y, this->reg_readonly(result.z));
+		this->BIT(result.y(), this->reg_readonly(result.z()));
 		break;
 	case 2:
-		if (result.z == 6) {
+		if (result.z() == 6) {
 			uint8_t operand = _mmu->read(_registers.hl);
-			RES(result.y, operand);
+			RES(result.y(), operand);
 			_mmu->write(_registers.hl, operand);
 		}
 		else {
-			this->RES(result.y, this->reg_ref(result.z));
+			this->RES(result.y(), this->reg_ref(result.z()));
 		}
 		break;
 	case 3:
-		if (result.z == 6) {
+		if (result.z() == 6) {
 			const uint16_t hl = _registers.hl;
 			uint8_t operand = _mmu->read(hl);
-			SET(result.y, operand);
+			SET(result.y(), operand);
 			_mmu->write(hl, operand);
 		}
 		else {
-			this->SET(result.y, this->reg_ref(result.z));
+			this->SET(result.y(), this->reg_ref(result.z()));
 		}
 		break;
 	default: break;
 	}
+	return opcode_cycles_cb[result.opcode];
 }
 
 
 void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
-	switch (result.z) {
+	switch (result.z()) {
 	case 0: {
-		switch (result.y) {
+		switch (result.y()) {
 		case 0: {
 			break;
 		} //NOP
@@ -198,10 +200,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		}
 		case 2: {
 			_registers.pc++;
-			halted = true;
-			//STOP
-
-
+			stopped = true;
 			break;
 		}
 		case 3: {
@@ -215,7 +214,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		case 6:
 		case 7: {
 			const auto offset = static_cast<int8_t>(_mmu->read(_registers.pc++));
-			if (readflag_tbl(result.y - 4)) {
+			if (readflag_tbl(result.y() - 4)) {
 				branch_taken = true;
 				JP_offset(offset);
 			}
@@ -226,28 +225,28 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		break;
 	};
 	case 1: {
-		switch (result.q) {
+		switch (result.q()) {
 		case 0: {
 			const auto lower = _mmu->read(_registers.pc++);
 			const auto high = _mmu->read(_registers.pc++);
-			LD_16bit_reg_NN(*reg_16_sp[result.p], utils::uint16_little_endian(lower, high));
+			LD_16bit_reg_NN(*reg_16_sp[result.p()], utils::uint16_little_endian(lower, high));
 			break;
 		};
 		case 1: {
-			ADD_HL(*reg_16_sp[result.p]);
+			ADD_HL(*reg_16_sp[result.p()]);
 			break;
 		};
 		}
 		break;
 	};
 	case 2: {
-		switch (result.q) {
+		switch (result.q()) {
 		case 0:
 			//Write to Mem
-			LD_mem(r16mem(result.p), _registers.a);
+			LD_mem(r16mem(result.p()), _registers.a);
 			break;
 		case 1: {
-			auto value = _mmu->read(r16mem(result.p));
+			auto value = _mmu->read(r16mem(result.p()));
 			LD_8bit(_registers.a, value);
 			break;
 		}
@@ -257,13 +256,13 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		break;
 	}
 	case 3: {
-		switch (result.q) {
+		switch (result.q()) {
 		case 0: {
-			INC_16bit(*reg_16_sp[result.p]);
+			INC_16bit(*reg_16_sp[result.p()]);
 			break;
 		}
 		case 1: {
-			DEC_16bit(*reg_16_sp[result.p]);
+			DEC_16bit(*reg_16_sp[result.p()]);
 			break;
 		}
 		default:
@@ -272,28 +271,28 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		break;
 	}
 	case 4: {
-		if (result.y == 6) {
+		if (result.y() == 6) {
 			INC_HL_8bit();
 			break;
 		}
-		INC_8bit(reg_ref(result.y));
+		INC_8bit(reg_ref(result.y()));
 		break;
 	}
 	case 5: {
-		if (result.y == 6) {
+		if (result.y() == 6) {
 			DEC_HL_8bit();
 			break;
 		}
-		DEC_8bit(reg_ref(result.y));
+		DEC_8bit(reg_ref(result.y()));
 		break;
 	}
 	case 6: {
 		auto immediate = _mmu->read(_registers.pc++);
-		result.y == 6 ? LD_mem(_registers.hl, immediate) : LD_8bit(reg_ref(result.y), immediate);
+		result.y() == 6 ? LD_mem(_registers.hl, immediate) : LD_8bit(reg_ref(result.y()), immediate);
 		break;
 	}
 	case 7: {
-		const auto func = cpu::cpu::_0x7groupTable[result.y];
+		const auto func = cpu::cpu::_0x7groupTable[result.y()];
 		(this->*func)();
 		break;
 	}
@@ -302,7 +301,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 }
 
 void cpu::cpu::block1(const decoded_instruction& result) {
-	if (result.y == 6 && result.z == 6) {
+	if (result.y() == 6 && result.z() == 6) {
 		if (!ime && this->interrupt_control->allowed().flag != 0) {
 			halt_bug = true;
 		}
@@ -312,30 +311,30 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 		return;
 	}
 
-	auto src = reg_readonly(result.z);
+	auto src = reg_readonly(result.z());
 
-	if (result.y == 6) {
+	if (result.y() == 6) {
 		LD_mem(_registers.hl, src);
 	}
 	else {
-		LD_8bit(reg_ref(result.y), src);
+		LD_8bit(reg_ref(result.y()), src);
 	}
 }
 
 void cpu::cpu::block2(const decoded_instruction& result) {
-	auto alu_operation = (alu_table[result.y]);
-	(this->*alu_operation)(reg_readonly(result.z));
+	auto alu_operation = (alu_table[result.y()]);
+	(this->*alu_operation)(reg_readonly(result.z()));
 }
 
 void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
-	switch (result.z) {
+	switch (result.z()) {
 	case 0: {
-		switch (result.y) {
+		switch (result.y()) {
 		case 0:
 		case 1:
 		case 2:
 		case 3: {
-			if (readflag_tbl(result.y)) {
+			if (readflag_tbl(result.y())) {
 				branch_taken = true;
 				RET();
 			}
@@ -368,13 +367,13 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 		break;
 	}
 	case 1: {
-		if (result.q == 0) {
+		if (result.q() == 0) {
 			//q=0;
-			POP(*reg_16_af[result.p]);
+			POP(*reg_16_af[result.p()]);
 		}
 		else {
 			//q=1;
-			switch (result.p) {
+			switch (result.p()) {
 			case 0: {
 				RET();
 				break;
@@ -382,6 +381,7 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 			case 1: {
 				RET();
 				ime = true;
+				ime_enable_delay = 0;
 				break;
 			}
 			case 2: {
@@ -398,14 +398,15 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 		break;
 	}
 	case 2: {
-		switch (result.y) {
+		switch (result.y()) {
 		case 0:
 		case 1:
 		case 2:
 		case 3: {
 			const auto lower = _mmu->read(_registers.pc++);
 			const auto upper = _mmu->read(_registers.pc++);
-			if (readflag_tbl(result.y)) {
+			if (readflag_tbl(result.y())) {
+				branch_taken = true;
 				JP_16(utils::uint16_little_endian(lower, upper));
 			}
 			break;
@@ -440,7 +441,7 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 		break;
 	}
 	case 3: {
-		switch (result.y) {
+		switch (result.y()) {
 		case 0: {
 			const auto lower = _mmu->read(_registers.pc++);
 			const auto high = _mmu->read(_registers.pc++);
@@ -471,20 +472,20 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 	case 4: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		if (readflag_tbl(result.y)) {
+		if (readflag_tbl(result.y())) {
 			branch_taken = true;
 			CALL(utils::uint16_little_endian(lower, upper));
 		}
 		break;
 	}
 	case 5: {
-		switch (result.q) {
+		switch (result.q()) {
 		case 0: {
-			PUSH(*reg_16_af[result.p]);
+			PUSH(*reg_16_af[result.p()]);
 			break;
 		}
 		case 1: {
-			if (result.p == 0) {
+			if (result.p() == 0) {
 				const auto lower = _mmu->read(_registers.pc++);
 				const auto upper = _mmu->read(_registers.pc++);
 				CALL(utils::uint16_little_endian(lower, upper));
@@ -502,12 +503,12 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 	}
 	case 6: {
 		auto immediate8 = _mmu->read(_registers.pc++);
-		const auto alu_operation = (alu_table[result.y]);
+		const auto alu_operation = (alu_table[result.y()]);
 		(this->*alu_operation)(immediate8);
 		break;
 	}
 	case 7: {
-		RST(result.y);
+		RST(result.y());
 		break;
 	}
 	default:;
@@ -516,6 +517,13 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 //return the number of T Cycles consumed by the CPU
 uint32_t cpu::cpu::step() {
 	uint32_t spent_cycles;
+	if (stopped) {
+		if (interrupt_control->requested.joypad) {
+			stopped = false;
+		}
+		return 4;
+	}
+
 	if (waiting_interrupt()) {
 		spent_cycles = handle_interrupt();
 		return 4 * spent_cycles;
@@ -539,6 +547,13 @@ uint32_t cpu::cpu::step() {
 
 	decoded_instruction instruction{ .opcode = _mmu->read(fetch_addr) };
 
+	if (instruction.opcode == 0xCB) {
+		spent_cycles = 4 * cb_prefixed();
+		if (ime_enable_delay > 0 && --ime_enable_delay == 0) {
+			ime = true;
+		}
+		return spent_cycles;
+	}
 
 
 	//
@@ -547,7 +562,7 @@ uint32_t cpu::cpu::step() {
 	//https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
 
 
-	switch (instruction.x) {
+	switch (instruction.x()) {
 	case 0: {
 		block0(instruction, branchTaken);
 		break;
