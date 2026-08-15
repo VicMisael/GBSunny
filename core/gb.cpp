@@ -64,7 +64,7 @@ void gb::run_one_frame() {
 
 		uint32_t spent_cycles = _cpu->step();
 
-		if (this->_flags.useParallelTicks) {
+		if (this->_flags.useDotStepping) {
 			for (uint32_t i = 0; i < spent_cycles; ++i) {
 				_ppu->tick();
 				_timer->tick();

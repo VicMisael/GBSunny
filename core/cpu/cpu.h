@@ -41,7 +41,7 @@ namespace cpu {
 		
 		//Execution State
 		bool ime = false;
-		bool shouldEnableIme = false;
+		uint8_t ime_enable_delay = 0;
 		bool halted = false;
 		bool halt_bug = false;
 

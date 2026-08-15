@@ -10,8 +10,8 @@ namespace shared {
 
 class interrupt {
 public:
-    interrupt_register requested;
-    interrupt_register enable;
+    interrupt_register requested{};
+    interrupt_register enable{};
     [[nodiscard]] interrupt_register allowed() const;
 };
 

@@ -34,7 +34,7 @@ void ppu_tick_fifo::reset() {
 
 void inline ppu_tick_fifo::tick()
 {
-	if (!lcdc.bits.LCD_PPU_enable) {
+ 	if (!lcdc.bits.LCD_PPU_enable) {
 		ly = 0;
 		set_mode(ppu_types::HBLANK);
 		return;

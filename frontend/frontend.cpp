@@ -100,8 +100,8 @@ void load_rom(AppState& app, const std::string& path, AudioStream& audio_stream)
 		stop_and_clear_audio(app, audio_stream);
 		EmuFlags flags;
 		flags.useFastPPU = false;
-		flags.useNewTimer = false;
-		flags.useParallelTicks = true;
+		flags.useNewTimer = true;
+		flags.useDotStepping = true;
 		app.gameboy = std::make_unique<gb>(path, flags);
 		app.rom_path = path;
 		app.paused = false;

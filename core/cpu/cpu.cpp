@@ -86,12 +86,19 @@ uint32_t cpu::cpu::handle_interrupt() {
 		_registers.pc = jmp_table[4];
 	}
 	ime = false;
+	ime_enable_delay = 0;
 	return 5;
 }
 
 void cpu::cpu::reset() {
 	_mmu->reset();
 	_registers.reset();
+	ime = false;
+	ime_enable_delay = 0;
+	halted = false;
+	halt_bug = false;
+	interrupt_control->requested.flag = 0;
+	interrupt_control->enable.flag = 0;
 
 }
 
@@ -296,7 +303,12 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 
 void cpu::cpu::block1(const decoded_instruction& result) {
 	if (result.y == 6 && result.z == 6) {
-		halted = true;
+		if (!ime && this->interrupt_control->allowed().flag != 0) {
+			halt_bug = true;
+		}
+		else {
+			halted = true;
+		}
 		return;
 	}
 
@@ -444,13 +456,12 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 			break;
 		};
 		case 6: {
-			//TODO: Disable IME
 			ime = false;
+			ime_enable_delay = 0;
 			break;
 		}
 		case 7: {
-			//TODO: Enable IME
-			shouldEnableIme = true;
+			ime_enable_delay = 2;
 			break;
 		}
 		default: break;
@@ -511,27 +522,22 @@ uint32_t cpu::cpu::step() {
 	}
 
 	if (halted) {
-		// HALT bug: IME is 0, but there's a pending interrupt
-		if (ime == 0 && this->interrupt_control->allowed().flag != 0) {
-			//std::cout << "HALT BUG\n";
-			halt_bug = true;     // Trigger HALT bug (don't increment PC on next fetch)
-
-			halted = false;      // Wake up from HALT
+		if (this->interrupt_control->allowed().flag != 0) {
+			halted = false;
 		}
 
 		return 4; // HALT consumes one M-cycle while halted
 	}
 
-	//uint16_t fetch_addr = _registers.pc;
-	//if (!halt_bug) {
-	//	_registers.pc++;       // Normal PC increment
-	//}
-	//else {
-	//	halt_bug = false;      // Only repeat one instruction
-	//}
+	const uint16_t fetch_addr = _registers.pc;
+	if (!halt_bug) {
+		_registers.pc++;
+	}
+	else {
+		halt_bug = false;
+	}
 
-
-	decoded_instruction instruction{ .opcode = _mmu->read(_registers.pc++) };
+	decoded_instruction instruction{ .opcode = _mmu->read(fetch_addr) };
 
 
 
@@ -560,9 +566,8 @@ uint32_t cpu::cpu::step() {
 	}
 	default: break;
 	}
-	if (shouldEnableIme) {
+	if (ime_enable_delay > 0 && --ime_enable_delay == 0) {
 		ime = true;
-		shouldEnableIme = false;
 	}
 
 
@@ -571,4 +576,3 @@ uint32_t cpu::cpu::step() {
 
 	return spent_cycles;
 }
-

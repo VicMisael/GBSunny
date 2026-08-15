@@ -242,7 +242,7 @@ uint8_t mmu::MMU::read_interrupt_enable() const {
 }
 
 uint8_t mmu::MMU::read_interrupt_flag() const {
-	return interrupt->requested.flag;
+	return interrupt->requested.flag | 0xE0;
 }
 
 void mmu::MMU::set_interrupt_enable(uint8_t enable) {
