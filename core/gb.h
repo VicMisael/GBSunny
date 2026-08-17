@@ -7,6 +7,7 @@
 #include "cpu/cpu.h"
 #include "spu/spu.h"
 #include "utils/emu_flags.h"
+#include "serial/gb_serial.h"
 #include <ppu/ppu_base.h>
 #include <events/event_aggregator.h>
 #include <events/events.h>
@@ -21,6 +22,7 @@ class gb {
     std::shared_ptr<base_timer> _timer;
     std::unique_ptr<cpu::cpu> _cpu;
     std::shared_ptr<spu> _spu;
+    std::shared_ptr<serial::GBSerial> _serial;
 
 
     void init();

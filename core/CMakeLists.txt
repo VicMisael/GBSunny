@@ -30,6 +30,8 @@ add_library(CoreModule STATIC gb.cpp
         spu/SpuChannelRegisters.h
         spu/SpuRegisterFile.h
         "spu/spu.h"
+        serial/gb_serial.cpp
+        serial/gb_serial.h
         cpu/register_types.h
         shared/types.h
         shared/interrupt.h

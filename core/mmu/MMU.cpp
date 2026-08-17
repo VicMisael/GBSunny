@@ -34,6 +34,7 @@ constexpr uint16_t IE_REGISTER = 0xFFFF;
 
 void mmu::MMU::reset() {
 	bootRomControl = 0;
+	_serial->reset();
 }
 
 bool mmu::MMU::boot_rom_enabled() const {
@@ -173,8 +174,7 @@ void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 
 uint8_t mmu::MMU::io_read(uint16_t addr) const {
 	if (addr == 0xFF00) { /* Joypad */ return 0xCF; } // Example default value
-	if (addr == 0xFF01) return serial_data;
-	if (addr == 0xFF02) return serial_control;
+	if (utils::in_range(0xFF01, 0xFF02, addr)) { return _serial->read(addr); }
 	if (utils::in_range(0xFF04, 0xFF07, addr)) { return _timer->read(addr); }
 	if (addr == 0xFF0F) { return read_interrupt_flag(); }
 	if (utils::in_range(0xFF10, 0xFF26, addr)) { return _spu->read(addr); }
@@ -193,26 +193,8 @@ uint8_t mmu::MMU::io_read(uint16_t addr) const {
 void mmu::MMU::io_write(uint16_t addr, uint8_t data) {
 	if (addr == 0xFF00) { /* Joypad */ }
 	if (utils::in_range(0xFF01, 0xFF02, addr)) {
-		if (addr == 0xFF01) {
-			serial_data = data;
-		}
-		else if (addr == 0xFF02) {
-			serial_control = data;
-
-			// Inicia a transferência se o bit 7 for setado
-			if (serial_control & 0x80) {
-				//std::cout << "SERIAL OUT" << std::endl;
-				// Imprime o byte enviado no terminal
-				std::cout << serial_data;
-
-				// Finaliza a "transferência" (bit 7 limpo)
-				serial_control &= ~0x80;
-
-				// Retorna 0xFF como byte recebido (dummy)
-				serial_data = 0xFF;
-			}
-		}
-
+		_serial->write(addr, data);
+		return;
 	}
 	if (utils::in_range(0xFF04, 0xFF07, addr)) { _timer->write(addr, data); }
 	if (addr == 0xFF0F) { set_interrupt_flag(data); }

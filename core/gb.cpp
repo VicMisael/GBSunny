@@ -6,6 +6,7 @@
 #include <timer/gb_timer2.h>
 #include <events/events.h>
 #include <shared/hardware_constants.h>
+#include <iostream>
 //
 // Created by Misael on 07/03/2025.
 //
@@ -40,11 +41,12 @@ gb::gb(const std::string& rompath, EmuFlags flags)
 	}
 
 	_spu = std::make_shared<spu>(_interrupt_controller);
+	_serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
 
 	_cartridge = std::move(Cartridge::get_cartridge(rompath));
 
 
-	_mmu = std::make_shared<mmu::MMU>(_cartridge, _ppu, _timer, _interrupt_controller, _spu);
+	_mmu = std::make_shared<mmu::MMU>(_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial);
 
 	_cpu = std::make_unique<::cpu::cpu>(_mmu, _interrupt_controller);
 
