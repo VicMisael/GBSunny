@@ -49,6 +49,8 @@ private:
     void set_mode(ppu_types::ppu_mode new_mode);
     void increment_ly();
     void check_lyc_coincidence();
+    [[nodiscard]] bool stat_interrupt_signal() const;
+    void update_stat_interrupt_line();
     void render_scanline();
     void render_background();
     void render_window();
@@ -98,6 +100,7 @@ private:
     uint32_t cycle_counter{};
     int32_t dma_cycles_remaining {};
     int window_line_counter {};
+    bool stat_interrupt_line = false;
     void scanline_checks();
 
     struct

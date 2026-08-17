@@ -44,6 +44,10 @@ private:
 	void render_bg(bool window);
 	[[nodiscard]] bool oam_render_possible() const;
 	void render_oam();
+	[[nodiscard]] ppu_types::rgba render_oam_pixel(const ppu_fifo_types::fifo_element& bg, ppu_types::rgba color) const;
+	void reset_lcd_state();
+	[[nodiscard]] bool stat_interrupt_signal() const;
+	void update_stat_interrupt_line();
 	[[nodiscard]] uint16_t extract_tile_map_addr(bool fetching_window) const;
 	[[nodiscard]] ppu_types::rgba get_color_from_palette(uint8_t color_id, uint8_t palette_reg) const;
 
@@ -159,6 +163,8 @@ private:
 		}
 
 	} state;
+
+	bool stat_interrupt_line = false;
 
 };
 #endif

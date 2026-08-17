@@ -24,10 +24,20 @@ void ppu_tick_fifo::reset() {
 	obp1 = 0xFF;
 	wy = 0;
 	wx = 0;
+	stat_interrupt_line = false;
 	set_mode(ppu_types::OAM_SCAN);
 
 	std::ranges::fill(vram, 0x00);
 	std::ranges::fill(oam, 0x00);
+}
+
+void ppu_tick_fifo::reset_lcd_state()
+{
+	ly = 0;
+	state.vblank_reset();
+	sprite_buffer.clear();
+	set_mode(ppu_types::HBLANK);
+	check_lyc_coincidence();
 }
 
 
@@ -35,14 +45,12 @@ void ppu_tick_fifo::reset() {
 void inline ppu_tick_fifo::tick()
 {
  	if (!lcdc.bits.LCD_PPU_enable) {
-		ly = 0;
-		set_mode(ppu_types::HBLANK);
+		reset_lcd_state();
 		return;
 	}
 
 	if (dma_cycles_remaining > 0) {
 		dma_cycles_remaining--;
-		return;
 	}
 
 	state.total_dots++;
@@ -85,6 +93,7 @@ void inline ppu_tick_fifo::tick()
 			increment_ly();
 			if (ly == gb_hardware::ppu::TotalLines) {
 				ly = 0;
+				check_lyc_coincidence();
 				set_mode(ppu_types::OAM_SCAN);
 				state.vblank_reset();
 			}
@@ -112,10 +121,8 @@ inline void ppu_tick_fifo::oam_scan()
 		scanline_checks();
 		check_lyc_coincidence();
 	}
-	if (state.oam_cycle != gb_hardware::ppu::OamScanDots) {
-		state.oam_cycle++;
-	}
-	else {
+	state.oam_cycle++;
+	if (state.oam_cycle >= gb_hardware::ppu::OamScanDots) {
 		sprite_buffer.clear();
 		fill_oam_buffer();
 		set_mode(ppu_types::DRAWING);
@@ -123,7 +130,7 @@ inline void ppu_tick_fifo::oam_scan()
 		{
 			state.window_ly_equals_wy = true;
 		}
-	};
+	}
 }
 
 
@@ -142,29 +149,13 @@ void ppu_tick_fifo::render_scanline() {
 
 	render_bg(state.window_triggered);
 
-
-
-	if (lcdc.bits.OBJ_Enable && oam_render_possible()) {
-
-		render_oam();
-	}
-
 	if (!state.background_fifo.empty()) {
 		const ppu_fifo_types::fifo_element bg = state.background_fifo.back();
 		state.background_fifo.pop_back();
 
 		auto color = get_color_from_palette(bg.color, bgp);
-		if (!state.sprite_fifo.empty()) {
-			auto sprite = state.sprite_fifo.back();
-			state.sprite_fifo.pop_back();
-			uint8_t palette = sprite.palette ? obp1 : obp0;
-			const bool sprite_is_opaque = (sprite.color != 0);
-			const bool sprite_has_priority = !sprite.bg_priority;
-			const bool bg_is_transparent = (bg.color == 0);
-
-			if (sprite_is_opaque && (sprite_has_priority || bg_is_transparent)) {
-				color = get_color_from_palette(sprite.color, palette);
-			}
+		if (lcdc.bits.OBJ_Enable) {
+			color = render_oam_pixel(bg, color);
 		}
 
 		framebuffer[ly * gb_hardware::display::Width + state.current_x++] = color;
@@ -172,7 +163,8 @@ void ppu_tick_fifo::render_scanline() {
 
 
 
-	if (lcdc.bits.window_enable && state.window_ly_equals_wy && !state.window_triggered && state.current_pixel >= wx - 7) {
+	const int window_x = static_cast<int>(wx) - 7;
+	if (lcdc.bits.window_enable && state.window_ly_equals_wy && !state.window_triggered && state.current_pixel >= window_x) {
 		state.window_triggered = true;
 		state.window_line++;
 		state.reset_bg_fifo();
@@ -181,6 +173,44 @@ void ppu_tick_fifo::render_scanline() {
 
 
 
+}
+
+ppu_types::rgba ppu_tick_fifo::render_oam_pixel(const ppu_fifo_types::fifo_element& bg, ppu_types::rgba color) const {
+	const int x = state.current_x;
+	const int sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
+
+	for (const auto& entry : sprite_buffer) {
+		const auto& sprite = entry.sprite;
+		const int left = static_cast<int>(sprite.x) - 8;
+		const int sprite_x = x - left;
+		if (sprite_x < 0 || sprite_x >= 8) continue;
+
+		int y_offset = static_cast<int>(ly) + 16 - static_cast<int>(sprite.y);
+		if (y_offset < 0 || y_offset >= sprite_height) continue;
+		if (sprite.flags.y_flip) {
+			y_offset = sprite_height - 1 - y_offset;
+		}
+
+		const uint8_t tile_index = lcdc.bits.OBJ_SIZE ? (sprite.tile_index & 0xFE) : sprite.tile_index;
+		const uint16_t addr = 0x8000 + tile_index * 16 + y_offset * 2;
+		const ppu_types::line line{
+			.lsb = read_vram_internal(addr),
+			.msb = read_vram_internal(addr + 1)
+		};
+		const auto pixels = line.decoded_pixels(sprite.flags.x_flip);
+		const uint8_t sprite_color = pixels[static_cast<std::size_t>(sprite_x)];
+		if (sprite_color == 0) continue;
+
+		const bool sprite_has_priority = !sprite.flags.obj_to_dbg_priority;
+		const bool bg_is_transparent = (bg.color == 0);
+		if (sprite_has_priority || bg_is_transparent) {
+			const uint8_t palette = sprite.flags.palette_number ? obp1 : obp0;
+			color = get_color_from_palette(sprite_color, palette);
+		}
+		break;
+	}
+
+	return color;
 }
 
 bool ppu_tick_fifo::oam_render_possible() const {
@@ -203,7 +233,8 @@ uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
 		uint16_t tile_map_area = lcdc.bits.window_tile_map_area ? 0x9C00 : 0x9800;
 		uint8_t y_in_map = (state.window_line);
 		uint8_t tile_row = y_in_map / 8;
-		uint8_t x_in_map = (state.current_pixel - (wx - 7));
+		const int window_x = static_cast<int>(wx) - 7;
+		uint8_t x_in_map = static_cast<uint8_t>(state.current_pixel - window_x);
 		uint8_t tile_col = x_in_map / 8;
 		return tile_map_area + tile_row * 32 + tile_col;
 
@@ -313,6 +344,11 @@ void ppu_tick_fifo::render_oam() {
 	const auto sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
 	switch (state.sprite_fifo_state) {
 	case ppu_fifo_types::fifo_state::GET_TILE: {
+		if (sprite_buffer.empty()) {
+			state.oam_fetcher_running = false;
+			return;
+		}
+
 		state.oam_fetcher_running = true;
 		const auto sprite = sprite_buffer.front();
 
@@ -369,7 +405,6 @@ void ppu_tick_fifo::render_oam() {
 		const auto pixel_list = state.current_oam_line.decoded_pixels(state.current_sprite.flags.x_flip);
 		const auto sprite = state.current_sprite;
 		state.sprite_fifo.clear();
-		const bool empty_buffer = state.sprite_fifo.empty();
 		for (std::size_t x = 0; x < pixel_list.size(); ++x) {
 			const auto pixel = pixel_list[x];
 			const int screen_x = sprite.x - 8 + static_cast<int>(x);
@@ -400,7 +435,7 @@ void ppu_tick_fifo::step(uint32_t cycles) {
 	}
 }
 
-uint8_t ppu_tick_fifo::read_vram_internal(uint16_t address) const {
+uint8_t ppu_tick_fifo::read_vram_internal(const uint16_t address) const {
 	return vram[address - 0x8000];
 }
 
@@ -421,6 +456,7 @@ void ppu_tick_fifo::write_vram(uint16_t address, uint8_t value) {
 }
 
 uint8_t ppu_tick_fifo::read_oam(uint16_t addr) const {
+	if (!this->is_oam_accessible()) return 0xff;
 	return oam[addr - 0xFE00];
 }
 
@@ -432,21 +468,29 @@ void ppu_tick_fifo::set_mode(ppu_types::ppu_mode new_mode) {
 	if (new_mode == stat.ppu_mode) { return; }
 	stat.ppu_mode = new_mode;
 
-	bool interrupt_requested = false;
 	switch (new_mode) {
-	case ppu_types::HBLANK:
-		interrupt_requested = stat.MODE_0_INT_SELECT;  break;
 	case ppu_types::VBLANK: {
 		interrupt_controller->requested.VBlank = true;
-		interrupt_requested = stat.MODE_1_INT_SELECT;
 	} break;
-	case ppu_types::OAM_SCAN: interrupt_requested = stat.MODE_2_INT_SELECT; break;
-	case ppu_types::DRAWING:  break;
+	default: break;
 	}
 
-	if (interrupt_requested) {
-		interrupt_controller->requested.STAT = interrupt_requested;
+	update_stat_interrupt_line();
+}
+
+bool ppu_tick_fifo::stat_interrupt_signal() const {
+	return (stat.LYC_eq_LY && stat.LYC_INT_SELECT)
+		|| (stat.ppu_mode == ppu_types::HBLANK && stat.MODE_0_INT_SELECT)
+		|| (stat.ppu_mode == ppu_types::VBLANK && stat.MODE_1_INT_SELECT)
+		|| (stat.ppu_mode == ppu_types::OAM_SCAN && stat.MODE_2_INT_SELECT);
+}
+
+void ppu_tick_fifo::update_stat_interrupt_line() {
+	const bool signal = stat_interrupt_signal();
+	if (signal && !stat_interrupt_line) {
+		interrupt_controller->requested.STAT = true;
 	}
+	stat_interrupt_line = signal;
 }
 
 
@@ -471,8 +515,17 @@ uint8_t ppu_tick_fifo::read_control(uint16_t addr) const {
 void ppu_tick_fifo::write_control(uint16_t addr, uint8_t data) {
 	//Write state
 	switch (addr) {
-	case 0xFF40: lcdc.data = data; break;
-	case 0xFF41: stat.write(data); break;
+	case 0xFF40: {
+		const bool was_enabled = lcdc.bits.LCD_PPU_enable;
+		lcdc.data = data;
+		if (was_enabled && !lcdc.bits.LCD_PPU_enable) {
+			reset_lcd_state();
+		}
+	} break;
+	case 0xFF41:
+		stat.write(data);
+		update_stat_interrupt_line();
+		break;
 	case 0xFF42: scy = data; break;
 	case 0xFF43: scx = data; break;
 	case 0xFF44: /* LY is read-only */ break;
@@ -503,7 +556,7 @@ bool ppu_tick_fifo::is_vram_accessible() const {
 }
 
 bool ppu_tick_fifo::is_oam_accessible() const {
-	return stat.ppu_mode != ppu_types::OAM_SCAN && stat.ppu_mode != ppu_types::DRAWING;
+	return dma_cycles_remaining == 0 && stat.ppu_mode != ppu_types::OAM_SCAN && stat.ppu_mode != ppu_types::DRAWING;
 }
 
 auto ppu_tick_fifo::get_framebuffer() const -> const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>&
@@ -518,9 +571,7 @@ void ppu_tick_fifo::increment_ly() {
 
 void ppu_tick_fifo::check_lyc_coincidence() {
 	stat.LYC_eq_LY = (ly == lyc);
-	if (stat.LYC_eq_LY && stat.LYC_INT_SELECT) {
-		interrupt_controller->requested.STAT = true;
-	}
+	update_stat_interrupt_line();
 }
 
 
@@ -541,6 +592,7 @@ void ppu_tick_fifo::fill_oam_buffer() {
 			ppu_fifo_types::OAM_priority_queue_element element{ .sprite = sprite,.oam_index = i };
 			sprite_buffer.push(element);
 		}
+		++i;
 	}
 
 	const auto comparator = [](const ppu_fifo_types::OAM_priority_queue_element& lhs, const ppu_fifo_types::OAM_priority_queue_element& rhs) {

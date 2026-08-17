@@ -34,6 +34,7 @@ void PPU_scanline::reset() {
     cycle_counter = 0;
     dma_cycles_remaining = 0;
     window_line_counter = 0;
+    stat_interrupt_line = false;
     set_mode(ppu_types::OAM_SCAN);
 
     std::ranges::fill(vram, 0xff);
@@ -78,7 +79,6 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 cycle_counter -= HBLANK_CYCLES;
                 increment_ly();
                 if (ly == gb_hardware::ppu::VisibleLines) {
-                    interrupt_controller->requested.VBlank = true;
                     set_mode(ppu_types::VBLANK);
 
                     
@@ -94,6 +94,7 @@ void PPU_scanline::step(uint32_t cycles_to_run) {
                 increment_ly();
                 if (ly >= gb_hardware::ppu::TotalLines) {
                     ly = 0;
+                    check_lyc_coincidence();
                     window_line_counter = 0;
                     set_mode(ppu_types::OAM_SCAN); state.vblank_reset();
                 }
@@ -113,25 +114,31 @@ void PPU_scanline::increment_ly() {
 
 void PPU_scanline::check_lyc_coincidence() {
     stat.LYC_eq_LY = (ly == lyc);
-    if (stat.LYC_eq_LY && stat.LYC_INT_SELECT) {
-        interrupt_controller->requested.STAT = true;
-    }
+    update_stat_interrupt_line();
 }
 
 void PPU_scanline::set_mode(ppu_types::ppu_mode new_mode) {
     current_mode = new_mode;
     stat.ppu_mode = new_mode;
-    bool interrupt_requested = false;
-    switch (new_mode) {
-        case ppu_types::HBLANK:   interrupt_requested = stat.MODE_0_INT_SELECT; break;
-        case ppu_types::VBLANK:   interrupt_requested = stat.MODE_1_INT_SELECT; break;
-        case ppu_types::OAM_SCAN: interrupt_requested = stat.MODE_2_INT_SELECT; break;
-        case ppu_types::DRAWING:  break;
+    if (new_mode == ppu_types::VBLANK) {
+        interrupt_controller->requested.VBlank = true;
     }
+    update_stat_interrupt_line();
+}
 
-    if (interrupt_requested) {
+bool PPU_scanline::stat_interrupt_signal() const {
+    return (stat.LYC_eq_LY && stat.LYC_INT_SELECT)
+        || (stat.ppu_mode == ppu_types::HBLANK && stat.MODE_0_INT_SELECT)
+        || (stat.ppu_mode == ppu_types::VBLANK && stat.MODE_1_INT_SELECT)
+        || (stat.ppu_mode == ppu_types::OAM_SCAN && stat.MODE_2_INT_SELECT);
+}
+
+void PPU_scanline::update_stat_interrupt_line() {
+    const bool signal = stat_interrupt_signal();
+    if (signal && !stat_interrupt_line) {
         interrupt_controller->requested.STAT = true;
     }
+    stat_interrupt_line = signal;
 }
 
 void PPU_scanline::start_dma_transfer() {
@@ -346,7 +353,10 @@ uint8_t PPU_scanline::read_control(uint16_t addr) const {
 void PPU_scanline::write_control(uint16_t addr, uint8_t data) {
     switch (addr) {
         case 0xFF40: lcdc.data = data; break;
-        case 0xFF41: stat.write(data); break;
+        case 0xFF41:
+            stat.write(data);
+            update_stat_interrupt_line();
+            break;
         case 0xFF42: scy = data; break;
         case 0xFF43: scx = data; break;
         case 0xFF44: /* LY is read-only */ break;
