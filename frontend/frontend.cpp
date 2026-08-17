@@ -99,7 +99,7 @@ void load_rom(AppState& app, const std::string& path, AudioStream& audio_stream)
 	try {
 		stop_and_clear_audio(app, audio_stream);
 		EmuFlags flags;
-		flags.useFastPPU = false;
+		flags.useFastPPU = true;
 		flags.useNewTimer = true;
 		flags.useDotStepping = true;
 		app.gameboy = std::make_unique<gb>(path, flags);
@@ -233,6 +233,43 @@ void start_audio_when_ready(AppState& app, AudioStream& audio_stream)
 	PlayAudioStream(audio_stream);
 	app.audio_stream_playing = true;
 }
+
+bool gamepad_button_down(int button)
+{
+	return IsGamepadAvailable(0) && IsGamepadButtonDown(0, button);
+}
+
+void update_joypad(AppState& app)
+{
+	if (app.gameboy == nullptr) {
+		return;
+	}
+
+	app.gameboy->set_button(
+		JoypadButton::Right,
+		IsKeyDown(KEY_RIGHT) || gamepad_button_down(GAMEPAD_BUTTON_LEFT_FACE_RIGHT));
+	app.gameboy->set_button(
+		JoypadButton::Left,
+		IsKeyDown(KEY_LEFT) || gamepad_button_down(GAMEPAD_BUTTON_LEFT_FACE_LEFT));
+	app.gameboy->set_button(
+		JoypadButton::Up,
+		IsKeyDown(KEY_UP) || gamepad_button_down(GAMEPAD_BUTTON_LEFT_FACE_UP));
+	app.gameboy->set_button(
+		JoypadButton::Down,
+		IsKeyDown(KEY_DOWN) || gamepad_button_down(GAMEPAD_BUTTON_LEFT_FACE_DOWN));
+	app.gameboy->set_button(
+		JoypadButton::A,
+		IsKeyDown(KEY_Z) || gamepad_button_down(GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
+	app.gameboy->set_button(
+		JoypadButton::B,
+		IsKeyDown(KEY_X) || gamepad_button_down(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT));
+	app.gameboy->set_button(
+		JoypadButton::Select,
+		IsKeyDown(KEY_RIGHT_SHIFT) || gamepad_button_down(GAMEPAD_BUTTON_MIDDLE_LEFT));
+	app.gameboy->set_button(
+		JoypadButton::Start,
+		IsKeyDown(KEY_ENTER) || gamepad_button_down(GAMEPAD_BUTTON_MIDDLE_RIGHT));
+}
 }
 
 int run(std::string initial_rom_path)
@@ -268,6 +305,8 @@ int run(std::string initial_rom_path)
 		if (IsKeyPressed(KEY_SPACE) && app.gameboy != nullptr) {
 			toggle_pause(app, audio_stream);
 		}
+
+		update_joypad(app);
 
 		if (app.gameboy != nullptr && !app.paused) {
 			int frames_to_run = 32;

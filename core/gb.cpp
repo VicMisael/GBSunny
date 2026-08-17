@@ -42,11 +42,13 @@ gb::gb(const std::string& rompath, EmuFlags flags)
 
 	_spu = std::make_shared<spu>(_interrupt_controller);
 	_serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
+	_joypad = std::make_shared<Joypad>(_interrupt_controller);
 
 	_cartridge = std::move(Cartridge::get_cartridge(rompath));
 
 
-	_mmu = std::make_shared<mmu::MMU>(_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial);
+	_mmu = std::make_shared<mmu::MMU>(
+		_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial, _joypad);
 
 	_cpu = std::make_unique<::cpu::cpu>(_mmu, _interrupt_controller);
 
@@ -86,6 +88,10 @@ void gb::run_one_frame() {
 	
 	}
 	bus.send(FrameCompleteEvent{});
+}
+
+void gb::set_button(JoypadButton button, bool pressed) {
+	_joypad->set_button(button, pressed);
 }
 
 const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& gb::get_framebuffer() const {

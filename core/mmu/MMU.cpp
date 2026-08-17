@@ -35,6 +35,7 @@ constexpr uint16_t IE_REGISTER = 0xFFFF;
 void mmu::MMU::reset() {
 	bootRomControl = 0;
 	_serial->reset();
+	_joypad->reset();
 }
 
 bool mmu::MMU::boot_rom_enabled() const {
@@ -173,47 +174,94 @@ void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 
 
 uint8_t mmu::MMU::io_read(uint16_t addr) const {
-	if (addr == 0xFF00) { /* Joypad */ return 0xCF; } // Example default value
-	if (utils::in_range(0xFF01, 0xFF02, addr)) { return _serial->read(addr); }
-	if (utils::in_range(0xFF04, 0xFF07, addr)) { return _timer->read(addr); }
-	if (addr == 0xFF0F) { return read_interrupt_flag(); }
-	if (utils::in_range(0xFF10, 0xFF26, addr)) { return _spu->read(addr); }
-	if (utils::in_range(0xFF30, 0xFF3F, addr)) { return _spu->read_wave(addr); }
-	if (utils::in_range(0xFF40, 0xFF4B, addr)) { return _ppu->read_control(addr); }
-	if (addr == 0xFF50) { return bootRomControl; }
-	// CGB specific registers
-	if (addr == 0xFF4F) { /* VRAM BANK SELECT */ return 0xFE; }
-	if (utils::in_range(0xFF51, 0xFF55, addr)) { /* VRAM DMA */ return 0xFF; }
-	if (utils::in_range(0xFF68, 0xFF6B, addr)) { /* BG/OBJ Palette */ return 0xFF; }
-	if (addr == 0xFF70) { /* WRAM BANK SELECT */ return 0xF8; }
+
+	switch (addr) {
+	case 0xFF00: /* Joypad */
+		return _joypad->read();
+	case 0xFF0F:
+		return read_interrupt_flag();
+	case 0xFF4F: /* VRAM BANK SELECT */
+		return 0xFE;
+	case 0xFF50: /* Boot ROM disable register */
+		return bootRomControl;
+	case 0xFF70: /* WRAM BANK SELECT */
+		return 0xF8;
+	default:
+		break;
+	}
+
+	if (utils::in_range(0xFF01, 0xFF02, addr)) {
+		return _serial->read(addr);
+	}
+	if (utils::in_range(0xFF04, 0xFF07, addr)) {
+		return _timer->read(addr);
+	}
+	if (utils::in_range(0xFF10, 0xFF26, addr)) {
+		return _spu->read(addr);
+	}
+	if (utils::in_range(0xFF30, 0xFF3F, addr)) {
+		return _spu->read_wave(addr);
+	}
+	if (utils::in_range(0xFF40, 0xFF4B, addr)) {
+		return _ppu->read_control(addr);
+	}
+	if (utils::in_range(0xFF51, 0xFF55, addr)) { /* VRAM DMA */
+		return 0xFF;
+	}
+	if (utils::in_range(0xFF68, 0xFF6B, addr)) { /* BG/OBJ Palette */
+		return 0xFF;
+	}
 
 	return 0xFF; // Open bus behavior for unmapped I/O registers
 }
 
 void mmu::MMU::io_write(uint16_t addr, uint8_t data) {
-	if (addr == 0xFF00) { /* Joypad */ }
+	switch (addr) {
+	case 0xFF00: /* Joypad */
+		_joypad->write(data);
+		return;
+	case 0xFF4F: /* VRAM BANK SELECT */
+	case 0xFF70: /* WRAM BANK SELECT */
+		return;
+	case 0xFF0F:
+		set_interrupt_flag(data);
+		return;
+	case 0xFF50: /* Boot ROM disable register */
+		bootRomControl = data;
+		return;
+	default:
+		break;
+	}
+
 	if (utils::in_range(0xFF01, 0xFF02, addr)) {
 		_serial->write(addr, data);
 		return;
 	}
-	if (utils::in_range(0xFF04, 0xFF07, addr)) { _timer->write(addr, data); }
-	if (addr == 0xFF0F) { set_interrupt_flag(data); }
-	if (utils::in_range(0xFF10, 0xFF26, addr)) { _spu->write(addr, data); }
-	if (utils::in_range(0xFF30, 0xFF3F, addr)) { _spu->write_wave(addr, data); }
+	if (utils::in_range(0xFF04, 0xFF07, addr)) {
+		_timer->write(addr, data);
+		return;
+	}
+	if (utils::in_range(0xFF10, 0xFF26, addr)) {
+		_spu->write(addr, data);
+		return;
+	}
+	if (utils::in_range(0xFF30, 0xFF3F, addr)) {
+		_spu->write_wave(addr, data);
+		return;
+	}
 	if (utils::in_range(0xFF40, 0xFF4B, addr)) {
 		if (addr == 0xFF46) {
 			oam_transfer(data);
 		}
 		_ppu->write_control(addr, data); //Write Control signals to PPU
+		return;
 	}
-	if (addr == 0xFF50) {
-		bootRomControl = data;
-	} // Boot ROM disable register
-	// CGB specific registers
-	if (addr == 0xFF4F) { /* VRAM BANK SELECT */ }
-	if (utils::in_range(0xFF51, 0xFF55, addr)) { /* VRAM DMA */ }
-	if (utils::in_range(0xFF68, 0xFF6B, addr)) { /* BG/OBJ Palette */ }
-	if (addr == 0xFF70) { /* WRAM BANK SELECT */ }
+	if (utils::in_range(0xFF51, 0xFF55, addr)) { /* VRAM DMA */
+		return;
+	}
+	if (utils::in_range(0xFF68, 0xFF6B, addr)) { /* BG/OBJ Palette */
+		return;
+	}
 }
 
 
@@ -237,7 +285,7 @@ void mmu::MMU::set_interrupt_flag(uint8_t input) {
 
 inline void mmu::MMU::oam_transfer(const uint8_t params) const
 {
-	for (uint8_t i = 0; i <= 0xA0; i++) {
+	for (uint8_t i = 0; i < 0xA0; i++) {
 		const auto address = utils::uint16_little_endian(i, params);
 		this->_ppu->write_oam(0xfe00 + i, this->read(address));
 	}

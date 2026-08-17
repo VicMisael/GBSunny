@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "cartridge/cartridge.h"
+#include "joypad/joypad.h"
 #include "spu/spu.h"
 #include "timer/gb_timer2.h"
 #include "shared/interrupt.h"
@@ -32,6 +33,7 @@ namespace mmu {
         std::shared_ptr<Cartridge> _cartridge;
         std::shared_ptr<spu> _spu;
         std::shared_ptr<serial::GBSerial> _serial;
+        std::shared_ptr<Joypad> _joypad;
         std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
 
 
@@ -52,11 +54,13 @@ namespace mmu {
             const std::shared_ptr<base_timer>& timer_ptr,
             const std::shared_ptr<shared::interrupt>& interrupt_ptr,
             const std::shared_ptr<spu>& spu_ptr,
-            std::shared_ptr<serial::GBSerial> serial_ptr
-        ) : _ppu(std::move(ppu_ptr)), _cartridge(cart), _timer(timer_ptr),
-            interrupt(interrupt_ptr),
+            std::shared_ptr<serial::GBSerial> serial_ptr,
+            std::shared_ptr<Joypad> joypad_ptr
+        ) : _ppu(std::move(ppu_ptr)), _timer(timer_ptr), _cartridge(cart),
             _spu(spu_ptr),
-            _serial(std::move(serial_ptr)) {
+            _serial(std::move(serial_ptr)),
+            _joypad(std::move(joypad_ptr)),
+            interrupt(interrupt_ptr) {
             // Constructor body can be empty if all initialization is done in the list.
             std::fill(std::begin(internal_RAM), std::end(internal_RAM), 0);
             std::fill(std::begin(internal_RAM2), std::end(internal_RAM2), 0);

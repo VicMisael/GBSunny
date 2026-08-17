@@ -579,7 +579,6 @@ uint32_t cpu::cpu::step() {
 		block3(instruction, branchTaken);
 		break;
 	}
-	default: break;
 	}
 	if (ime_enable_delay > 0 && --ime_enable_delay == 0) {
 		ime = true;

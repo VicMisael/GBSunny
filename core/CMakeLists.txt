@@ -5,6 +5,8 @@ add_library(CoreModule STATIC gb.cpp
         cpu/register_file.h
         mmu/MMU.cpp
         mmu/MMU.h
+        joypad/joypad.cpp
+        joypad/joypad.h
         cpu/opcode_names.h
         cpu/cpu_opcodes.cpp
         utils/utils.h
