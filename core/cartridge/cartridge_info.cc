@@ -28,22 +28,92 @@
 
 
 #include "cartridge_info.h"
+
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 
 
-auto get_info(std::vector<uint8_t> rom) -> std::unique_ptr<CartridgeInfo> {
+namespace {
+
+auto read8(const std::vector<uint8_t>& rom, uint16_t address) -> uint8_t {
+    if (address >= rom.size()) {
+        return 0;
+    }
+    return rom[address];
+}
+
+auto read16_be(const std::vector<uint8_t>& rom, uint16_t address) -> uint16_t {
+    return static_cast<uint16_t>((read8(rom, address) << 8) | read8(rom, address + 1));
+}
+
+auto code_string(uint16_t code) -> std::string {
+    std::ostringstream stream;
+    stream << "0x" << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << code;
+    return stream.str();
+}
+
+} // namespace
+
+auto get_info(const std::vector<uint8_t>& rom) -> std::unique_ptr<CartridgeInfo> {
     std::unique_ptr<CartridgeInfo> info = std::make_unique<CartridgeInfo>();
 
-    uint8_t type_code = rom[header::cartridge_type];
-    uint8_t version_code = rom[header::version_number];
-    uint8_t rom_size_code = rom[header::rom_size];
-    uint8_t ram_size_code = rom[header::ram_size];
+    uint8_t type_code = read8(rom, header::cartridge_type);
+    uint8_t version_code = read8(rom, header::version_number);
+    uint8_t rom_size_code = read8(rom, header::rom_size);
+    uint8_t ram_size_code = read8(rom, header::ram_size);
 
+    info->type_code = type_code;
     info->type = get_type(type_code);
     info->version = version_code;
     info->rom_size = get_rom_size(rom_size_code);
     info->ram_size = get_ram_size(ram_size_code);
     info->title = get_title(rom);
+    info->destination = get_destination(read8(rom, header::destination_code));
+    info->license_code = get_license(read8(rom, header::old_license_code),
+                                     read16_be(rom, header::new_license_code));
+    info->header_checksum = read8(rom, header::header_checksum);
+    info->global_checksum = read16_be(rom, header::global_checksum);
+    info->supports_cgb = read8(rom, header::cgb_flag) == 0x80 || read8(rom, header::cgb_flag) == 0xC0;
+    info->supports_sgb = read8(rom, header::sgb_flag) == 0x03;
+
+    switch (type_code) {
+        case 0x02:
+        case 0x03:
+        case 0x08:
+        case 0x09:
+        case 0x10:
+        case 0x12:
+        case 0x13:
+        case 0x1A:
+        case 0x1B:
+        case 0x1D:
+        case 0x1E:
+            info->has_ram = true;
+            break;
+        default:
+            info->has_ram = false;
+            break;
+    }
+
+    switch (type_code) {
+        case 0x03:
+        case 0x06:
+        case 0x09:
+        case 0x0F:
+        case 0x10:
+        case 0x13:
+        case 0x1B:
+        case 0x1E:
+            info->has_battery = true;
+            break;
+        default:
+            info->has_battery = false;
+            break;
+    }
+
+    info->has_timer = type_code == 0x0F || type_code == 0x10;
+    info->has_rumble = type_code == 0x1C || type_code == 0x1D || type_code == 0x1E;
 
 //    log_info("Title:\t\t %s (version %d)", info->title.c_str(), info->version);
 //    log_info("Cartridge:\t\t %s", describe(info->type).c_str());
@@ -64,7 +134,6 @@ auto get_type(uint8_t type) -> CartridgeType {
         case 0x01:
         case 0x02:
         case 0x03:
-        case 0xFF:
             return CartridgeType::MBC1;
 
         case 0x05:
@@ -99,6 +168,7 @@ auto get_type(uint8_t type) -> CartridgeType {
         case 0xFC:
         case 0xFD:
         case 0xFE:
+        case 0xFF:
             return CartridgeType::Unknown;
 
         default:
@@ -149,6 +219,8 @@ auto get_rom_size(uint8_t size_code) -> ROMSize {
             return ROMSize::MB2;
         case 0x07:
             return ROMSize::MB4;
+        case 0x08:
+            return ROMSize::MB8;
         case 0x52:
             return ROMSize::MB1p1;
         case 0x53:
@@ -159,6 +231,40 @@ auto get_rom_size(uint8_t size_code) -> ROMSize {
 //            log_error("Unknown ROM size: %X", size_code);
             return ROMSize::KB32;
     }
+}
+
+auto get_actual_rom_size(ROMSize size) -> uint32_t {
+    return static_cast<uint32_t>(get_rom_bank_count(size)) * 0x4000;
+}
+
+auto get_rom_bank_count(ROMSize size) -> uint16_t {
+    switch (size) {
+        case ROMSize::KB32:
+            return 2;
+        case ROMSize::KB64:
+            return 4;
+        case ROMSize::KB128:
+            return 8;
+        case ROMSize::KB256:
+            return 16;
+        case ROMSize::KB512:
+            return 32;
+        case ROMSize::MB1:
+            return 64;
+        case ROMSize::MB2:
+            return 128;
+        case ROMSize::MB4:
+            return 256;
+        case ROMSize::MB8:
+            return 512;
+        case ROMSize::MB1p1:
+            return 72;
+        case ROMSize::MB1p2:
+            return 80;
+        case ROMSize::MB1p5:
+            return 96;
+    }
+    return 2;
 }
 
 auto describe(ROMSize size) -> std::string {
@@ -179,6 +285,8 @@ auto describe(ROMSize size) -> std::string {
             return "2MB (128 banks)";
         case ROMSize::MB4:
             return "4MB (256 banks)";
+        case ROMSize::MB8:
+            return "8MB (512 banks)";
         case ROMSize::MB1p1:
             return "1.1MB (72 banks)";
         case ROMSize::MB1p2:
@@ -209,6 +317,13 @@ auto get_ram_size(uint8_t size_code) -> RAMSize {
             // throw std::runtime_error("Unknown RAM Size");
             return RAMSize::None;
     }
+}
+
+auto get_license(uint16_t old_license, uint16_t new_license) -> std::string {
+    if (old_license == 0x33) {
+        return code_string(new_license);
+    }
+    return code_string(old_license);
 }
 
 auto get_actual_ram_size(RAMSize size) -> uint32_t {
@@ -270,12 +385,20 @@ auto describe(Destination destination) -> std::string {
     return "Unknown";
 }
 
-auto get_title(std::vector<uint8_t>& rom) -> std::string {
-    char name[TITLE_LENGTH] = {0};
+auto get_title(const std::vector<uint8_t>& rom) -> std::string {
+    std::string name;
+    name.reserve(TITLE_LENGTH);
 
-    for (uint8_t i = 0; i < TITLE_LENGTH; i++) {
-        name[i] = static_cast<char>(rom[header::title + i]);
+    const auto cgb_flag = read8(rom, header::cgb_flag);
+    const uint8_t title_length = (cgb_flag == 0x80 || cgb_flag == 0xC0) ? 11 : TITLE_LENGTH;
+
+    for (uint8_t i = 0; i < title_length; i++) {
+        const auto value = read8(rom, header::title + i);
+        if (value == 0) {
+            break;
+        }
+        name.push_back(static_cast<char>(value));
     }
 
-    return std::string(name);
+    return name;
 }

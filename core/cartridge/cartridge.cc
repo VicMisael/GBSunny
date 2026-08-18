@@ -31,9 +31,22 @@
 
 #include <utility>
 #include <stdexcept>
+#include <iomanip>
+#include <sstream>
 
 #include "utils/utils.h"
 
+namespace {
+
+auto cartridge_type_error(const CartridgeInfo& info) -> std::runtime_error {
+    std::ostringstream stream;
+    stream << "Unsupported cartridge type 0x"
+           << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
+           << static_cast<int>(info.type_code);
+    return std::runtime_error(stream.str());
+}
+
+} // namespace
 
 std::shared_ptr<Cartridge> instance_cartridge(const std::vector<uint8_t> &rom_data) noexcept(false) {
     std::unique_ptr<CartridgeInfo> info = get_info(rom_data);
@@ -46,13 +59,13 @@ std::shared_ptr<Cartridge> instance_cartridge(const std::vector<uint8_t> &rom_da
         case CartridgeType::MBC2:
             return std::make_shared<MBC2>(rom_data, std::move(info));
         case CartridgeType::MBC3:
-            throw std::runtime_error("MBC3 not implemented");
+            return std::make_shared<MBC3>(rom_data, std::move(info));
         case CartridgeType::MBC4:
-            throw std::runtime_error("MBC4 not implemented");
+            throw cartridge_type_error(*info);
         case CartridgeType::MBC5:
-            throw std::runtime_error("MBC5 not implemented");
+            return std::make_shared<MBC5>(rom_data, std::move(info));
         case CartridgeType::Unknown:
-            throw std::runtime_error("Unknown Cartridge type");
+            throw cartridge_type_error(*info);
         default:
             break;
         //            fatal_error("Unknown cartridge type");
@@ -65,8 +78,52 @@ Cartridge::Cartridge(std::unique_ptr<CartridgeInfo> in_cartridge_info)
     : cartridge_info(std::move(in_cartridge_info)) {
 }
 
+uint8_t Cartridge::read_rom_byte(const std::vector<uint8_t>& rom, uint16_t bank, uint16_t address) {
+    if (rom.empty()) {
+        return 0xFF;
+    }
+
+    const uint32_t offset = static_cast<uint32_t>(bank) * 0x4000 + (address & 0x3FFF);
+    if (offset >= rom.size()) {
+        return 0xFF;
+    }
+    return rom[offset];
+}
+
+uint8_t Cartridge::read_ram_byte(const std::vector<uint8_t>& ram, uint16_t bank, uint16_t address) {
+    if (ram.empty()) {
+        return 0xFF;
+    }
+
+    const uint32_t offset = static_cast<uint32_t>(bank) * 0x2000 + (address - 0xA000);
+    if (offset >= ram.size()) {
+        return 0xFF;
+    }
+    return ram[offset];
+}
+
+void Cartridge::write_ram_byte(std::vector<uint8_t>& ram, uint16_t bank, uint16_t address, uint8_t value) {
+    if (ram.empty()) {
+        return;
+    }
+
+    const uint32_t offset = static_cast<uint32_t>(bank) * 0x2000 + (address - 0xA000);
+    if (offset < ram.size()) {
+        ram[offset] = value;
+    }
+}
+
+uint16_t Cartridge::rom_bank_count(const std::vector<uint8_t>& rom) const {
+    const auto banks = static_cast<uint16_t>(rom.size() / 0x4000);
+    return banks == 0 ? 1 : banks;
+}
+
+uint8_t Cartridge::ram_bank_count(const std::vector<uint8_t>& ram) const {
+    const auto banks = static_cast<uint8_t>((ram.size() + 0x1FFF) / 0x2000);
+    return banks == 0 ? 1 : banks;
+}
+
 std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path) {
-    std::vector<uint8_t> ram = {};
     const auto file = utils::read_file(path);
     auto cartridge = instance_cartridge(file);
     return cartridge;
@@ -76,25 +133,35 @@ std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path) {
 NoMBC::NoMBC(std::vector<uint8_t> rom_data,
              std::unique_ptr<CartridgeInfo> in_cartridge_info)
     : rom(std::move(rom_data)),Cartridge(std::move(in_cartridge_info)) {
+    if (cartridge_info->has_ram) {
+        ram.resize(get_actual_ram_size(cartridge_info->ram_size));
+    }
 }
 
 void NoMBC::write_sram(uint16_t addr,uint8_t value)
 {
-
+    if (addr < 0xA000 || addr > 0xBFFF) {
+        return;
+    }
+    write_ram_byte(ram, 0, addr, value);
 }
 
 void NoMBC::write(const uint16_t &uint16_t, uint8_t value) {
 }
 
 auto NoMBC::read(const uint16_t &addr) const -> uint8_t {
-    /* TODO: check this uint16_t is in sensible bounds */
+    if (addr >= rom.size()) {
+        return 0xFF;
+    }
     return rom[addr];
 }
 
 uint8_t NoMBC::read_sram(uint16_t addr) const
 {
-    return 0;
+    if (addr < 0xA000 || addr > 0xBFFF) {
+        return 0xFF;
+    }
+    return read_ram_byte(ram, 0, addr);
 }
-
 
 

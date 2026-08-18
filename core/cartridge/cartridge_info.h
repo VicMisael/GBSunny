@@ -33,8 +33,9 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstdint>
 
-const int TITLE_LENGTH = 11;
+const int TITLE_LENGTH = 16;
 
 namespace header {
 const int entry_point = 0x100;
@@ -67,7 +68,7 @@ enum class CartridgeType {
 extern auto get_type(uint8_t type) -> CartridgeType;
 extern auto describe(CartridgeType type) -> std::string;
 
-extern auto get_title(std::vector<uint8_t>& rom) -> std::string;
+extern auto get_title(const std::vector<uint8_t>& rom) -> std::string;
 
 extern auto get_license(uint16_t old_license, uint16_t new_license) -> std::string;
 
@@ -80,12 +81,15 @@ enum class ROMSize {
     MB1,
     MB2,
     MB4,
+    MB8,
     MB1p1,
     MB1p2,
     MB1p5,
 };
 
 extern auto get_rom_size(uint8_t size_code) -> ROMSize;
+extern auto get_actual_rom_size(ROMSize size_code) -> uint32_t;
+extern auto get_rom_bank_count(ROMSize size_code) -> uint16_t;
 extern auto describe(ROMSize size) -> std::string;
 
 enum class RAMSize {
@@ -114,6 +118,7 @@ public:
     std::string title;
 
     /* Cartridge information */
+    uint8_t type_code = 0;
     CartridgeType type;
     Destination destination;
     ROMSize rom_size;
@@ -126,6 +131,11 @@ public:
 
     bool supports_cgb;
     bool supports_sgb;
+
+    bool has_ram = false;
+    bool has_battery = false;
+    bool has_timer = false;
+    bool has_rumble = false;
 };
 
-extern auto get_info(std::vector<uint8_t> rom) -> std::unique_ptr<CartridgeInfo>;
+extern auto get_info(const std::vector<uint8_t>& rom) -> std::unique_ptr<CartridgeInfo>;

@@ -83,8 +83,8 @@ private:
 	uint32_t frame_sequencer_cycles = 0;
 	uint8_t frame_sequencer_step = 0;
 	uint32_t sample_clock_accumulator = 0;
-	float left_filter_capacitor = 0.0f;
-	float right_filter_capacitor = 0.0f;
+	float left_filter_capacitor = 0.01f;
+	float right_filter_capacitor = 0.01f;
 
 	void reset_audio_registers();
 	void power_off();

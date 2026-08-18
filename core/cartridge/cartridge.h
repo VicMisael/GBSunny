@@ -36,6 +36,7 @@
 #include <memory>
 #include <span>
 #include <array>
+#include <cstdint>
 
 class Cartridge {
 public:
@@ -53,8 +54,18 @@ public:
     std::unique_ptr<CartridgeInfo> cartridge_info;
 
 protected:
-
-
+    [[nodiscard]] static uint8_t read_rom_byte(const std::vector<uint8_t>& rom,
+                                               uint16_t bank,
+                                               uint16_t address);
+    [[nodiscard]] static uint8_t read_ram_byte(const std::vector<uint8_t>& ram,
+                                               uint16_t bank,
+                                               uint16_t address);
+    static void write_ram_byte(std::vector<uint8_t>& ram,
+                               uint16_t bank,
+                               uint16_t address,
+                               uint8_t value);
+    [[nodiscard]] uint16_t rom_bank_count(const std::vector<uint8_t>& rom) const;
+    [[nodiscard]] uint8_t ram_bank_count(const std::vector<uint8_t>& ram) const;
 };
 
 
@@ -94,10 +105,14 @@ private:
     std::vector<uint8_t> rom;
     std::vector<uint8_t> ram;
 
-    uint8_t current_rom_bank = 1;
-    uint8_t current_ram_bank = 0;
+    uint8_t lower_rom_bank_bits = 1;
+    uint8_t upper_bank_bits = 0;
     bool ram_enabled = false;
-    bool rom_banking_mode = true; // true = ROM banking, false = RAM banking
+    bool advanced_banking_mode = false;
+
+    [[nodiscard]] uint16_t switchable_rom_bank() const;
+    [[nodiscard]] uint16_t fixed_rom_bank() const;
+    [[nodiscard]] uint8_t selected_ram_bank() const;
 };
 
 
@@ -116,11 +131,11 @@ public:
 
 private:
     std::vector<uint8_t> rom;
-    std::array <uint8_t,512> ram;
+    std::array<uint8_t,512> ram = {};
 
     //State
     bool ram_enabled=false;
-    uint8_t current_bank=1;
+    uint8_t current_rom_bank=1;
 };
 
 class MBC3 : public Cartridge {
@@ -138,10 +153,45 @@ public:
 
 private:
     std::vector<uint8_t> rom;
-    std::array <uint8_t, 512> ram;
+    std::vector<uint8_t> ram;
+
+    struct RtcRegisters {
+        uint8_t seconds = 0;
+        uint8_t minutes = 0;
+        uint8_t hours = 0;
+        uint8_t day_low = 0;
+        uint8_t day_high = 0;
+    };
 
     //State
     bool ram_enabled = false;
-    uint8_t current_bank = 1;
+    uint8_t current_rom_bank = 1;
+    uint8_t selected_ram_or_rtc = 0;
+    bool latch_armed = false;
+    RtcRegisters rtc = {};
+    RtcRegisters latched_rtc = {};
+
+    [[nodiscard]] bool rtc_register_selected() const;
+    [[nodiscard]] uint8_t read_rtc() const;
+    void write_rtc(uint8_t value);
 };
 
+class MBC5 : public Cartridge {
+public:
+    MBC5(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info);
+
+    [[nodiscard]] uint8_t read(const uint16_t& address) const override;
+    void write(const uint16_t& address, uint8_t value) override;
+
+    [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
+    void write_sram(uint16_t addr, uint8_t value) override;
+
+private:
+    std::vector<uint8_t> rom;
+    std::vector<uint8_t> ram;
+
+    bool ram_enabled = false;
+    uint16_t current_rom_bank = 1;
+    uint8_t current_ram_bank = 0;
+    bool rumble_enabled = false;
+};

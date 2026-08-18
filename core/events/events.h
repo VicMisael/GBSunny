@@ -27,6 +27,4 @@ struct CartridgeLoadedEvent {
 	std::string rom_type;
 };
 
-
-
 using EmulatorEventAggregator = EventAggregator<VBlankEvent, HBlankEvent, FrameCompleteEvent, PPUFrameCompleteEvent, InterruptSet, CartridgeLoadedEvent>;
