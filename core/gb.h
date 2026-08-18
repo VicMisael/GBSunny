@@ -9,6 +9,7 @@
 #include "spu/spu.h"
 #include "utils/emu_flags.h"
 #include "serial/gb_serial.h"
+#include "logging/core_logger.h"
 #include <ppu/ppu_base.h>
 #include <events/event_aggregator.h>
 #include <events/events.h>
@@ -25,13 +26,17 @@ class gb {
     std::shared_ptr<spu> _spu;
     std::shared_ptr<serial::GBSerial> _serial;
     std::shared_ptr<Joypad> _joypad;
+    std::shared_ptr<logging::CoreLogger> _logger;
 
 
     void init();
 public:
     std::shared_ptr<mmu::MMU> _mmu;
     EmulatorEventAggregator bus;
-    explicit gb(const std::string& rompath, EmuFlags flags = { false, true, true });
+    explicit gb(const std::string& rompath,
+                EmuFlags flags = { false, true, true },
+                std::shared_ptr<logging::CoreLogger> logger = nullptr,
+                std::shared_ptr<serial::GBSerial> serial = nullptr);
     void reset();
     void run_one_frame();
     void set_button(JoypadButton button, bool pressed);

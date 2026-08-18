@@ -7,7 +7,7 @@
 #include <bit>
 #include <cstdint>
 #include <iomanip>
-#include <iostream>
+#include <ostream>
 
 #include "register_types.h"
 
@@ -61,34 +61,34 @@ namespace cpu {
 
 
     public:
-        void print_registers() const {
+        void print_registers(std::ostream& output) const {
             // Set up formatting for hexadecimal output
-            std::cout << std::hex << std::uppercase << std::setfill('0');
+            output << std::hex << std::uppercase << std::setfill('0');
 
             // Print 16-bit registers and their 8-bit components
-            std::cout << "AF: " << std::setw(4) << af
+            output << "AF: " << std::setw(4) << af
                 << " (A: " << std::setw(2) << (int)a
                 << " F: " << std::setw(2) << (int)f.f << ")" << std::endl;
 
-            std::cout << "BC: " << std::setw(4) << bc
+            output << "BC: " << std::setw(4) << bc
                 << " (B: " << std::setw(2) << (int)b
                 << " C: " << std::setw(2) << (int)c << ")" << std::endl;
 
-            std::cout << "DE: " << std::setw(4) << de
+            output << "DE: " << std::setw(4) << de
                 << " (D: " << std::setw(2) << (int)d
                 << " E: " << std::setw(2) << (int)e << ")" << std::endl;
 
-            std::cout << "HL: " << std::setw(4) << hl
+            output << "HL: " << std::setw(4) << hl
                 << " (H: " << std::setw(2) << (int)h
                 << " L: " << std::setw(2) << (int)l << ")" << std::endl;
 
             // Print Stack Pointer and Program Counter
-            std::cout << "SP: " << std::setw(4) << sp << std::endl;
-            std::cout << "PC: " << std::setw(4) << pc << std::endl;
+            output << "SP: " << std::setw(4) << sp << std::endl;
+            output << "PC: " << std::setw(4) << pc << std::endl;
 
             // Print the state of the flags
             const uint8_t flags = f.f;
-            std::cout << "Flags (ZNHC): "
+            output << "Flags (ZNHC): "
                 << ((flags & 0x80) ? '1' : '0') // Zero Flag
                 << ((flags & 0x40) ? '1' : '0') // Subtract Flag
                 << ((flags & 0x20) ? '1' : '0') // Half Carry Flag
@@ -96,7 +96,7 @@ namespace cpu {
                 << std::endl;
 
                 // Reset formatting to default
-            //std::cout << std::dec << std::nouppercase << std::setfill(' ') << "--------------------" << std::endl;
+            //output << std::dec << std::nouppercase << std::setfill(' ') << "--------------------" << std::endl;
         }
 
         // Exam

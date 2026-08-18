@@ -14,6 +14,13 @@ namespace serial {
 		virtual void write(uint16_t addr, uint8_t data) = 0;
 	};
 
+	class NullGBSerial final : public GBSerial {
+	public:
+		void reset() override {}
+		[[nodiscard]] uint8_t read(uint16_t) const override { return 0xFF; }
+		void write(uint16_t, uint8_t) override {}
+	};
+
 	class ConsoleGBSerial final : public GBSerial {
 		uint8_t serial_data = 0x00;    // 0xFF01 (SB)
 		uint8_t serial_control = 0x00; // 0xFF02 (SC)

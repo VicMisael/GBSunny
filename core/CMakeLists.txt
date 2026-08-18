@@ -41,6 +41,7 @@ add_library(CoreModule STATIC gb.cpp
         ppu/ppu_base.h
  timer/base_timer.h 
  cartridge/modes/mbc5.cpp events/event_aggregator.h events/events.h
+        logging/core_logger.h
         utils/emu_flags.h)
 
 

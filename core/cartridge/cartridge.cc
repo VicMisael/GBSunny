@@ -129,6 +129,17 @@ std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path) {
     return cartridge;
 }
 
+std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path,
+                                                    EmulatorEventAggregator& event_bus) {
+    auto cartridge = get_cartridge(path);
+    event_bus.send(CartridgeLoadedEvent{
+        .rom_path = path,
+        .rom_name = cartridge->cartridge_info->title,
+        .rom_type = describe(cartridge->cartridge_info->type),
+    });
+    return cartridge;
+}
+
 
 NoMBC::NoMBC(std::vector<uint8_t> rom_data,
              std::unique_ptr<CartridgeInfo> in_cartridge_info)
@@ -163,5 +174,4 @@ uint8_t NoMBC::read_sram(uint16_t addr) const
     }
     return read_ram_byte(ram, 0, addr);
 }
-
 

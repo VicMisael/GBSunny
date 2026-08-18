@@ -1,5 +1,7 @@
 #include "cpu.h"
-#include <iostream>
+
+#include <iomanip>
+#include <ostream>
 
 #include "utils/utils.h"
 #include "opcode_cycles.h"

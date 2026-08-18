@@ -30,6 +30,7 @@
 #pragma once
 
 #include "cartridge_info.h"
+#include "events/events.h"
 
 #include <string>
 #include <vector>
@@ -51,6 +52,8 @@ public:
     virtual void write_sram(uint16_t addr,uint8_t value) = 0;
 
     static std::shared_ptr<Cartridge> get_cartridge(const std::string &path);
+    static std::shared_ptr<Cartridge> get_cartridge(const std::string &path,
+                                                    EmulatorEventAggregator& event_bus);
     std::unique_ptr<CartridgeInfo> cartridge_info;
 
 protected:

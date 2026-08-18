@@ -6,7 +6,6 @@
 #include <timer/gb_timer2.h>
 #include <events/events.h>
 #include <shared/hardware_constants.h>
-#include <iostream>
 //
 // Created by Misael on 07/03/2025.
 //
@@ -14,9 +13,18 @@
 void gb::init()
 {
 }
-gb::gb(const std::string& rompath, EmuFlags flags)
-	: _flags(flags) {
+gb::gb(const std::string& rompath,
+       EmuFlags flags,
+       std::shared_ptr<logging::CoreLogger> logger,
+       std::shared_ptr<serial::GBSerial> serial)
+	: _flags(flags), _serial(std::move(serial)), _logger(std::move(logger)) {
 
+	if (_logger == nullptr) {
+		_logger = std::make_shared<logging::NullCoreLogger>();
+	}
+	if (_serial == nullptr) {
+		_serial = std::make_shared<serial::NullGBSerial>();
+	}
 
 
 
@@ -41,16 +49,15 @@ gb::gb(const std::string& rompath, EmuFlags flags)
 	}
 
 	_spu = std::make_shared<spu>(_interrupt_controller);
-	_serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
 	_joypad = std::make_shared<Joypad>(_interrupt_controller);
 
-	_cartridge = std::move(Cartridge::get_cartridge(rompath));
+	_cartridge = std::move(Cartridge::get_cartridge(rompath, bus));
 
 
 	_mmu = std::make_shared<mmu::MMU>(
-		_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial, _joypad);
+		_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial, _joypad, _logger);
 
-	_cpu = std::make_unique<::cpu::cpu>(_mmu, _interrupt_controller);
+	_cpu = std::make_unique<::cpu::cpu>(_mmu, _interrupt_controller, _logger);
 
 
 

@@ -6,12 +6,13 @@
 #define CPU_H
 #include <cstdint>
 
+#include "logging/core_logger.h"
 #include "register_file.h"
 #include "mmu/MMU.h"
 #include <array>
 #include <stdexcept>
 #include <utility>
-#include <fstream> 
+#include <memory>
 
 namespace cpu {
 
@@ -30,6 +31,7 @@ namespace cpu {
 		std::shared_ptr<mmu::MMU> _mmu;
 		register_file _registers;
 		std::shared_ptr<shared::interrupt> interrupt_control; //Shared space for interrupts
+		std::shared_ptr<logging::CoreLogger> _logger;
 
 		
 		//Execution State
@@ -190,7 +192,7 @@ namespace cpu {
 			 case 3:return _registers.f.CARRY;
 				 default: ;
 			 };
-			 std::cout << "ERROR";
+			 _logger->error("Invalid CPU flag condition index");
 		 	return false;
 		}
 
@@ -210,17 +212,17 @@ namespace cpu {
 
 //#pragma region debugging
 		void gb_doctor_print(std::ostream& out_stream) const;
-		std::ofstream log_file;
 //#pragma endregion
 
 
 	public:
-		explicit cpu(const std::shared_ptr<mmu::MMU> &mmu, const std::shared_ptr<shared::interrupt>  interrupt_control):_mmu(mmu),interrupt_control(interrupt_control) {
-			log_file = std::ofstream("emulator_log.txt");
-			if (!log_file.is_open()) {
-				std::cerr << "Failed to open log file!" << std::endl;
+		explicit cpu(const std::shared_ptr<mmu::MMU> &mmu,
+		             const std::shared_ptr<shared::interrupt> interrupt_control,
+		             std::shared_ptr<logging::CoreLogger> logger = nullptr)
+			: _mmu(mmu), interrupt_control(interrupt_control), _logger(std::move(logger)) {
+			if (_logger == nullptr) {
+				_logger = std::make_shared<logging::NullCoreLogger>();
 			}
-
 		}
 		void reset();
 		uint32_t step();

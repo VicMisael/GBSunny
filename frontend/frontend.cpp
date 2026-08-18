@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <atomic>
 #include <exception>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -102,7 +103,8 @@ void load_rom(AppState& app, const std::string& path, AudioStream& audio_stream)
 		flags.useFastPPU = true;
 		flags.useNewTimer = true;
 		flags.useDotStepping = true;
-		app.gameboy = std::make_unique<gb>(path, flags);
+		auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
+		app.gameboy = std::make_unique<gb>(path, flags, nullptr, serial);
 		app.rom_path = path;
 		app.paused = false;
 		app.unlimited_speed = false;

@@ -1,6 +1,7 @@
 #include "MMU.h"
 
-#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 #include "cartridge/boot_rom.h"
 #include "spu/spu.h"
@@ -115,7 +116,11 @@ uint8_t mmu::MMU::read(uint16_t addr) const {
 	case MemRegion::IE:
 		return read_interrupt_enable();
 	default:
-		std::cout << "Illegal Access: " << std::hex << addr << std::endl;
+		{
+			std::ostringstream message;
+			message << "Illegal Access: 0x" << std::hex << std::uppercase << addr;
+			_logger->warning(message.str());
+		}
 		return 0xFF;
 	}
 
@@ -166,7 +171,6 @@ void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 	}
 	return;
 
-	// std::cout<<"MMU::MMU::write: "<<std::hex<<addr<<std::endl;
 }
 
 
