@@ -26,7 +26,9 @@ gb::gb(const std::string& rompath,
 		_serial = std::make_shared<serial::NullGBSerial>();
 	}
 
-
+	bus.subscribe<CartridgeLoadedEvent>([this](const CartridgeLoadedEvent& event) {
+		_last_cartridge_loaded_event = event;
+	});
 
 	_interrupt_controller = std::make_shared<shared::interrupt>();
 

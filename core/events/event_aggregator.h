@@ -1,5 +1,8 @@
 #pragma once
 #include <functional>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 template <typename... EventTypes>
 class EventAggregator {
@@ -33,4 +36,3 @@ private:
 	std::tuple<std::vector<Handler<EventTypes>>...> handlers;
 
 };
-

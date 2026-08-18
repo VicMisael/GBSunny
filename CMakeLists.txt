@@ -13,6 +13,11 @@ add_executable(GBAsunny
         frontend/frontend.cpp
         frontend/frontend.h
         frontend/audio_ring_buffer.h
+        frontend/toast.cpp
+        frontend/toast.h
+        frontend/ui.cpp
+        frontend/ui.h
+        utils/debug_utils.h
         utils/file_dialog.cpp
 )
 
