@@ -290,8 +290,9 @@ void mmu::MMU::set_interrupt_flag(uint8_t input) {
 inline void mmu::MMU::oam_transfer(const uint8_t params) const
 {
 	for (uint8_t i = 0; i < 0xA0; i++) {
+		constexpr auto baseAddr = 0xfe00;
 		const auto address = utils::uint16_little_endian(i, params);
-		this->_ppu->write_oam(0xfe00 + i, this->read(address));
+		this->_ppu->write_oam( baseAddr+ i, this->read(address));
 	}
 
 }

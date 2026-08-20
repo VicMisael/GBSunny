@@ -28,6 +28,14 @@ namespace cpu {
 	};
 
 	class cpu {
+		enum class pair_id : uint8_t {
+			bc,
+			de,
+			hl,
+			sp,
+			af,
+		};
+
 		std::shared_ptr<mmu::MMU> _mmu;
 		register_file _registers;
 		std::shared_ptr<shared::interrupt> interrupt_control; //Shared space for interrupts
@@ -53,7 +61,7 @@ namespace cpu {
 
 		void JP_offset(int8_t offset);
 
-		void PUSH(uint16_t& i);
+		void PUSH(uint16_t value);
 
 		//ALU
 		void ADD_SP_I8(const int8_t &i);
@@ -74,9 +82,9 @@ namespace cpu {
 
 		void DEC_8bit(uint8_t& data);
 
-		static void INC_16bit(uint16_t& data);
+		void INC_16bit(pair_id id);
 
-		static void DEC_16bit(uint16_t& data);
+		void DEC_16bit(pair_id id);
 		// ROT
 
 		//RLC	RRC	RL	RR	SLA	SRA	SWAP	SRL
@@ -111,7 +119,7 @@ namespace cpu {
 
 		void LD_nn_SP(uint16_t address);
 
-		void LD_16bit_reg_NN(uint16_t &regref,uint16_t value);
+		void LD_16bit_reg_NN(pair_id id, uint16_t value);
 
 		void ADD_HL(const uint16_t& data);
 
@@ -121,7 +129,7 @@ namespace cpu {
 
 		void RET();
 
-		void POP(uint16_t &regref);
+		[[nodiscard]] uint16_t POP();
 
 		using _addA = void(cpu::cpu::*)(const uint8_t);
 
@@ -167,41 +175,52 @@ namespace cpu {
 
 		uint8_t reg_readonly(uint8_t index) const;
 
-		 const std::array<uint16_t*, 4> reg_16_sp = {
-			&_registers.bc,
-			&_registers.de,
-			&_registers.hl,
-			&_registers.sp
-		 };
+		static constexpr std::array reg_16_sp = {
+			pair_id::bc,
+			pair_id::de,
+			pair_id::hl,
+			pair_id::sp,
+		};
 
-		 const std::array<uint16_t*, 4> reg_16_af = {
-			&_registers.bc,
-			&_registers.de,
-			&_registers.hl,
-			&_registers.af
-		 };
+		static constexpr std::array reg_16_af = {
+			pair_id::bc,
+			pair_id::de,
+			pair_id::hl,
+			pair_id::af,
+		};
+
+		[[nodiscard]] uint16_t read_pair(pair_id id) const;
+		void write_pair(pair_id id, uint16_t value);
 
 
 
 		 bool readflag_tbl(uint8_t id) const {
 			//Should crash on wrong lookup
 			 switch (id) {
-			 case 0:return !_registers.f.ZERO;
-			 case 1:return _registers.f.ZERO;
-			 case 2:return !_registers.f.CARRY;
-			 case 3:return _registers.f.CARRY;
+			 case 0:return !_registers.f.zero();
+			 case 1:return _registers.f.zero();
+			 case 2:return !_registers.f.carry();
+			 case 3:return _registers.f.carry();
 				 default: ;
 			 };
 			 _logger->error("Invalid CPU flag condition index");
 		 	return false;
 		}
 
-		constexpr uint16_t r16mem(uint16_t index) {
+		uint16_t r16mem(uint16_t index) {
 			switch (index) {
-				case 0:return _registers.bc;
-				case 1:return _registers.de;
-				case 2:return _registers.hl++;
-				case 3:return _registers.hl--;
+				case 0:return _registers.bc();
+				case 1:return _registers.de();
+				case 2: {
+					const uint16_t value = _registers.hl();
+					_registers.hl() = static_cast<uint16_t>(value + 1);
+					return value;
+				}
+				case 3: {
+					const uint16_t value = _registers.hl();
+					_registers.hl() = static_cast<uint16_t>(value - 1);
+					return value;
+				}
 				default: throw std::out_of_range("Invalid register index");
 			}
 			throw std::out_of_range("Invalid register index");

@@ -18,7 +18,7 @@ void cpu::cpu::gb_doctor_print(std::ostream& out_stream) const
 
 	// Print 8-bit registers
 	out_stream << "A:" << std::setw(2) << static_cast<int>(_registers.a) << " ";
-	out_stream << "F:" << std::setw(2) << static_cast<int>(_registers.f.f) << " ";
+	out_stream << "F:" << std::setw(2) << static_cast<int>(static_cast<uint8_t>(_registers.f)) << " ";
 	out_stream << "B:" << std::setw(2) << static_cast<int>(_registers.b) << " ";
 	out_stream << "C:" << std::setw(2) << static_cast<int>(_registers.c) << " ";
 	out_stream << "D:" << std::setw(2) << static_cast<int>(_registers.d) << " ";
@@ -122,6 +122,38 @@ uint8_t& cpu::cpu::reg_ref(uint8_t index)
 	}
 }
 
+uint16_t cpu::cpu::read_pair(const pair_id id) const {
+	switch (id) {
+	case pair_id::bc: return _registers.bc();
+	case pair_id::de: return _registers.de();
+	case pair_id::hl: return _registers.hl();
+	case pair_id::sp: return _registers.sp;
+	case pair_id::af: return _registers.af();
+	}
+	throw std::out_of_range("Invalid register pair");
+}
+
+void cpu::cpu::write_pair(const pair_id id, const uint16_t value) {
+	switch (id) {
+	case pair_id::bc:
+		_registers.bc() = value;
+		return;
+	case pair_id::de:
+		_registers.de() = value;
+		return;
+	case pair_id::hl:
+		_registers.hl() = value;
+		return;
+	case pair_id::sp:
+		_registers.sp = value;
+		return;
+	case pair_id::af:
+		_registers.af() = value;
+		return;
+	}
+	throw std::out_of_range("Invalid register pair");
+}
+
 inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
 	switch (index) {
 	case 0: return _registers.b;
@@ -130,7 +162,7 @@ inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
 	case 3: return _registers.e;
 	case 4: return _registers.h;
 	case 5: return _registers.l;
-	case 6: return _mmu->read(_registers.hl); // Be careful when using this
+	case 6: return _mmu->read(_registers.hl()); // Be careful when using this
 	case 7: return _registers.a;
 	default: throw std::out_of_range("Invalid register index");
 	}
@@ -145,7 +177,7 @@ uint8_t cpu::cpu::cb_prefixed()
 	case 0: {
 		const auto func = rot_table[result.y()];
 		if (result.z() == 6) {
-			uint16_t hl = _registers.hl;
+			uint16_t hl = _registers.hl();
 			uint8_t operand = _mmu->read(hl);
 			(this->*func)(operand);
 			_mmu->write(hl, operand);
@@ -161,9 +193,9 @@ uint8_t cpu::cpu::cb_prefixed()
 		break;
 	case 2:
 		if (result.z() == 6) {
-			uint8_t operand = _mmu->read(_registers.hl);
+			uint8_t operand = _mmu->read(_registers.hl());
 			RES(result.y(), operand);
-			_mmu->write(_registers.hl, operand);
+			_mmu->write(_registers.hl(), operand);
 		}
 		else {
 			this->RES(result.y(), this->reg_ref(result.z()));
@@ -171,7 +203,7 @@ uint8_t cpu::cpu::cb_prefixed()
 		break;
 	case 3:
 		if (result.z() == 6) {
-			const uint16_t hl = _registers.hl;
+			const uint16_t hl = _registers.hl();
 			uint8_t operand = _mmu->read(hl);
 			SET(result.y(), operand);
 			_mmu->write(hl, operand);
@@ -231,11 +263,11 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		case 0: {
 			const auto lower = _mmu->read(_registers.pc++);
 			const auto high = _mmu->read(_registers.pc++);
-			LD_16bit_reg_NN(*reg_16_sp[result.p()], utils::uint16_little_endian(lower, high));
+			LD_16bit_reg_NN(reg_16_sp[result.p()], utils::uint16_little_endian(lower, high));
 			break;
 		};
 		case 1: {
-			ADD_HL(*reg_16_sp[result.p()]);
+			ADD_HL(read_pair(reg_16_sp[result.p()]));
 			break;
 		};
 		}
@@ -260,11 +292,11 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 	case 3: {
 		switch (result.q()) {
 		case 0: {
-			INC_16bit(*reg_16_sp[result.p()]);
+			INC_16bit(reg_16_sp[result.p()]);
 			break;
 		}
 		case 1: {
-			DEC_16bit(*reg_16_sp[result.p()]);
+			DEC_16bit(reg_16_sp[result.p()]);
 			break;
 		}
 		default:
@@ -290,7 +322,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 	}
 	case 6: {
 		auto immediate = _mmu->read(_registers.pc++);
-		result.y() == 6 ? LD_mem(_registers.hl, immediate) : LD_8bit(reg_ref(result.y()), immediate);
+		result.y() == 6 ? LD_mem(_registers.hl(), immediate) : LD_8bit(reg_ref(result.y()), immediate);
 		break;
 	}
 	case 7: {
@@ -316,7 +348,7 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 	auto src = reg_readonly(result.z());
 
 	if (result.y() == 6) {
-		LD_mem(_registers.hl, src);
+		LD_mem(_registers.hl(), src);
 	}
 	else {
 		LD_8bit(reg_ref(result.y()), src);
@@ -371,7 +403,7 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 	case 1: {
 		if (result.q() == 0) {
 			//q=0;
-			POP(*reg_16_af[result.p()]);
+			write_pair(reg_16_af[result.p()], POP());
 		}
 		else {
 			//q=1;
@@ -387,11 +419,11 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 				break;
 			}
 			case 2: {
-				JP_16(_registers.hl);
+				JP_16(_registers.hl());
 				break;
 			};
 			case 3: {
-				_registers.sp = _registers.hl;
+				_registers.sp = _registers.hl();
 				break;
 			}
 			default: break;
@@ -483,7 +515,7 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 	case 5: {
 		switch (result.q()) {
 		case 0: {
-			PUSH(*reg_16_af[result.p()]);
+			PUSH(read_pair(reg_16_af[result.p()]));
 			break;
 		}
 		case 1: {
