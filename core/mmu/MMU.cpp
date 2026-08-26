@@ -287,7 +287,7 @@ void mmu::MMU::set_interrupt_flag(uint8_t input) {
 	interrupt->requested.flag = input & 0x1F; // Only lower 5 bits are used
 }
 
-inline void mmu::MMU::oam_transfer(const uint8_t params) const
+ void mmu::MMU::oam_transfer(const uint8_t params) const
 {
 	for (uint8_t i = 0; i < 0xA0; i++) {
 		const auto address = utils::uint16_little_endian(i, params);
