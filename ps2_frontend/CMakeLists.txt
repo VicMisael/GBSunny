@@ -24,6 +24,8 @@ add_subdirectory(
 
 add_executable(GBSunnyPS2
     main_ps2.cpp
+    ps2_font.cpp
+    ps2_font.h
     rom_selector.cpp
     rom_selector.h
 )

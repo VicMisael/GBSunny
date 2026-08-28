@@ -1,11 +1,10 @@
 #include "rom_selector.h"
+#include "ps2_font.h"
 
 #include <SDL.h>
 
 #include <algorithm>
-#include <array>
 #include <cctype>
-#include <cstdint>
 #include <dirent.h>
 #include <string>
 #include <string_view>
@@ -17,8 +16,6 @@ namespace {
 
 constexpr int ScreenWidth = 640;
 constexpr int ScreenHeight = 448;
-constexpr int FontScale = 2;
-constexpr int GlyphWidth = 6 * FontScale;
 constexpr int LineHeight = 18;
 constexpr int ListTop = 91;
 constexpr int VisibleRows = 17;
@@ -28,87 +25,6 @@ struct Entry {
     std::string path;
     bool directory;
 };
-
-using Glyph = std::array<std::uint8_t, 5>;
-
-constexpr Glyph glyph_for(char character)
-{
-    const char c = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
-    switch (c) {
-    case 'A': return {0x7E, 0x11, 0x11, 0x11, 0x7E};
-    case 'B': return {0x7F, 0x49, 0x49, 0x49, 0x36};
-    case 'C': return {0x3E, 0x41, 0x41, 0x41, 0x22};
-    case 'D': return {0x7F, 0x41, 0x41, 0x22, 0x1C};
-    case 'E': return {0x7F, 0x49, 0x49, 0x49, 0x41};
-    case 'F': return {0x7F, 0x09, 0x09, 0x09, 0x01};
-    case 'G': return {0x3E, 0x41, 0x49, 0x49, 0x7A};
-    case 'H': return {0x7F, 0x08, 0x08, 0x08, 0x7F};
-    case 'I': return {0x00, 0x41, 0x7F, 0x41, 0x00};
-    case 'J': return {0x20, 0x40, 0x41, 0x3F, 0x01};
-    case 'K': return {0x7F, 0x08, 0x14, 0x22, 0x41};
-    case 'L': return {0x7F, 0x40, 0x40, 0x40, 0x40};
-    case 'M': return {0x7F, 0x02, 0x0C, 0x02, 0x7F};
-    case 'N': return {0x7F, 0x04, 0x08, 0x10, 0x7F};
-    case 'O': return {0x3E, 0x41, 0x41, 0x41, 0x3E};
-    case 'P': return {0x7F, 0x09, 0x09, 0x09, 0x06};
-    case 'Q': return {0x3E, 0x41, 0x51, 0x21, 0x5E};
-    case 'R': return {0x7F, 0x09, 0x19, 0x29, 0x46};
-    case 'S': return {0x46, 0x49, 0x49, 0x49, 0x31};
-    case 'T': return {0x01, 0x01, 0x7F, 0x01, 0x01};
-    case 'U': return {0x3F, 0x40, 0x40, 0x40, 0x3F};
-    case 'V': return {0x1F, 0x20, 0x40, 0x20, 0x1F};
-    case 'W': return {0x3F, 0x40, 0x38, 0x40, 0x3F};
-    case 'X': return {0x63, 0x14, 0x08, 0x14, 0x63};
-    case 'Y': return {0x07, 0x08, 0x70, 0x08, 0x07};
-    case 'Z': return {0x61, 0x51, 0x49, 0x45, 0x43};
-    case '0': return {0x3E, 0x51, 0x49, 0x45, 0x3E};
-    case '1': return {0x00, 0x42, 0x7F, 0x40, 0x00};
-    case '2': return {0x62, 0x51, 0x49, 0x49, 0x46};
-    case '3': return {0x22, 0x41, 0x49, 0x49, 0x36};
-    case '4': return {0x18, 0x14, 0x12, 0x7F, 0x10};
-    case '5': return {0x2F, 0x49, 0x49, 0x49, 0x31};
-    case '6': return {0x3E, 0x49, 0x49, 0x49, 0x32};
-    case '7': return {0x01, 0x71, 0x09, 0x05, 0x03};
-    case '8': return {0x36, 0x49, 0x49, 0x49, 0x36};
-    case '9': return {0x26, 0x49, 0x49, 0x49, 0x3E};
-    case '.': return {0x00, 0x60, 0x60, 0x00, 0x00};
-    case ':': return {0x00, 0x36, 0x36, 0x00, 0x00};
-    case '/': return {0x20, 0x10, 0x08, 0x04, 0x02};
-    case '\\': return {0x02, 0x04, 0x08, 0x10, 0x20};
-    case '-': return {0x08, 0x08, 0x08, 0x08, 0x08};
-    case '_': return {0x40, 0x40, 0x40, 0x40, 0x40};
-    case '[': return {0x00, 0x7F, 0x41, 0x41, 0x00};
-    case ']': return {0x00, 0x41, 0x41, 0x7F, 0x00};
-    case '(': return {0x00, 0x1C, 0x22, 0x41, 0x00};
-    case ')': return {0x00, 0x41, 0x22, 0x1C, 0x00};
-    case '+': return {0x08, 0x08, 0x3E, 0x08, 0x08};
-    case '?': return {0x02, 0x01, 0x51, 0x09, 0x06};
-    case ' ': return {0, 0, 0, 0, 0};
-    default: return {0x02, 0x01, 0x51, 0x09, 0x06};
-    }
-}
-
-void draw_text(SDL_Renderer* renderer, int x, int y, std::string_view text, SDL_Color color)
-{
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    for (const char character : text) {
-        const Glyph glyph = glyph_for(character);
-        for (int column = 0; column < static_cast<int>(glyph.size()); ++column) {
-            for (int row = 0; row < 7; ++row) {
-                if ((glyph[column] & (1U << row)) == 0) {
-                    continue;
-                }
-                const SDL_Rect pixel{
-                    x + column * FontScale,
-                    y + row * FontScale,
-                    FontScale,
-                    FontScale};
-                SDL_RenderFillRect(renderer, &pixel);
-            }
-        }
-        x += GlyphWidth;
-    }
-}
 
 std::string lowercase(std::string value)
 {
@@ -228,8 +144,8 @@ void render_menu(SDL_Renderer* renderer,
     const SDL_Rect header{0, 0, ScreenWidth, 68};
     SDL_SetRenderDrawColor(renderer, 25, 72, 132, 255);
     SDL_RenderFillRect(renderer, &header);
-    draw_text(renderer, 24, 16, "GBSUNNY", {255, 224, 80, 255});
-    draw_text(renderer, 24, 43,
+    font::draw_text(renderer, 24, 16, "GBSUNNY", {255, 224, 80, 255});
+    font::draw_text(renderer, 24, 43,
               path.empty() ? "SELECT A DEVICE" : clipped(path, 48),
               {220, 232, 255, 255});
 
@@ -247,18 +163,18 @@ void render_menu(SDL_Renderer* renderer,
         const SDL_Color color = entries[index].directory
             ? SDL_Color{128, 210, 255, 255}
             : SDL_Color{245, 245, 245, 255};
-        draw_text(renderer, 24, y, clipped(prefix + entries[index].name, 48), color);
+        font::draw_text(renderer, 24, y, clipped(prefix + entries[index].name, 48), color);
     }
 
     if (entries.empty()) {
-        draw_text(renderer, 24, ListTop, "NO ROMS OR DIRECTORIES", {180, 190, 205, 255});
+        font::draw_text(renderer, 24, ListTop, "NO ROMS OR DIRECTORIES", {180, 190, 205, 255});
     }
 
     const SDL_Rect footer{0, ScreenHeight - 38, ScreenWidth, 38};
     SDL_SetRenderDrawColor(renderer, 15, 30, 52, 255);
     SDL_RenderFillRect(renderer, &footer);
-    draw_text(renderer, 18, ScreenHeight - 27, status, {255, 190, 90, 255});
-    draw_text(renderer, 294, ScreenHeight - 27, "X SELECT   O BACK", {210, 220, 235, 255});
+    font::draw_text(renderer, 18, ScreenHeight - 27, status, {255, 190, 90, 255});
+    font::draw_text(renderer, 294, ScreenHeight - 27, "X SELECT   O BACK", {210, 220, 235, 255});
     SDL_RenderPresent(renderer);
 }
 
