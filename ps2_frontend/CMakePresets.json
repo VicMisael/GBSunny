@@ -1,0 +1,61 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "ps2-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "installDir": "${sourceDir}/out/install/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{PS2DEV}/share/ps2dev.cmake"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "ps2-debug",
+      "displayName": "PS2 Debug",
+      "inherits": "ps2-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ps2-relwithdebinfo",
+      "displayName": "PS2 RelWithDebInfo",
+      "inherits": "ps2-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "ps2-release",
+      "displayName": "PS2 Release",
+      "inherits": "ps2-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "ps2-debug",
+      "displayName": "PS2 Debug",
+      "configurePreset": "ps2-debug"
+    },
+    {
+      "name": "ps2-relwithdebinfo",
+      "displayName": "PS2 RelWithDebInfo",
+      "configurePreset": "ps2-relwithdebinfo"
+    },
+    {
+      "name": "ps2-release",
+      "displayName": "PS2 Release",
+      "configurePreset": "ps2-release"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 */.idea/*
 /.vs/
 /out/
+/ps2_frontend/out/
 /build/
 /out/
 /vcpkg_installed/
