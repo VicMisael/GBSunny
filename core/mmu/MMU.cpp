@@ -5,6 +5,7 @@
 
 #include "cartridge/boot_rom.h"
 #include "spu/spu.h"
+#include "utils/compiler.h"
 #include "utils/utils.h"
 
 // Memory Map Constants
@@ -287,11 +288,12 @@ void mmu::MMU::set_interrupt_flag(uint8_t input) {
 	interrupt->requested.flag = input & 0x1F; // Only lower 5 bits are used
 }
 
-inline void mmu::MMU::oam_transfer(const uint8_t params) const
+NO_INLINE void mmu::MMU::oam_transfer(const uint8_t params) const
 {
+	const auto ppu = this->_ppu;
 	for (uint8_t i = 0; i < 0xA0; i++) {
 		const auto address = utils::uint16_little_endian(i, params);
-		this->_ppu->write_oam(0xfe00 + i, this->read(address));
+		ppu->write_oam(0xfe00 + i, this->read(address));
 	}
 
 }

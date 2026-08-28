@@ -42,7 +42,8 @@ add_library(CoreModule STATIC gb.cpp
  timer/base_timer.h 
  cartridge/modes/mbc5.cpp events/event_aggregator.h events/events.h
         logging/core_logger.h
-        utils/emu_flags.h)
+        utils/emu_flags.h
+        utils/compiler.h)
 
 
 target_include_directories(CoreModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

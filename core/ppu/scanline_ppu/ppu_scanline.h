@@ -27,8 +27,6 @@ public:
     // Memory-mapped I/O handlers for the MMU to call
     [[nodiscard]] uint8_t read_vram(uint16_t address) const override;
     void write_vram(uint16_t address, uint8_t value) override;
-    [[nodiscard]] uint8_t read_oam(uint16_t addr) const override;
-    void write_oam(uint16_t addr, uint8_t data) override;
     [[nodiscard]] uint8_t read_control(uint16_t addr) const final;
     void write_control(uint16_t addr, uint8_t data) override ;
 
@@ -69,13 +67,6 @@ private:
     // PPU Memory
     //std::array<uint8_t, 8192> vram;
     uint8_t vram[8192]{};
-
-    union {
-        uint8_t oam[160]{};
-        ppu_types::OAM_Sprite oam_sprites[40];
-    };
-
-
 
     // Final image buffer
     std::array<ppu_types::rgba, gb_hardware::display::PixelCount> framebuffer{};

@@ -455,15 +455,6 @@ void ppu_tick_fifo::write_vram(uint16_t address, uint8_t value) {
 	vram[address - 0x8000] = value;
 }
 
-uint8_t ppu_tick_fifo::read_oam(uint16_t addr) const {
-	if (!this->is_oam_accessible()) return 0xff;
-	return oam[addr - 0xFE00];
-}
-
-void ppu_tick_fifo::write_oam(uint16_t addr, uint8_t data) {
-	oam[addr - 0xFE00] = data;
-}
-
 void ppu_tick_fifo::set_mode(ppu_types::ppu_mode new_mode) {
 	if (new_mode == stat.ppu_mode) { return; }
 	stat.ppu_mode = new_mode;

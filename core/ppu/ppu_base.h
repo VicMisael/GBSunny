@@ -20,8 +20,14 @@ public:
 	virtual void write_vram(uint16_t address, uint8_t value) = 0;
 
 	// OAM access
-	[[nodiscard]] virtual uint8_t read_oam(uint16_t addr) const = 0;
-	virtual void write_oam(uint16_t addr, uint8_t data) = 0;
+	[[nodiscard]] uint8_t read_oam(uint16_t addr) const {
+		if (!is_oam_accessible()) return 0xFF;
+		return oam[addr - 0xFE00];
+	}
+
+	void write_oam(uint16_t addr, uint8_t data) {
+		oam[addr - 0xFE00] = data;
+	}
 
 	// Control register access
 	[[nodiscard]] virtual uint8_t read_control(uint16_t addr) const = 0;
@@ -43,6 +49,12 @@ protected:
 	{
 
 	}
+
+	union {
+		uint8_t oam[160]{};
+		ppu_types::OAM_Sprite oam_sprites[40];
+	};
+
 	ppu_types::_lcd_control lcdc;
 	ppu_types::_lcd_stat stat;
 	uint8_t scy{};

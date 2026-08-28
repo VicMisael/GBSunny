@@ -325,14 +325,6 @@ void PPU_scanline::write_vram(uint16_t address, uint8_t value) {
     vram[address - 0x8000] = value;
 }
 
-uint8_t PPU_scanline::read_oam(uint16_t addr) const {
-    return oam[addr - 0xFE00];
-}
-
-void PPU_scanline::write_oam(uint16_t addr, uint8_t data) {
-    oam[addr - 0xFE00] = data;
-}
-
 uint8_t PPU_scanline::read_control(uint16_t addr) const {
     switch (addr) {
         case 0xFF40: return lcdc.data;

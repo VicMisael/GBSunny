@@ -21,8 +21,6 @@ public:
 	//Memory-mapped I/O handlers for the MMU to call
 	[[nodiscard]] uint8_t read_vram(uint16_t address) const final;
 	void write_vram(uint16_t address, uint8_t value) final;
-	[[nodiscard]] uint8_t read_oam(uint16_t addr) const final;
-	void write_oam(uint16_t addr, uint8_t data) final;
 	[[nodiscard]] uint8_t read_control(uint16_t addr) const final;
 	void write_control(uint16_t addr, uint8_t data) final;
 
@@ -65,11 +63,6 @@ private:
 	std::shared_ptr<shared::interrupt> interrupt_controller;
 
 	uint8_t vram[8192]{};
-
-	union {
-		uint8_t oam[160]{};
-		ppu_types::OAM_Sprite oam_sprites[40];
-	};
 
 	struct scanline_element {
 		uint8_t color_id;
