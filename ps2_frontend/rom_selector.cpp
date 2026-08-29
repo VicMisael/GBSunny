@@ -292,7 +292,9 @@ std::optional<std::string> select_rom(SDL_Renderer* renderer)
             }
             break;
         case Action::Back:
+            std::printf("%s\n", current_path.c_str());
             if (current_path.empty()) {
+
                 close_controller(controller);
                 return std::nullopt;
             }

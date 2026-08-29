@@ -7,8 +7,8 @@
 
 int main(int, char**)
 {
+    std::printf("PS2 GbSunny\n");
     init_ps2_filesystem_driver();
-    std::printf("GBSunny Started on PS2");
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
         std::printf("SDL_Init failed: %s\n", SDL_GetError());
@@ -52,6 +52,7 @@ int main(int, char**)
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    deinit_ps2_filesystem_driver();
+    std::printf("Exiting to Console");
+    exit(0);
     return rom_path.has_value() ? 0 : 1;
 }

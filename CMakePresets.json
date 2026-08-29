@@ -31,6 +31,24 @@
       }
     },
     {
+      "name": "linux-relwithdebinfo",
+      "displayName": "Linux RelWithDebInfo",
+      "description": "Optimized Linux build with debug information.",
+      "inherits": "linux-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release",
+      "description": "Optimized Linux release build.",
+      "inherits": "linux-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
       "name": "macos-debug",
       "displayName": "macOS Debug",
       "description": "Direcionar a um sistema macOS remoto.",
@@ -125,6 +143,23 @@
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "TRUE",
         "CMAKE_CXX_FLAGS_RELEASE": "/Ob2"
       }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-debug",
+      "displayName": "Linux Debug",
+      "configurePreset": "linux-debug"
+    },
+    {
+      "name": "linux-relwithdebinfo",
+      "displayName": "Linux RelWithDebInfo",
+      "configurePreset": "linux-relwithdebinfo"
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release",
+      "configurePreset": "linux-release"
     }
   ]
 }
