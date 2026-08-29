@@ -57,7 +57,8 @@ gb::gb(const std::string& rompath,
 
 
 	_mmu = std::make_shared<mmu::MMU>(
-		_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial, _joypad, _logger);
+		_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial, _joypad, _logger,
+		_flags.useSlowReadPath);
 
 	_cpu = std::make_unique<::cpu::cpu>(_mmu, _interrupt_controller, _logger);
 

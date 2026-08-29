@@ -16,7 +16,7 @@ public:
 	virtual void tick() = 0;
 
 	// VRAM access
-	[[nodiscard]] virtual uint8_t read_vram(uint16_t address) const = 0;
+	[[nodiscard]] virtual uint8_t  read_vram(uint16_t address) const = 0;
 	virtual void write_vram(uint16_t address, uint8_t value) = 0;
 
 	// OAM access

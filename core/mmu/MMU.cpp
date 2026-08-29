@@ -36,12 +36,34 @@ constexpr uint16_t IE_REGISTER = 0xFFFF;
 
 void mmu::MMU::reset() {
 	bootRomControl = 0;
+	init_mem_map();
 	_serial->reset();
 	_joypad->reset();
+
 }
 
-bool mmu::MMU::boot_rom_enabled() const {
-	return bootRomControl == 0;
+void mmu::MMU::init_mem_map()
+{
+	for (auto& region : mem_regions) {
+		region = {};
+	}
+	//ROM 0
+
+	mem_regions[0].map_read_only(cartridge::bootDMG.data());
+
+	// 0xC000-0xCFFF: WRAM0
+	// 0xD000-0xDFFF: WRAMX
+	// 0xE000-0xEFFF: echo of WRAM0
+	for (size_t page = 0; page < 0x10; ++page) {
+		mem_regions[0xC0 + page].map_read_write(internal_RAM + (page * 0x100));
+		mem_regions[0xD0 + page].map_read_write(internal_RAM2 + (page * 0x100));
+		mem_regions[0xE0 + page].map_read_write(internal_RAM + (page * 0x100));
+	}
+
+	// 0xF000-0xFDFF: echo of WRAMX
+	for (size_t page = 0; page < 0x0E; ++page) {
+		mem_regions[0xF0 + page].map_read_write(internal_RAM2 + (page * 0x100));
+	}
 }
 
 enum class MemRegion {
@@ -78,10 +100,21 @@ constexpr static MemRegion decode_region(uint16_t addr) {
 }
 
 
-
-
 uint8_t mmu::MMU::read(uint16_t addr) const {
+	if (slowReadPath) {
+		return read_slow(addr);
+	}
 
+	const auto* read_block = mem_regions[addr >> 8].read_block_ptr;
+
+	if (read_block != nullptr) {
+		return read_block[addr & 0xFF];
+	}
+
+	return read_slow(addr);
+}
+
+NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 	const auto region = decode_region(addr);
 
 
@@ -92,7 +125,7 @@ uint8_t mmu::MMU::read(uint16_t addr) const {
 	switch (region) {
 	case MemRegion::ROM0:
 	case MemRegion::ROMX:
-		if (boot_rom_enabled() && addr < 0x100) {
+		if (!bootRomControl && addr < 0x100) {
 			return cartridge::bootDMG[addr];
 		}
 		return _cartridge->read(addr);
@@ -105,7 +138,7 @@ uint8_t mmu::MMU::read(uint16_t addr) const {
 	case MemRegion::WRAMX:
 		return internal_RAM2[addr & 0x0FFF]; // CGB
 	case MemRegion::ECHO:
-		return internal_RAM[(addr - 0x2000) & 0x0FFF];
+		return read(addr-0x2000);
 	case MemRegion::OAM:
 		return _ppu->is_oam_accessible() ? _ppu->read_oam(addr) : 0xFF;
 	case MemRegion::UNUSED:
@@ -117,17 +150,14 @@ uint8_t mmu::MMU::read(uint16_t addr) const {
 	case MemRegion::IE:
 		return read_interrupt_enable();
 	default:
-		{
-			std::ostringstream message;
-			message << "Illegal Access: 0x" << std::hex << std::uppercase << addr;
-			_logger->warning(message.str());
-		}
-		return 0xFF;
+		break;
 	}
 
+	std::ostringstream message;
+	message << "Illegal Access: 0x" << std::hex << std::uppercase << addr;
+	_logger->warning(message.str());
 
-
-	
+	return 0xFF;
 }
 
 
@@ -233,6 +263,9 @@ void mmu::MMU::io_write(uint16_t addr, uint8_t data) {
 		return;
 	case 0xFF50: /* Boot ROM disable register */
 		bootRomControl = data;
+		if (bootRomControl != 0) {
+			mem_regions[0].map_read_only(nullptr);
+		}
 		return;
 	default:
 		break;
