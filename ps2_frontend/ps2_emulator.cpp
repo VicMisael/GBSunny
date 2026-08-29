@@ -8,7 +8,6 @@
 
 #include <SDL.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <memory>
@@ -23,7 +22,6 @@ constexpr int GameWidth = static_cast<int>(gb_hardware::display::Width) * GameSc
 constexpr int GameHeight = static_cast<int>(gb_hardware::display::Height) * GameScale;
 constexpr int GameX = (ScreenWidth - GameWidth) / 2;
 constexpr int GameY = 0;
-constexpr int MaxCatchUpFrames = 3;
 constexpr Uint32 MaxQueuedAudioBytes = 48'000 * 2 * sizeof(float) / 10;
 
 SDL_GameController* open_controller()
@@ -115,7 +113,7 @@ void draw_frame(SDL_Renderer* renderer,
     const char* controls = paused
         ? "PAUSED  L1 RESUME  R1 RESET  SQUARE STATS"
         : "L1 PAUSE  R1 RESET  SQUARE STATS  TRIANGLE ROM";
-    font::draw_text(renderer, 8, ScreenHeight - 12, controls, {220, 232, 255, 255});
+    font::draw_text(renderer, 8, ScreenHeight - 25, controls, {220, 232, 255, 255});
 }
 
 } // namespace
@@ -154,9 +152,6 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
     bool show_performance = true;
     bool running = true;
     EmulatorResult result = EmulatorResult::Quit;
-    double accumulator = gb_hardware::ppu::FrameSeconds;
-    Uint64 previous_counter = SDL_GetPerformanceCounter();
-    const double counter_frequency = static_cast<double>(SDL_GetPerformanceFrequency());
     PerformanceOverlay performance;
 
     while (running) {
@@ -205,44 +200,27 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
 
         update_joypad(gameboy, controller);
 
-        const Uint64 current_counter = SDL_GetPerformanceCounter();
-        const double elapsed = std::min(
-            static_cast<double>(current_counter - previous_counter) / counter_frequency,
-            0.1);
-        previous_counter = current_counter;
-
         int frames_to_run = 0;
         Uint64 emulation_ticks = 0;
         Uint64 audio_ticks = 0;
         Uint64 upload_ticks = 0;
         if (!paused) {
-            accumulator += elapsed;
-            frames_to_run = std::min(
-                static_cast<int>(accumulator / gb_hardware::ppu::FrameSeconds),
-                MaxCatchUpFrames);
-            accumulator -= frames_to_run * gb_hardware::ppu::FrameSeconds;
-
             const Uint64 emulation_start = SDL_GetPerformanceCounter();
-            for (int frame = 0; frame < frames_to_run; ++frame) {
-                gameboy.run_one_frame();
-            }
+            gameboy.run_one_frame();
             emulation_ticks = SDL_GetPerformanceCounter() - emulation_start;
-            if (frames_to_run > 0) {
-                const Uint64 audio_start = SDL_GetPerformanceCounter();
-                queue_audio(gameboy, audio_device);
-                audio_ticks = SDL_GetPerformanceCounter() - audio_start;
 
-                const auto& framebuffer = gameboy.get_framebuffer();
-                const Uint64 upload_start = SDL_GetPerformanceCounter();
-                SDL_UpdateTexture(
-                    texture,
-                    nullptr,
-                    framebuffer.data(),
-                    static_cast<int>(gb_hardware::display::Width * sizeof(ppu_types::rgba)));
-                upload_ticks = SDL_GetPerformanceCounter() - upload_start;
-            }
-        } else {
-            accumulator = 0.0;
+            const Uint64 audio_start = SDL_GetPerformanceCounter();
+            queue_audio(gameboy, audio_device);
+            audio_ticks = SDL_GetPerformanceCounter() - audio_start;
+
+            const auto& framebuffer = gameboy.get_framebuffer();
+            const Uint64 upload_start = SDL_GetPerformanceCounter();
+            SDL_UpdateTexture(
+                texture,
+                nullptr,
+                framebuffer.data(),
+                static_cast<int>(gb_hardware::display::Width * sizeof(ppu_types::rgba)));
+            upload_ticks = SDL_GetPerformanceCounter() - upload_start;
         }
 
         const Uint64 draw_start = SDL_GetPerformanceCounter();
