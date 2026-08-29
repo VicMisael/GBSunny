@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "component_performance_visitor.h"
+#include "component_performance_observer.h"
 
 struct SDL_Renderer;
 

@@ -24,7 +24,7 @@ speedup, or a 44% reduction in emulation time.
 
 ## Measurement caveat
 
-The component visitor currently brackets CPU, PPU, timer, and SPU execution for
+The component observer currently brackets CPU, PPU, timer, and SPU execution for
 every emulated instruction. Each bracket reads `SDL_GetPerformanceCounter()`
 twice. With up to roughly 17,500 instructions and eight counter reads per Game
 Boy frame, profiling may perform around 140,000 counter reads per frame.
@@ -34,13 +34,13 @@ Consequences:
 - Similar 10-15 ms readings for every component may largely represent probe
   overhead.
 - Instrumented `EMU` time must not be treated as the uninstrumented baseline.
-- Component measurements do not include all visitor dispatch and timing costs,
+- Component measurements do not include all observer dispatch and timing costs,
   so their sum does not necessarily equal `EMU`.
 
 Before using the component split to guide optimization:
 
 1. Compare overlay-enabled and overlay-disabled frame times.
-2. Measure an empty visitor to estimate instrumentation cost.
+2. Measure an empty observer to estimate instrumentation cost.
 3. Profile one component per run instead of all four simultaneously.
 4. Investigate reading the EE hardware cycle counter directly.
 5. Consider sampling one out of every 64 or 256 instructions.
@@ -226,7 +226,7 @@ performance statistics easier to understand.
 ## Suggested experiment order
 
 1. Establish uninstrumented real-PS2 and PCSX2 baselines.
-2. Quantify visitor and overlay overhead.
+2. Quantify observer and overlay overhead.
 3. Measure one component at a time using lower-overhead probes.
 4. Benchmark one-frame-per-presentation scheduling.
 5. Enable LTO and benchmark `-O2` versus `-O3`.
@@ -250,7 +250,7 @@ ROM and scene:
 Build preset:
 Compiler flags:
 Overlay enabled:
-Visitor enabled:
+Observer enabled:
 Dot stepping:
 Presentation policy:
 

@@ -1,31 +1,31 @@
-#include "component_performance_visitor.h"
+#include "component_performance_observer.h"
 
 #include <SDL.h>
 
 namespace ps2_frontend {
 
-ComponentPerformanceVisitor::ComponentPerformanceVisitor()
+ComponentPerformanceObserver::ComponentPerformanceObserver()
     : frequency(SDL_GetPerformanceFrequency()),
       interval_start(SDL_GetPerformanceCounter())
 {
 }
 
-void ComponentPerformanceVisitor::begin_frame()
+void ComponentPerformanceObserver::begin_frame()
 {
 }
 
-void ComponentPerformanceVisitor::begin_component(profiling::GBComponent component)
+void ComponentPerformanceObserver::begin_component(profiling::GBComponent component)
 {
     component_start[index_of(component)] = SDL_GetPerformanceCounter();
 }
 
-void ComponentPerformanceVisitor::end_component(profiling::GBComponent component)
+void ComponentPerformanceObserver::end_component(profiling::GBComponent component)
 {
     const std::size_t index = index_of(component);
     total_ticks[index] += SDL_GetPerformanceCounter() - component_start[index];
 }
 
-void ComponentPerformanceVisitor::end_frame()
+void ComponentPerformanceObserver::end_frame()
 {
     completed_frames++;
     const std::uint64_t now = SDL_GetPerformanceCounter();
@@ -40,7 +40,7 @@ void ComponentPerformanceVisitor::end_frame()
     reset();
 }
 
-void ComponentPerformanceVisitor::reset()
+void ComponentPerformanceObserver::reset()
 {
     interval_start = SDL_GetPerformanceCounter();
     component_start.fill(0);
@@ -48,12 +48,12 @@ void ComponentPerformanceVisitor::reset()
     completed_frames = 0;
 }
 
-std::size_t ComponentPerformanceVisitor::index_of(profiling::GBComponent component)
+std::size_t ComponentPerformanceObserver::index_of(profiling::GBComponent component)
 {
     return static_cast<std::size_t>(component);
 }
 
-double ComponentPerformanceVisitor::average_ms(std::uint64_t ticks) const
+double ComponentPerformanceObserver::average_ms(std::uint64_t ticks) const
 {
     if (completed_frames == 0 || frequency == 0) {
         return 0.0;

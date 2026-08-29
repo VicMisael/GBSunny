@@ -1,6 +1,6 @@
 #include "ps2_emulator.h"
 
-#include "component_performance_visitor.h"
+#include "component_performance_observer.h"
 #include "gb.h"
 #include "performance_overlay.h"
 #include "ps2_font.h"
@@ -8,9 +8,13 @@
 
 #include <SDL.h>
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 namespace ps2_frontend {
 namespace {
@@ -22,7 +26,92 @@ constexpr int GameWidth = static_cast<int>(gb_hardware::display::Width) * GameSc
 constexpr int GameHeight = static_cast<int>(gb_hardware::display::Height) * GameScale;
 constexpr int GameX = (ScreenWidth - GameWidth) / 2;
 constexpr int GameY = 0;
-constexpr Uint32 MaxQueuedAudioBytes = 48'000 * 2 * sizeof(float) / 10;
+constexpr Uint32 AudioBytesPerSecond = gb_hardware::apu::SampleRate * 2 * sizeof(Sint16);
+constexpr Uint32 StartupQueuedAudioBytes = AudioBytesPerSecond / 10;
+constexpr Uint32 MaxQueuedAudioBytes = AudioBytesPerSecond / 2;
+constexpr unsigned int AudioDebugFrames = 120;
+SDL_AudioDeviceID TimedAudioDevice = 0;
+Uint64 PreviousAudioQueueTime = 0;
+
+struct AudioRingBuffer {
+    std::vector<Sint16> data = std::vector<Sint16>(MaxQueuedAudioBytes / sizeof(Sint16));
+    std::size_t read = 0;
+    std::size_t write = 0;
+    std::size_t count = 0;
+};
+
+void audio_callback(void* userdata, Uint8* stream, int length)
+{
+    auto& buffer = *static_cast<AudioRingBuffer*>(userdata);
+    std::memset(stream, 0, static_cast<std::size_t>(length));
+    auto* output = reinterpret_cast<Sint16*>(stream);
+    const std::size_t requested = static_cast<std::size_t>(length) / sizeof(Sint16);
+    const std::size_t supplied = std::min(requested, buffer.count);
+    for (std::size_t index = 0; index < supplied; ++index) {
+        output[index] = buffer.data[buffer.read];
+        buffer.read = (buffer.read + 1) % buffer.data.size();
+    }
+    buffer.count -= supplied;
+}
+
+Uint32 audio_buffer_bytes(SDL_AudioDeviceID device, AudioRingBuffer& buffer)
+{
+    SDL_LockAudioDevice(device);
+    const auto bytes = static_cast<Uint32>(buffer.count * sizeof(Sint16));
+    SDL_UnlockAudioDevice(device);
+    return bytes;
+}
+
+void clear_audio_buffer(SDL_AudioDeviceID device, AudioRingBuffer& buffer)
+{
+    if (device == 0) return;
+    SDL_LockAudioDevice(device);
+    buffer.read = 0;
+    buffer.write = 0;
+    buffer.count = 0;
+    SDL_UnlockAudioDevice(device);
+}
+
+void reset_audio_timing()
+{
+    TimedAudioDevice = 0;
+    PreviousAudioQueueTime = 0;
+}
+
+Sint16 float_to_s16(float sample)
+{
+    const float clamped = std::clamp(sample, -1.0f, 1.0f);
+    if (clamped <= -1.0f) {
+        return -32768;
+    }
+    return static_cast<Sint16>(clamped * 32767.0f);
+}
+
+std::vector<Sint16> stretch_audio_samples(
+    const std::vector<spu::stereo_sample>& samples,
+    std::size_t output_frames)
+{
+    std::vector<Sint16> pcm;
+    if (samples.empty() || output_frames == 0) {
+        return pcm;
+    }
+
+    pcm.reserve(output_frames * 2);
+    const double source_step = output_frames > 1
+        ? static_cast<double>(samples.size() - 1) / static_cast<double>(output_frames - 1)
+        : 0.0;
+    for (std::size_t output_index = 0; output_index < output_frames; ++output_index) {
+        const double source_position = output_index * source_step;
+        const auto first = static_cast<std::size_t>(source_position);
+        const auto second = std::min(first + 1, samples.size() - 1);
+        const float fraction = static_cast<float>(source_position - static_cast<double>(first));
+        const float left = samples[first].left + (samples[second].left - samples[first].left) * fraction;
+        const float right = samples[first].right + (samples[second].right - samples[first].right) * fraction;
+        pcm.push_back(float_to_s16(left));
+        pcm.push_back(float_to_s16(right));
+    }
+    return pcm;
+}
 
 SDL_GameController* open_controller()
 {
@@ -60,37 +149,94 @@ void update_joypad(gb& gameboy, SDL_GameController* controller)
         keys[SDL_SCANCODE_RETURN] || controller_button(controller, SDL_CONTROLLER_BUTTON_START));
 }
 
-SDL_AudioDeviceID open_audio()
+SDL_AudioDeviceID open_audio(AudioRingBuffer& buffer)
 {
     SDL_AudioSpec desired{};
     desired.freq = static_cast<int>(gb_hardware::apu::SampleRate);
-    desired.format = AUDIO_F32SYS;
+    desired.format = AUDIO_S16SYS;
     desired.channels = 2;
     desired.samples = 1024;
+    desired.callback = audio_callback;
+    desired.userdata = &buffer;
 
-    const SDL_AudioDeviceID device = SDL_OpenAudioDevice(nullptr, 0, &desired, nullptr, 0);
+    SDL_AudioSpec obtained{};
+    const SDL_AudioDeviceID device = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
     if (device == 0) {
         std::cout << "Audio disabled: " << SDL_GetError() << '\n';
         return 0;
     }
+    std::cout << "Audio opened: " << obtained.freq << " Hz, "
+              << static_cast<int>(obtained.channels) << " channels, format 0x"
+              << std::hex << obtained.format << std::dec << '\n';
     SDL_PauseAudioDevice(device, 0);
     return device;
 }
 
-void queue_audio(gb& gameboy, SDL_AudioDeviceID audio_device)
+void queue_audio(gb& gameboy, SDL_AudioDeviceID audio_device, AudioRingBuffer& buffer)
 {
     const auto samples = gameboy.consume_audio_samples();
     if (audio_device == 0 || samples.empty()) {
         return;
     }
 
-    if (SDL_GetQueuedAudioSize(audio_device) >= MaxQueuedAudioBytes) {
+    const Uint64 now = SDL_GetPerformanceCounter();
+    const Uint64 frequency = SDL_GetPerformanceFrequency();
+
+    const Uint32 queued_before = audio_buffer_bytes(audio_device, buffer);
+    if (queued_before >= MaxQueuedAudioBytes) {
+        static unsigned int skipped_log_counter = 0;
+        if (++skipped_log_counter == AudioDebugFrames) {
+            skipped_log_counter = 0;
+            std::cout << "Audio ring full: queued=" << queued_before << '\n';
+        }
         return;
     }
 
-    const auto byte_count = static_cast<Uint32>(samples.size() * sizeof(spu::stereo_sample));
-    if (SDL_QueueAudio(audio_device, samples.data(), byte_count) != 0) {
-        std::cout << "SDL_QueueAudio failed: " << SDL_GetError() << '\n';
+    std::size_t output_frames = samples.size();
+    if (TimedAudioDevice != audio_device || PreviousAudioQueueTime == 0) {
+        TimedAudioDevice = audio_device;
+        output_frames = std::max<std::size_t>(
+            output_frames,
+            StartupQueuedAudioBytes / (2 * sizeof(Sint16)));
+    } else {
+        const double elapsed_seconds = static_cast<double>(now - PreviousAudioQueueTime)
+            / static_cast<double>(frequency);
+        const auto real_time_frames = static_cast<std::size_t>(
+            elapsed_seconds * static_cast<double>(gb_hardware::apu::SampleRate) + 0.5);
+        output_frames = std::max(output_frames, real_time_frames);
+    }
+    PreviousAudioQueueTime = now;
+
+    const std::size_t available_frames =
+        (MaxQueuedAudioBytes - queued_before) / (2 * sizeof(Sint16));
+    output_frames = std::min(output_frames, available_frames);
+    const auto pcm = stretch_audio_samples(samples, output_frames);
+    if (pcm.empty()) {
+        return;
+    }
+
+    SDL_LockAudioDevice(audio_device);
+    const std::size_t writable = std::min(pcm.size(), buffer.data.size() - buffer.count);
+    for (std::size_t index = 0; index < writable; ++index) {
+        buffer.data[buffer.write] = pcm[index];
+        buffer.write = (buffer.write + 1) % buffer.data.size();
+    }
+    buffer.count += writable;
+    SDL_UnlockAudioDevice(audio_device);
+    const auto byte_count = static_cast<Uint32>(writable * sizeof(Sint16));
+
+    static unsigned int log_counter = 0;
+    if (++log_counter == AudioDebugFrames) {
+        log_counter = 0;
+        int peak = 0;
+        for (const Sint16 sample : pcm) {
+            peak = std::max(peak, std::abs(static_cast<int>(sample)));
+        }
+        std::cout << "Audio queued: samples=" << samples.size()
+                  << " output_frames=" << output_frames
+                  << " queued_bytes=" << byte_count
+                  << " queued=" << audio_buffer_bytes(audio_device, buffer)
+                  << " peak=" << peak << '\n';
     }
 }
 
@@ -99,7 +245,7 @@ void draw_frame(SDL_Renderer* renderer,
                 bool paused,
                 bool show_performance,
                 const PerformanceOverlay& performance,
-                const ComponentPerformanceVisitor& component_performance)
+                const ComponentPerformanceObserver& component_performance)
 {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
@@ -125,10 +271,10 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
     flags.useNewTimer = true;
     flags.useDotStepping = false;
 
-    ComponentPerformanceVisitor component_performance;
+    ComponentPerformanceObserver component_performance;
     auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
     gb gameboy(rom_path, flags, nullptr, std::move(serial));
-    gameboy.set_component_visitor(&component_performance);
+    gameboy.set_component_observer(&component_performance);
     gameboy.subscribe<CartridgeLoadedEvent>([](const CartridgeLoadedEvent& event) {
         std::cout << "Cartridge loaded: " << event.rom_name
                   << " (" << event.rom_type << ") from " << event.rom_path << '\n';
@@ -147,7 +293,8 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
     SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
 
     SDL_GameController* controller = open_controller();
-    SDL_AudioDeviceID audio_device = open_audio();
+    AudioRingBuffer audio_buffer;
+    SDL_AudioDeviceID audio_device = open_audio(audio_buffer);
     bool paused = false;
     bool show_performance = true;
     bool running = true;
@@ -164,14 +311,16 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
             } else if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
                 if (event.key.keysym.sym == SDLK_SPACE) {
                     paused = !paused;
-                    if (audio_device != 0) SDL_ClearQueuedAudio(audio_device);
+                    clear_audio_buffer(audio_device, audio_buffer);
+                    reset_audio_timing();
                 } else if (event.key.keysym.sym == SDLK_r) {
                     gameboy.reset();
-                    if (audio_device != 0) SDL_ClearQueuedAudio(audio_device);
+                    clear_audio_buffer(audio_device, audio_buffer);
+                    reset_audio_timing();
                 } else if (event.key.keysym.sym == SDLK_F3) {
                     show_performance = !show_performance;
                     component_performance.reset();
-                    gameboy.set_component_visitor(show_performance ? &component_performance : nullptr);
+                    gameboy.set_component_observer(show_performance ? &component_performance : nullptr);
                 } else if (event.key.keysym.sym == SDLK_ESCAPE) {
                     running = false;
                     result = EmulatorResult::SelectRom;
@@ -179,14 +328,16 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
             } else if (event.type == SDL_CONTROLLERBUTTONDOWN) {
                 if (event.cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER) {
                     paused = !paused;
-                    if (audio_device != 0) SDL_ClearQueuedAudio(audio_device);
+                    clear_audio_buffer(audio_device, audio_buffer);
+                    reset_audio_timing();
                 } else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) {
                     gameboy.reset();
-                    if (audio_device != 0) SDL_ClearQueuedAudio(audio_device);
+                    clear_audio_buffer(audio_device, audio_buffer);
+                    reset_audio_timing();
                 } else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_X) {
                     show_performance = !show_performance;
                     component_performance.reset();
-                    gameboy.set_component_visitor(show_performance ? &component_performance : nullptr);
+                    gameboy.set_component_observer(show_performance ? &component_performance : nullptr);
                 } else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_Y) {
                     running = false;
                     result = EmulatorResult::SelectRom;
@@ -210,7 +361,7 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
             emulation_ticks = SDL_GetPerformanceCounter() - emulation_start;
 
             const Uint64 audio_start = SDL_GetPerformanceCounter();
-            queue_audio(gameboy, audio_device);
+            queue_audio(gameboy, audio_device, audio_buffer);
             audio_ticks = SDL_GetPerformanceCounter() - audio_start;
 
             const auto& framebuffer = gameboy.get_framebuffer();
@@ -236,6 +387,9 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
         const Uint64 present_start = SDL_GetPerformanceCounter();
         SDL_RenderPresent(renderer);
         const Uint64 present_ticks = SDL_GetPerformanceCounter() - present_start;
+        // The PS2 SDL audio backend feeds audsrv from a worker thread. Give it
+        // an explicit scheduling point when emulation keeps the EE saturated.
+        SDL_Delay(1);
         const Uint64 loop_ticks = SDL_GetPerformanceCounter() - loop_start;
 
         performance.record(
@@ -249,7 +403,7 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
     }
 
     if (audio_device != 0) {
-        SDL_ClearQueuedAudio(audio_device);
+        clear_audio_buffer(audio_device, audio_buffer);
         SDL_CloseAudioDevice(audio_device);
     }
     if (controller != nullptr) {

@@ -1,7 +1,7 @@
 #ifndef GBSUNNY_PS2_COMPONENT_PERFORMANCE_VISITOR_H
 #define GBSUNNY_PS2_COMPONENT_PERFORMANCE_VISITOR_H
 
-#include "profiling/gb_component_visitor.h"
+#include "profiling/gb_component_observer.h"
 
 #include <array>
 #include <cstdint>
@@ -15,9 +15,9 @@ struct ComponentPerformanceSnapshot {
     double spu_ms = 0.0;
 };
 
-class ComponentPerformanceVisitor final : public profiling::GBComponentVisitor {
+class ComponentPerformanceObserver final : public profiling::GBComponentObserver {
 public:
-    ComponentPerformanceVisitor();
+    ComponentPerformanceObserver();
 
     void begin_frame() override;
     void begin_component(profiling::GBComponent component) override;

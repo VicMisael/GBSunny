@@ -10,9 +10,9 @@ enum class GBComponent {
     Spu,
 };
 
-class GBComponentVisitor {
+class GBComponentObserver {
 public:
-    virtual ~GBComponentVisitor() = default;
+    virtual ~GBComponentObserver() = default;
 
     virtual void begin_frame() {}
     virtual void begin_component(GBComponent component) = 0;
