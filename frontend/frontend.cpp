@@ -87,7 +87,7 @@ namespace frontend
             {
                 stop_and_clear_audio(app, audio_stream);
                 EmuFlags flags;
-                flags.useFastPPU = true;
+                flags.useFastPPU = false;
                 flags.useNewTimer = true;
                 flags.useDotStepping = true;
 				flags.useSlowReadPath = false;

@@ -9,7 +9,7 @@ struct EmuFlags {
     bool useFastPPU = false;
     bool useNewTimer = false;
     bool useDotStepping = false;
-    bool useSlowReadPath = false;
+    bool useSlowReadPath = true;
 };
 
 #endif //GBASUNNY_EMU_FLAGS_H

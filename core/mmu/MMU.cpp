@@ -65,8 +65,11 @@ void mmu::MMU::init_mem_map()
 		mem_regions[0xF0 + page].map_read_write(internal_RAM2 + (page * 0x100));
 	}
 
+	//for (size_t page = 0; page < 0x1f; ++page) {
+	//	//mem_regions[0x80 + page].map_read_write(_ppu->get_vram_ptr() + (page * 0x100));
+	//}
 	//VRAM
-
+	 
 }
 
 enum class MemRegion {
