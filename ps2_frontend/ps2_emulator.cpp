@@ -270,6 +270,7 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
     flags.useFastPPU = true;
     flags.useNewTimer = true;
     flags.useDotStepping = false;
+	flags.useSlowReadPath = false;
 
     ComponentPerformanceObserver component_performance;
     auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
