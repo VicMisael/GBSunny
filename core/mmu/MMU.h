@@ -6,8 +6,11 @@
 #define MMU_H
 #include <cstdint>
 #include <memory>
+#include <array>
+#include <algorithm>
 
 #include "cartridge/cartridge.h"
+#include "blocked_memory_page.h"
 #include "joypad/joypad.h"
 #include "spu/spu.h"
 #include "timer/gb_timer2.h"
@@ -19,16 +22,32 @@
 
 
 namespace mmu {
+
+    struct mem_region
+    {
+        const uint8_t* read_block_ptr = nullptr;
+        uint8_t* write_block_ptr = nullptr;
+
+        void map_read_only(const uint8_t* ptr) {
+            read_block_ptr = ptr;
+            write_block_ptr = nullptr;
+        }
+
+        void map_read_write(uint8_t* ptr) {
+            read_block_ptr = ptr;
+            write_block_ptr = ptr;
+        }
+    };
+
+
     class MMU {
 
-        uint8_t internal_RAM[4096];
-        uint8_t internal_RAM2[4096] ; // CGB
-        uint8_t HRAM[128];
-
-
+        uint8_t internal_RAM[4096]{};
+        uint8_t internal_RAM2[4096]{}; // CGB
+        uint8_t HRAM[128]{};
 
         uint8_t bootRomControl = 0;
-
+        bool slowReadPath = true;
         std::shared_ptr<PPU_Base> _ppu;
         std::shared_ptr<base_timer> _timer;
         std::shared_ptr<Cartridge> _cartridge;
@@ -48,6 +67,7 @@ namespace mmu {
 
 
         [[nodiscard]] uint8_t io_read(uint16_t addr) const;
+        [[nodiscard]] uint8_t read_slow(uint16_t addr) const;
         void io_write(uint16_t addr, uint8_t data);
 
     public:
@@ -58,8 +78,11 @@ namespace mmu {
             const std::shared_ptr<spu>& spu_ptr,
             std::shared_ptr<serial::GBSerial> serial_ptr,
             std::shared_ptr<Joypad> joypad_ptr,
-            std::shared_ptr<logging::CoreLogger> logger = nullptr
-        ) : _ppu(std::move(ppu_ptr)), _timer(timer_ptr), _cartridge(cart),
+            std::shared_ptr<logging::CoreLogger> logger = nullptr,
+            bool use_slow_read_path = true
+
+        ) : slowReadPath(use_slow_read_path),
+            _ppu(std::move(ppu_ptr)), _timer(timer_ptr), _cartridge(cart),
             _spu(spu_ptr),
             _serial(std::move(serial_ptr)),
             _joypad(std::move(joypad_ptr)),
@@ -68,17 +91,16 @@ namespace mmu {
             if (_logger == nullptr) {
                 _logger = std::make_shared<logging::NullCoreLogger>();
             }
-            // Constructor body can be empty if all initialization is done in the list.
-            std::fill(std::begin(internal_RAM), std::end(internal_RAM), 0);
-            std::fill(std::begin(internal_RAM2), std::end(internal_RAM2), 0);
-            std::fill(std::begin(HRAM), std::end(HRAM), 0);
+            init_mem_map();
         }
-        [[nodiscard]] bool boot_rom_enabled() const;
 
         void reset();
 
+        void init_mem_map();
+
         [[nodiscard]] uint8_t read(uint16_t addr) const ;
 
+        std::array<mem_region,256> mem_regions{};
 
         void write(uint16_t addr, const uint8_t &data);
 
