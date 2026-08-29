@@ -90,6 +90,7 @@ namespace frontend
                 flags.useFastPPU = true;
                 flags.useNewTimer = true;
                 flags.useDotStepping = true;
+				flags.useSlowReadPath = false;
                 auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
                 app.gameboy = std::make_unique<gb>(path, flags, nullptr, serial);
                 app.gameboy->subscribe<CartridgeLoadedEvent>([](const CartridgeLoadedEvent& event)
