@@ -69,24 +69,48 @@ void gb::reset() {
 
 }
 
+namespace {
+	class NoopComponentVisitor {
+	public:
+		void begin_frame() const {}
+		void begin_component(profiling::GBComponent) const {}
+		void end_component(profiling::GBComponent) const {}
+		void end_frame() const {}
+	};
+}
 
-void gb::run_one_frame() {
+template <typename ComponentVisitor>
+void gb::run_one_frame_with(ComponentVisitor& visitor) {
 	uint32_t cycles_this_frame = 0;
+	visitor.begin_frame();
 
 	while (cycles_this_frame < gb_hardware::ppu::DotsPerFrame) {
-
+		visitor.begin_component(profiling::GBComponent::Cpu);
 		uint32_t spent_cycles = _cpu->step();
+		visitor.end_component(profiling::GBComponent::Cpu);
 
 		if (this->_flags.useDotStepping) {
 			for (uint32_t i = 0; i < spent_cycles; ++i) {
+				visitor.begin_component(profiling::GBComponent::Ppu);
 				_ppu->tick();
+				visitor.end_component(profiling::GBComponent::Ppu);
+				visitor.begin_component(profiling::GBComponent::Timer);
 				_timer->tick();
+				visitor.end_component(profiling::GBComponent::Timer);
+				visitor.begin_component(profiling::GBComponent::Spu);
 				_spu->tick();
+				visitor.end_component(profiling::GBComponent::Spu);
 			}
 		} else {
+			visitor.begin_component(profiling::GBComponent::Ppu);
 			_ppu->step(spent_cycles);
+			visitor.end_component(profiling::GBComponent::Ppu);
+			visitor.begin_component(profiling::GBComponent::Timer);
 			_timer->step(spent_cycles);
+			visitor.end_component(profiling::GBComponent::Timer);
+			visitor.begin_component(profiling::GBComponent::Spu);
 			_spu->step(spent_cycles);
+			visitor.end_component(profiling::GBComponent::Spu);
 
 		}
 		// 2. Update all other components by the exact same amount of time.
@@ -96,7 +120,18 @@ void gb::run_one_frame() {
 		cycles_this_frame += spent_cycles;
 	
 	}
+	visitor.end_frame();
 	bus.send(FrameCompleteEvent{});
+}
+
+void gb::run_one_frame() {
+	if (_component_visitor != nullptr) {
+		run_one_frame_with(*_component_visitor);
+		return;
+	}
+
+	NoopComponentVisitor visitor;
+	run_one_frame_with(visitor);
 }
 
 void gb::set_button(JoypadButton button, bool pressed) {

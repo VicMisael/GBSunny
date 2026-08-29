@@ -1,0 +1,10 @@
+{
+  "cmake.sourceDirectory": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/ps2_frontend"
+  ],
+  "cmake.useCMakePresets": "always",
+  "cmake.buildBeforeRun": true,
+  "cmake.setBuildTargetSameAsLaunchTarget": true,
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+}

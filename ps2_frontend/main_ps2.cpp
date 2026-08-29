@@ -67,6 +67,5 @@ int main(int, char**)
     SDL_DestroyWindow(window);
     SDL_Quit();
     std::cout << "Exiting to console" << std::endl;
-
     return 0;
 }
