@@ -34,6 +34,16 @@ constexpr uint16_t HRAM_START = 0xFF80;
 constexpr uint16_t HRAM_END = 0xFFFE;
 constexpr uint16_t IE_REGISTER = 0xFFFF;
 
+constexpr std::size_t page_index(uint16_t address) {
+	return address / mmu::page_size;
+}
+
+constexpr std::size_t mapped_page_count(uint16_t start, uint16_t end) {
+	return (static_cast<std::size_t>(end) - start + 1) / mmu::page_size;
+}
+
+constexpr uint16_t ECHO_WRAMX_START = ECHO_START + (WRAM0_END - WRAM0_START + 1);
+
 void mmu::MMU::reset() {
 	bootRomControl = 0;
 	init_read_mem_map();
@@ -50,7 +60,7 @@ void mmu::MMU::map_read_only_page(std::size_t page, const uint8_t* block) {
 void mmu::MMU::on_boot_rom_control_set()
 {
 	if (bootRomControl != 0) {
-			read_mem_regions[0] = nullptr;
+			read_mem_regions[page_index(ROM0_START)] = nullptr;
 	}
 }
 
@@ -63,14 +73,14 @@ void mmu::MMU::on_ppu_vram_access_set(bool enable)
 	const auto vram = _ppu->get_vram_ptr();
 	if (enable)
 	{
-		for (size_t page = 0; page <= 0x1f; ++page) {
-			map_read_only_page(0x80 + page,  vram + (page * page_size));
+		for (size_t page = 0; page < mapped_page_count(VRAM_START, VRAM_END); ++page) {
+			map_read_only_page(page_index(VRAM_START) + page, vram + (page * page_size));
 		}
 		return;
 	}
 
-	for (size_t page = 0; page <= 0x1f; ++page) {
-		map_read_only_page(0x80 + page,  blocked_memory_page.data());
+	for (size_t page = 0; page < mapped_page_count(VRAM_START, VRAM_END); ++page) {
+		map_read_only_page(page_index(VRAM_START) + page, blocked_memory_page.data());
 	}
 }
 
@@ -84,22 +94,17 @@ void mmu::MMU::init_read_mem_map()
 	read_mem_regions.fill({});
 	//ROM 0
 
-	map_read_only_page(0, cartridge::bootDMG.data());
+	map_read_only_page(page_index(ROM0_START), cartridge::bootDMG.data());
 
-	// 0xC000-0xCFFF: WRAM0
-	// 0xD000-0xDFFF: WRAMX
-	// 0xE000-0xEFFF: echo of WRAM0
-	for (size_t page = 0; page < internal_RAM.size() / page_size; ++page) {
-		map_read_only_page(0xC0 + page, internal_RAM.data() + (page * page_size));
-		map_read_only_page(0xD0 + page, internal_RAM2.data() + (page * page_size));
-		map_read_only_page(0xE0 + page, internal_RAM.data() + (page * page_size));
+	for (size_t page = 0; page < mapped_page_count(WRAM0_START, WRAM0_END); ++page) {
+		map_read_only_page(page_index(WRAM0_START) + page, internal_RAM.data() + (page * page_size));
+		map_read_only_page(page_index(WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
+		map_read_only_page(page_index(ECHO_START) + page, internal_RAM.data() + (page * page_size));
 	}
 
-	// 0xF000-0xFDFF: echo of WRAMX
-	for (size_t page = 0; page < 0x0E; ++page) {
-		map_read_only_page(0xF0 + page, internal_RAM2.data() + (page * page_size));
+	for (size_t page = 0; page < mapped_page_count(ECHO_WRAMX_START, ECHO_END); ++page) {
+		map_read_only_page(page_index(ECHO_WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
 	}
-
 
 	// Map according to the PPU's current access state.
 	on_ppu_vram_access_set(true);
@@ -112,22 +117,22 @@ void mmu::MMU::init_read_mem_map()
 
 #pragma region MemoryReadAndWrite
 
-uint8_t mmu::MMU::read(uint16_t addr) const {
+uint8_t mmu::MMU::read(uint16_t addr) const
+{
+	if (slowReadPath) [[unlikely]]
+		return read_slow(addr);
 
-	if (!slowReadPath){
-		if (dma_active &&
-		(addr < HRAM_START || addr > HRAM_END))[[unlikely]] {
+	if (dma_active) [[unlikely]] {
+		if (addr < HRAM_START || addr > HRAM_END)
 			return 0xFF;
-		}
-
-		const auto read_block = read_mem_regions[addr >> 8];
-
-		if (read_block)[[likely]] {
-			return read_block[addr & 0xFF];
-		}
-
 	}
-	return read_slow(addr);
+
+	const auto& page = read_mem_regions[addr >> 8];
+
+	if (!page) [[unlikely]]
+		return read_slow(addr);
+
+	return page[addr & 0xFF];
 }
 
 enum class MemRegion {
