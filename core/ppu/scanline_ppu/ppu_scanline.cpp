@@ -20,7 +20,12 @@ PPU_scanline::PPU_scanline(std::shared_ptr<shared::interrupt> interrupt_controll
 }
 
 void PPU_scanline::reset() {
-    lcdc.data = 0xf;
+	const bool was_dma_active = dma_cycles_remaining > 0;
+	dma_cycles_remaining = 0;
+	if (was_dma_active) {
+		notify_dma_changed(false);
+	}
+	lcdc.data = 0xf;
     stat.data = 0;
     scy = 0;
     scx = 0;
@@ -32,7 +37,6 @@ void PPU_scanline::reset() {
     wy = 0;
     wx = 0;
     cycle_counter = 0;
-    dma_cycles_remaining = 0;
     window_line_counter = 0;
     stat_interrupt_line = false;
     set_mode(ppu_types::OAM_SCAN);
@@ -42,17 +46,24 @@ void PPU_scanline::reset() {
 }
 
 void PPU_scanline::step(uint32_t cycles_to_run) {
-    if (!lcdc.bits.LCD_PPU_enable) {
-        cycle_counter = 0;
-        ly = 0;
-        set_mode(ppu_types::HBLANK);
-        return;
-    }
+	if (dma_cycles_remaining > 0) {
+		const bool was_vram_accessible = is_vram_accessible();
+		dma_cycles_remaining -= static_cast<int32_t>(cycles_to_run);
+		if (dma_cycles_remaining < 0) dma_cycles_remaining = 0;
+		if (dma_cycles_remaining == 0) {
+			notify_dma_changed(false);
+		}
+		if (was_vram_accessible != is_vram_accessible()) {
+			notify_vram_access_changed(this->is_vram_accessible());
+		}
+	}
 
-    if (dma_cycles_remaining > 0) {
-        dma_cycles_remaining -= static_cast<int32_t>(cycles_to_run);
-        if (dma_cycles_remaining < 0) dma_cycles_remaining = 0;
-    }
+	if (!lcdc.bits.LCD_PPU_enable) {
+		cycle_counter = 0;
+		ly = 0;
+		set_mode(ppu_types::HBLANK);
+		return;
+	}
 
     cycle_counter += cycles_to_run;
 
@@ -118,12 +129,16 @@ void PPU_scanline::check_lyc_coincidence() {
 }
 
 void PPU_scanline::set_mode(ppu_types::ppu_mode new_mode) {
+    const bool was_vram_accessible = is_vram_accessible();
     current_mode = new_mode;
     stat.ppu_mode = new_mode;
     if (new_mode == ppu_types::VBLANK) {
         interrupt_controller->requested.VBlank = true;
     }
     update_stat_interrupt_line();
+    if (was_vram_accessible != is_vram_accessible()) {
+        notify_vram_access_changed(this->is_vram_accessible());
+    }
 }
 
 bool PPU_scanline::stat_interrupt_signal() const {
@@ -142,7 +157,15 @@ void PPU_scanline::update_stat_interrupt_line() {
 }
 
 void PPU_scanline::start_dma_transfer() {
-    dma_cycles_remaining = gb_hardware::ppu::DmaCycles;
+	const bool was_vram_accessible = is_vram_accessible();
+	const bool was_dma_active = dma_cycles_remaining > 0;
+	dma_cycles_remaining = gb_hardware::ppu::DmaCycles;
+	if (!was_dma_active) {
+		notify_dma_changed(true);
+	}
+    if (was_vram_accessible != is_vram_accessible()) {
+        notify_vram_access_changed(this->is_vram_accessible());
+    }
 }
 
 bool PPU_scanline::is_dma_active() const {

@@ -11,6 +11,7 @@
 
 #include "cartridge/cartridge.h"
 #include "blocked_memory_page.h"
+#include "memory_page.h"
 #include "joypad/joypad.h"
 #include "spu/spu.h"
 #include "timer/gb_timer2.h"
@@ -22,32 +23,15 @@
 
 
 namespace mmu {
-
-    struct mem_region
-    {
-        const uint8_t* read_block_ptr = nullptr;
-        uint8_t* write_block_ptr = nullptr;
-
-        void map_read_only(const uint8_t* ptr) {
-            read_block_ptr = ptr;
-            write_block_ptr = nullptr;
-        }
-
-        void map_read_write(uint8_t* ptr) {
-            read_block_ptr = ptr;
-            write_block_ptr = ptr;
-        }
-    };
-
-
     class MMU {
 
-        uint8_t internal_RAM[4096]{};
-        uint8_t internal_RAM2[4096]{}; // CGB
-        uint8_t HRAM[128]{};
+        std::array<uint8_t,4096> internal_RAM{};
+        std::array<uint8_t,4096> internal_RAM2{};
+        std::array<uint8_t,128> HRAM{};
 
         uint8_t bootRomControl = 0;
         bool slowReadPath = true;
+		bool dma_active = false;
         std::shared_ptr<PPU_Base> _ppu;
         std::shared_ptr<base_timer> _timer;
         std::shared_ptr<Cartridge> _cartridge;
@@ -57,6 +41,7 @@ namespace mmu {
         std::shared_ptr<logging::CoreLogger> _logger;
         std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
 
+        std::array<const uint8_t*, page_count> read_mem_regions{};
 
         [[nodiscard]] uint8_t read_interrupt_enable() const;
         [[nodiscard]] uint8_t read_interrupt_flag() const;
@@ -91,19 +76,37 @@ namespace mmu {
             if (_logger == nullptr) {
                 _logger = std::make_shared<logging::NullCoreLogger>();
             }
-            init_mem_map();
+			_ppu->set_vram_access_callback([this](bool enable) {
+				on_ppu_vram_access_set(enable);
+			});
+			_ppu->set_dma_callback([this](bool active) {
+				on_ppu_dma(active);
+			});
+            init_read_mem_map();
         }
+
+		~MMU() {
+			if (_ppu) {
+				_ppu->set_vram_access_callback({});
+				_ppu->set_dma_callback({});
+			}
+		}
 
         void reset();
 
-        void init_mem_map();
+        void init_read_mem_map();
 
         [[nodiscard]] uint8_t read(uint16_t addr) const ;
 
-        std::array<mem_region,256> mem_regions{};
-
         void write(uint16_t addr, const uint8_t &data);
 
+#pragma region Memory Mapping
+        void map_read_only_page(std::size_t page, const uint8_t* block);
+        void on_boot_rom_control_set();
+        void on_rom_bank_swap();
+        void on_ppu_vram_access_set(bool enable);
+        void on_ppu_dma(bool active);
+#pragma endregion Memory Mapping
 
     };
 };

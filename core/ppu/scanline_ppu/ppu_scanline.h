@@ -27,6 +27,7 @@ public:
     // Memory-mapped I/O handlers for the MMU to call
     [[nodiscard]] uint8_t read_vram(uint16_t address) const override;
     void write_vram(uint16_t address, uint8_t value) override;
+    [[nodiscard]] const uint8_t* get_vram_ptr() const final { return vram.data(); }
     [[nodiscard]] uint8_t read_control(uint16_t addr) const final;
     void write_control(uint16_t addr, uint8_t data) override ;
 
@@ -65,8 +66,7 @@ private:
     std::shared_ptr<shared::interrupt> interrupt_controller;
 
     // PPU Memory
-    //std::array<uint8_t, 8192> vram;
-    uint8_t vram[8192]{};
+    std::array<uint8_t, 8192> vram;
 
     // Final image buffer
     std::array<ppu_types::rgba, gb_hardware::display::PixelCount> framebuffer{};
@@ -87,7 +87,7 @@ private:
     // PPU Registers using the types from ppu_types.h
 
     // Internal PPU State
-    ppu_types::ppu_mode current_mode;
+    ppu_types::ppu_mode current_mode = ppu_types::HBLANK;
     uint32_t cycle_counter{};
     int32_t dma_cycles_remaining {};
     int window_line_counter {};

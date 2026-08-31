@@ -95,7 +95,7 @@ namespace frontend
                 app.gameboy = std::make_unique<gb>(path, flags, nullptr, serial);
                 app.gameboy->subscribe<CartridgeLoadedEvent>([](const CartridgeLoadedEvent& event)
                 {
-                    DebugUtils::breakpoint();
+                    //DebugUtils::breakpoint();
                     std::cout << "Cartridge loaded: " << event.rom_name
                         << " (" << event.rom_type << ") from " << event.rom_path << '\n';
                 });

@@ -36,40 +36,98 @@ constexpr uint16_t IE_REGISTER = 0xFFFF;
 
 void mmu::MMU::reset() {
 	bootRomControl = 0;
-	init_mem_map();
+	init_read_mem_map();
 	_serial->reset();
 	_joypad->reset();
 
 }
+#pragma region MemMap
 
-void mmu::MMU::init_mem_map()
+void mmu::MMU::map_read_only_page(std::size_t page, const uint8_t* block) {
+	read_mem_regions[page] = block;
+}
+
+void mmu::MMU::on_boot_rom_control_set()
 {
-	for (auto& region : mem_regions) {
-		region = {};
+	if (bootRomControl != 0) {
+			read_mem_regions[0] = nullptr;
 	}
+}
+
+void mmu::MMU::on_rom_bank_swap()
+{
+}
+
+void mmu::MMU::on_ppu_vram_access_set(bool enable)
+{
+	const auto vram = _ppu->get_vram_ptr();
+	if (enable)
+	{
+		for (size_t page = 0; page <= 0x1f; ++page) {
+			map_read_only_page(0x80 + page,  vram + (page * page_size));
+		}
+		return;
+	}
+
+	for (size_t page = 0; page <= 0x1f; ++page) {
+		map_read_only_page(0x80 + page,  blocked_memory_page.data());
+	}
+}
+
+void mmu::MMU::on_ppu_dma(bool active)
+{
+	dma_active = active;
+}
+
+void mmu::MMU::init_read_mem_map()
+{
+	read_mem_regions.fill({});
 	//ROM 0
 
-	mem_regions[0].map_read_only(cartridge::bootDMG.data());
+	map_read_only_page(0, cartridge::bootDMG.data());
 
 	// 0xC000-0xCFFF: WRAM0
 	// 0xD000-0xDFFF: WRAMX
 	// 0xE000-0xEFFF: echo of WRAM0
-	for (size_t page = 0; page < 0x10; ++page) {
-		mem_regions[0xC0 + page].map_read_write(internal_RAM + (page * 0x100));
-		mem_regions[0xD0 + page].map_read_write(internal_RAM2 + (page * 0x100));
-		mem_regions[0xE0 + page].map_read_write(internal_RAM + (page * 0x100));
+	for (size_t page = 0; page < internal_RAM.size() / page_size; ++page) {
+		map_read_only_page(0xC0 + page, internal_RAM.data() + (page * page_size));
+		map_read_only_page(0xD0 + page, internal_RAM2.data() + (page * page_size));
+		map_read_only_page(0xE0 + page, internal_RAM.data() + (page * page_size));
 	}
 
 	// 0xF000-0xFDFF: echo of WRAMX
 	for (size_t page = 0; page < 0x0E; ++page) {
-		mem_regions[0xF0 + page].map_read_write(internal_RAM2 + (page * 0x100));
+		map_read_only_page(0xF0 + page, internal_RAM2.data() + (page * page_size));
 	}
 
-	//for (size_t page = 0; page < 0x1f; ++page) {
-	//	//mem_regions[0x80 + page].map_read_write(_ppu->get_vram_ptr() + (page * 0x100));
-	//}
+
+	// Map according to the PPU's current access state.
+	on_ppu_vram_access_set(true);
+
 	//VRAM
 	 
+}
+
+#pragma endregion MemMap
+
+#pragma region MemoryReadAndWrite
+
+uint8_t mmu::MMU::read(uint16_t addr) const {
+
+	if (!slowReadPath){
+		if (dma_active &&
+		(addr < HRAM_START || addr > HRAM_END))[[unlikely]] {
+			return 0xFF;
+		}
+
+		const auto read_block = read_mem_regions[addr >> 8];
+
+		if (read_block)[[likely]] {
+			return read_block[addr & 0xFF];
+		}
+
+	}
+	return read_slow(addr);
 }
 
 enum class MemRegion {
@@ -106,25 +164,11 @@ constexpr static MemRegion decode_region(uint16_t addr) {
 }
 
 
-uint8_t mmu::MMU::read(uint16_t addr) const {
-	if (slowReadPath) {
-		return read_slow(addr);
-	}
-
-	const auto* read_block = mem_regions[addr >> 8].read_block_ptr;
-
-	if (read_block != nullptr) {
-		return read_block[addr & 0xFF];
-	}
-
-	return read_slow(addr);
-}
-
 NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 	const auto region = decode_region(addr);
 
 
-	if (_ppu->is_dma_active() && region != MemRegion::HRAM) {
+	if (dma_active && region != MemRegion::HRAM) {
 		return 0xFF;
 	}
 
@@ -167,14 +211,12 @@ NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 }
 
 
-
-
 void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 
 	const auto region = decode_region(addr);
 
 
-	if (_ppu->is_dma_active() && region != MemRegion::HRAM) {
+	if (dma_active && region != MemRegion::HRAM) {
 		return;
 	}
 
@@ -209,7 +251,7 @@ void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 	return;
 
 }
-
+#pragma endregion MemoryReadAndWrite
 
 // --- I/O Register Handling ---
 
@@ -269,9 +311,7 @@ void mmu::MMU::io_write(uint16_t addr, uint8_t data) {
 		return;
 	case 0xFF50: /* Boot ROM disable register */
 		bootRomControl = data;
-		if (bootRomControl != 0) {
-			mem_regions[0].map_read_only(nullptr);
-		}
+		on_boot_rom_control_set();
 		return;
 	default:
 		break;
