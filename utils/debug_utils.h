@@ -11,7 +11,6 @@ public:
     DebugUtils() = delete;
 
     static void breakpoint() noexcept {
-        return;
 #if defined(_MSC_VER)
         __debugbreak();
 #elif defined(__unix__) || defined(__APPLE__)

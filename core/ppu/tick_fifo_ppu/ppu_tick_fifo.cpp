@@ -13,6 +13,11 @@ ppu_tick_fifo::ppu_tick_fifo(std::shared_ptr<shared::interrupt> interrupt_contro
 
 
 void ppu_tick_fifo::reset() {
+	const bool was_dma_active = dma_cycles_remaining > 0;
+	dma_cycles_remaining = 0;
+	if (was_dma_active) {
+		notify_dma_changed(false);
+	}
 	lcdc.data = 0xf;
 	stat.data = 0;
 	scy = 0;
@@ -44,14 +49,19 @@ void ppu_tick_fifo::reset_lcd_state()
 
 void inline ppu_tick_fifo::tick()
 {
+	if (dma_cycles_remaining > 0) {
+		dma_cycles_remaining--;
+		if (dma_cycles_remaining == 0) {
+			notify_dma_changed(false);
+		}
+	}
+
  	if (!lcdc.bits.LCD_PPU_enable) {
 		reset_lcd_state();
 		return;
 	}
 
-	if (dma_cycles_remaining > 0) {
-		dma_cycles_remaining--;
-	}
+
 
 	state.total_dots++;
 
@@ -446,28 +456,52 @@ void ppu_tick_fifo::write_vram_internal(uint16_t address, uint8_t data) {
 
 // Memory and Register Access
 uint8_t ppu_tick_fifo::read_vram(uint16_t address) const {
-	if (!this->is_vram_accessible()) return 0xff;
+	if (!this->vram_accessible) return 0xff;
 	return vram[address - 0x8000];
 }
 
 void ppu_tick_fifo::write_vram(uint16_t address, uint8_t value) {
-	if (!this->is_vram_accessible()) return;
+	if (!this->vram_accessible) return;
 	vram[address - 0x8000] = value;
 }
 
 void ppu_tick_fifo::set_mode(ppu_types::ppu_mode new_mode) {
 	if (new_mode == stat.ppu_mode) { return; }
+	const bool leaving_drawing = stat.ppu_mode == ppu_types::DRAWING;
 	stat.ppu_mode = new_mode;
+	if (leaving_drawing && new_mode != ppu_types::DRAWING) {
+		unlock_vram_access();
+	}
 
 	switch (new_mode) {
 	case ppu_types::VBLANK: {
 		interrupt_controller->requested.VBlank = true;
-	} break;
-	default: break;
+		break;
 	}
-
+	case ppu_types::DRAWING:
+		{
+			lock_vram_access();
+			break;
+		}
+	break;
+	default:
+		break;
+	}
 	update_stat_interrupt_line();
 }
+
+void ppu_tick_fifo::lock_vram_access()
+{
+	vram_accessible = false;
+	notify_vram_access_changed(false);
+}
+
+void ppu_tick_fifo::unlock_vram_access()
+{
+	vram_accessible = true;
+	notify_vram_access_changed(true);
+}
+
 
 bool ppu_tick_fifo::stat_interrupt_signal() const {
 	return (stat.LYC_eq_LY && stat.LYC_INT_SELECT)
@@ -525,6 +559,7 @@ void ppu_tick_fifo::write_control(uint16_t addr, uint8_t data) {
 		lyc = data;
 		check_lyc_coincidence();
 	} break;
+	case 0xFF46: start_dma_transfer(); break;
 	case 0xFF47: bgp = data; break;
 	case 0xFF48: obp0 = data; break;
 	case 0xFF49: obp1 = data; break;
@@ -535,19 +570,23 @@ void ppu_tick_fifo::write_control(uint16_t addr, uint8_t data) {
 }
 
 void ppu_tick_fifo::start_dma_transfer() {
+	const bool was_dma_active = dma_cycles_remaining > 0;
 	dma_cycles_remaining = gb_hardware::ppu::DmaCycles;
+	if (!was_dma_active) {
+		notify_dma_changed(true);
+	}
 }
 
 bool ppu_tick_fifo::is_dma_active() const {
 	return dma_cycles_remaining > 0;
 }
-
-bool ppu_tick_fifo::is_vram_accessible() const {
-	return stat.ppu_mode != ppu_types::DRAWING;
-}
-
 bool ppu_tick_fifo::is_oam_accessible() const {
 	return dma_cycles_remaining == 0 && stat.ppu_mode != ppu_types::OAM_SCAN && stat.ppu_mode != ppu_types::DRAWING;
+}
+
+bool ppu_tick_fifo::is_vram_accessible() const
+{
+	return this->vram_accessible;
 }
 
 auto ppu_tick_fifo::get_framebuffer() const -> const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>&

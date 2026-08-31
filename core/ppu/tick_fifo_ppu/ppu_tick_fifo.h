@@ -3,8 +3,7 @@
 #include "../ppu_base.h"
 #include "shared/interrupt.h"
 #include "ppu_fifo_types.h"
-#include <queue>
-
+#include <memory>
 #include "utils/utils.h"
 
 
@@ -21,6 +20,7 @@ public:
 	//Memory-mapped I/O handlers for the MMU to call
 	[[nodiscard]] uint8_t read_vram(uint16_t address) const final;
 	void write_vram(uint16_t address, uint8_t value) final;
+	[[nodiscard]] const uint8_t* get_vram_ptr() const final { return vram.data(); }
 	[[nodiscard]] uint8_t read_control(uint16_t addr) const final;
 	void write_control(uint16_t addr, uint8_t data) final;
 
@@ -28,12 +28,14 @@ public:
 	void start_dma_transfer() final;
 	[[nodiscard]] bool is_dma_active() const final;
 
-	[[nodiscard]] bool is_vram_accessible() const final;
 	[[nodiscard]] bool is_oam_accessible() const final;
-
+	[[nodiscard]] bool is_vram_accessible() const final;
 	//Interface for the frontend to get the final image
     [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const final;
 private:
+	void lock_vram_access();
+	void unlock_vram_access();
+
 	void scanline_checks();
 	void oam_scan();
 	void increment_ly();
@@ -62,8 +64,9 @@ private:
 
 	std::shared_ptr<shared::interrupt> interrupt_controller;
 
-	uint8_t vram[8192]{};
+	std::array<uint8_t,8192> vram{};
 
+	bool vram_accessible = true;
 	struct scanline_element {
 		uint8_t color_id;
 		uint8_t bgp;
