@@ -11,7 +11,9 @@
 #include "utils/file_dialog.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <chrono>
 #include <exception>
 #include <iostream>
 #include <memory>
@@ -26,6 +28,7 @@ namespace frontend
         constexpr int AudioBufferFrames = 1024;
         constexpr std::size_t AudioRingCapacity = AudioBufferFrames * 8;
         constexpr int MaxCatchUpFrames = 6;
+        constexpr std::size_t RunOneFrameTimingSampleCount = 120;
 
         using StereoAudioRing = AudioRingBuffer<spu::stereo_sample, AudioRingCapacity>;
 
@@ -58,12 +61,51 @@ namespace frontend
             bool paused = false;
             bool unlimited_speed = false;
             bool audio_stream_playing = false;
+            bool run_one_frame_time_show = false;
             int frames_since_stat_update = 0;
             int emulated_fps = 0;
             double last_stat_update = 0.0;
             double emulation_time_accumulator = 0.0;
+            std::array<double, RunOneFrameTimingSampleCount> run_one_frame_times_ms{};
+            double run_one_frame_time_latest_ms = 0.0;
+            double run_one_frame_time_average_ms = 0.0;
+            double run_one_frame_time_sum_ms = 0.0;
+            std::size_t run_one_frame_time_next_sample = 0;
+            std::size_t run_one_frame_time_sample_count = 0;
+
             Toast toast;
         };
+
+        void reset_run_one_frame_timing(AppState& app)
+        {
+            app.run_one_frame_times_ms.fill(0.0);
+            app.run_one_frame_time_latest_ms = 0.0;
+            app.run_one_frame_time_average_ms = 0.0;
+            app.run_one_frame_time_sum_ms = 0.0;
+            app.run_one_frame_time_next_sample = 0;
+            app.run_one_frame_time_sample_count = 0;
+        }
+
+        void record_run_one_frame_timing(AppState& app, const double elapsed_ms)
+        {
+            app.run_one_frame_time_latest_ms = elapsed_ms;
+
+            if (app.run_one_frame_time_sample_count == RunOneFrameTimingSampleCount)
+            {
+                app.run_one_frame_time_sum_ms -= app.run_one_frame_times_ms[app.run_one_frame_time_next_sample];
+            }
+            else
+            {
+                app.run_one_frame_time_sample_count++;
+            }
+
+            app.run_one_frame_times_ms[app.run_one_frame_time_next_sample] = elapsed_ms;
+            app.run_one_frame_time_sum_ms += elapsed_ms;
+            app.run_one_frame_time_next_sample =
+                (app.run_one_frame_time_next_sample + 1) % RunOneFrameTimingSampleCount;
+            app.run_one_frame_time_average_ms =
+                app.run_one_frame_time_sum_ms / static_cast<double>(app.run_one_frame_time_sample_count);
+        }
 
         void stop_and_clear_audio(AppState& app, AudioStream& audio_stream)
         {
@@ -89,8 +131,8 @@ namespace frontend
                 EmuFlags flags;
                 flags.useFastPPU = false;
                 flags.useNewTimer = true;
-                flags.useDotStepping = true;
-				flags.useSlowReadPath = false;
+                flags.useDotStepping = false;
+				flags.useSlowReadPath = true;
                 auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
                 app.gameboy = std::make_unique<gb>(path, flags, nullptr, serial);
                 app.gameboy->subscribe<CartridgeLoadedEvent>([](const CartridgeLoadedEvent& event)
@@ -112,6 +154,7 @@ namespace frontend
                 app.emulated_fps = 0;
                 app.last_stat_update = GetTime();
                 app.emulation_time_accumulator = 0.0;
+                reset_run_one_frame_timing(app);
                 app.status = "Running";
                 SetTargetFPS(60);
             }
@@ -152,6 +195,7 @@ namespace frontend
                 app.frames_since_stat_update = 0;
                 app.emulated_fps = 0;
                 app.last_stat_update = GetTime();
+                reset_run_one_frame_timing(app);
                 break;
             case ui::Action::ToggleSpeed:
                 app.unlimited_speed = !app.unlimited_speed;
@@ -162,6 +206,7 @@ namespace frontend
                 app.frames_since_stat_update = 0;
                 app.emulated_fps = 0;
                 app.last_stat_update = GetTime();
+                reset_run_one_frame_timing(app);
                 SetTargetFPS(app.unlimited_speed ? 0 : 60);
                 break;
             case ui::Action::None:
@@ -283,6 +328,15 @@ namespace frontend
                 toggle_pause(app, audio_stream);
             }
 
+            if (IsKeyPressed(KEY_F))
+            {
+                app.run_one_frame_time_show = !app.run_one_frame_time_show;
+                if (app.run_one_frame_time_show)
+                {
+                    reset_run_one_frame_timing(app);
+                }
+            }
+
             update_joypad(app);
 
             if (app.gameboy != nullptr && !app.paused)
@@ -298,7 +352,18 @@ namespace frontend
                 }
                 for (int i = 0; i < frames_to_run; ++i)
                 {
-                    app.gameboy->run_one_frame();
+                    if (app.run_one_frame_time_show)
+                    {
+                        const auto m_start = std::chrono::steady_clock::now();
+                        app.gameboy->run_one_frame();
+                        const auto m_end = std::chrono::steady_clock::now();
+                        const std::chrono::duration<double, std::milli> elapsed_ms = m_end - m_start;
+                        record_run_one_frame_timing(app, elapsed_ms.count());
+                    }
+                    else
+                    {
+                        app.gameboy->run_one_frame();
+                    }
                     app.frames_since_stat_update++;
                 }
                 if (app.unlimited_speed)
@@ -334,6 +399,9 @@ namespace frontend
                     .has_gameboy = app.gameboy != nullptr,
                     .paused = app.paused,
                     .unlimited_speed = app.unlimited_speed,
+                    .show_run_one_frame_timing = app.run_one_frame_time_show,
+                    .run_one_frame_latest_ms = app.run_one_frame_time_latest_ms,
+                    .run_one_frame_average_ms = app.run_one_frame_time_average_ms
                 },
                 texture,
                 app.toast);

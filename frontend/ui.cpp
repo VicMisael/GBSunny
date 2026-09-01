@@ -3,6 +3,8 @@
 #include "toast.h"
 
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
 namespace frontend::ui
@@ -93,6 +95,15 @@ namespace frontend::ui
                 static_cast<int>(height),
                 Color{80, 90, 110, 255});
         }
+
+        void draw_frame_timing(const ViewState& state)
+        {
+            std::ostringstream text;
+            text << std::fixed << std::setprecision(3)
+                 << "RunOneFrame: " << std::setw(8) << state.run_one_frame_latest_ms << " ms avg "
+                 << std::setw(8) << state.run_one_frame_average_ms << " ms";
+            DrawText(text.str().c_str(), 12, TopBarHeight + 10, 14, Color{255, 220, 120, 255});
+        }
     }
 
     Action draw(const ViewState& state, const Texture2D& texture, const Toast& toast)
@@ -112,6 +123,10 @@ namespace frontend::ui
             {
                 const std::string rom_path{state.rom_path};
                 DrawText(rom_path.c_str(), 12, GetScreenHeight() - 24, 14, Color{150, 160, 176, 255});
+            }
+            if (state.show_run_one_frame_timing)
+            {
+                draw_frame_timing(state);
             }
         }
 
