@@ -59,12 +59,10 @@ void PerformanceOverlay::record(std::uint64_t loop_ticks,
     completed_emulated_frames = 0;
 }
 
-void PerformanceOverlay::draw(SDL_Renderer* renderer,
-                              const ComponentPerformanceSnapshot& components) const
+void PerformanceOverlay::draw(SDL_Renderer* renderer) const
 {
     char first_line[64]{};
     char second_line[64]{};
-    char third_line[64]{};
     std::snprintf(
         first_line,
         sizeof(first_line),
@@ -80,22 +78,12 @@ void PerformanceOverlay::draw(SDL_Renderer* renderer,
         snapshot.draw_ms,
         snapshot.present_ms,
         snapshot.audio_ms);
-    std::snprintf(
-        third_line,
-        sizeof(third_line),
-        "CPU %.1F  PPU %.1F  TIMER %.1F  SPU %.1FMS",
-        components.cpu_ms,
-        components.ppu_ms,
-        components.timer_ms,
-        components.spu_ms);
-
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 190);
-    const SDL_Rect background{4, 4, 632, 48};
+    const SDL_Rect background{4, 4, 632, 34};
     SDL_RenderFillRect(renderer, &background);
     font::draw_text(renderer, 10, 7, first_line, {120, 255, 120, 255});
     font::draw_text(renderer, 10, 21, second_line, {255, 255, 255, 255});
-    font::draw_text(renderer, 10, 35, third_line, {255, 220, 120, 255});
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
 }
 

@@ -3,8 +3,6 @@
 
 #include <cstdint>
 
-#include "component_performance_observer.h"
-
 struct SDL_Renderer;
 
 namespace ps2_frontend {
@@ -20,7 +18,7 @@ public:
                 std::uint64_t present_ticks,
                 std::uint64_t audio_ticks,
                 int emulated_frames);
-    void draw(SDL_Renderer* renderer, const ComponentPerformanceSnapshot& components) const;
+    void draw(SDL_Renderer* renderer) const;
 
 private:
     struct Snapshot {

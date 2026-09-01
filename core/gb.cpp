@@ -71,48 +71,22 @@ void gb::reset() {
 
 }
 
-namespace {
-	class NoopComponentObserver {
-	public:
-		void begin_frame() const {}
-		void begin_component(profiling::GBComponent) const {}
-		void end_component(profiling::GBComponent) const {}
-		void end_frame() const {}
-	};
-}
-
-template <typename ComponentObserver>
-void gb::run_one_frame_with(ComponentObserver& observer) {
+void gb::run_one_frame() {
 	uint32_t cycles_this_frame = 0;
-	observer.begin_frame();
 
 	while (cycles_this_frame < gb_hardware::ppu::DotsPerFrame) {
-		observer.begin_component(profiling::GBComponent::Cpu);
 		uint32_t spent_cycles = _cpu->step();
-		observer.end_component(profiling::GBComponent::Cpu);
 
 		if (this->_flags.useDotStepping) {
 			for (uint32_t i = 0; i < spent_cycles; ++i) {
-				observer.begin_component(profiling::GBComponent::Ppu);
 				_ppu->tick();
-				observer.end_component(profiling::GBComponent::Ppu);
-				observer.begin_component(profiling::GBComponent::Timer);
 				_timer->tick();
-				observer.end_component(profiling::GBComponent::Timer);
-				observer.begin_component(profiling::GBComponent::Spu);
 				_spu->tick();
-				observer.end_component(profiling::GBComponent::Spu);
 			}
 		} else {
-			observer.begin_component(profiling::GBComponent::Ppu);
 			_ppu->step(spent_cycles);
-			observer.end_component(profiling::GBComponent::Ppu);
-			observer.begin_component(profiling::GBComponent::Timer);
 			_timer->step(spent_cycles);
-			observer.end_component(profiling::GBComponent::Timer);
-			observer.begin_component(profiling::GBComponent::Spu);
 			_spu->step(spent_cycles);
-			observer.end_component(profiling::GBComponent::Spu);
 
 		}
 		// 2. Update all other components by the exact same amount of time.
@@ -122,18 +96,7 @@ void gb::run_one_frame_with(ComponentObserver& observer) {
 		cycles_this_frame += spent_cycles;
 	
 	}
-	observer.end_frame();
 	bus.send(FrameCompleteEvent{});
-}
-
-void gb::run_one_frame() {
-	if (_component_observer != nullptr) {
-		run_one_frame_with(*_component_observer);
-		return;
-	}
-
-	NoopComponentObserver observer;
-	run_one_frame_with(observer);
 }
 
 void gb::set_button(JoypadButton button, bool pressed) {

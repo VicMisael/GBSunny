@@ -22,30 +22,6 @@ At 30 ms per emulated frame, the core reaches at most approximately 33 FPS
 before frontend rendering costs. Reaching full speed requires roughly a 1.8x
 speedup, or a 44% reduction in emulation time.
 
-## Measurement caveat
-
-The component observer currently brackets CPU, PPU, timer, and SPU execution for
-every emulated instruction. Each bracket reads `SDL_GetPerformanceCounter()`
-twice. With up to roughly 17,500 instructions and eight counter reads per Game
-Boy frame, profiling may perform around 140,000 counter reads per frame.
-
-Consequences:
-
-- Similar 10-15 ms readings for every component may largely represent probe
-  overhead.
-- Instrumented `EMU` time must not be treated as the uninstrumented baseline.
-- Component measurements do not include all observer dispatch and timing costs,
-  so their sum does not necessarily equal `EMU`.
-
-Before using the component split to guide optimization:
-
-1. Compare overlay-enabled and overlay-disabled frame times.
-2. Measure an empty observer to estimate instrumentation cost.
-3. Profile one component per run instead of all four simultaneously.
-4. Investigate reading the EE hardware cycle counter directly.
-5. Consider sampling one out of every 64 or 256 instructions.
-6. Repeat important measurements on real hardware.
-
 ## Investigation priorities
 
 ### 1. Event-based SPU stepping
@@ -226,17 +202,15 @@ performance statistics easier to understand.
 ## Suggested experiment order
 
 1. Establish uninstrumented real-PS2 and PCSX2 baselines.
-2. Quantify observer and overlay overhead.
-3. Measure one component at a time using lower-overhead probes.
-4. Benchmark one-frame-per-presentation scheduling.
-5. Enable LTO and benchmark `-O2` versus `-O3`.
-6. Remove repeated audio-vector allocation.
-7. Prototype event-based timer stepping with correctness tests.
-8. Prototype event-based SPU stepping with audio regression tests.
-9. Add an instruction-fetch/MMU fast path.
-10. Optimize PPU tile-row rendering.
-11. Evaluate 16-bit or direct gsKit framebuffer upload.
-12. Re-measure the complete system on real hardware after each isolated change.
+2. Benchmark one-frame-per-presentation scheduling.
+3. Enable LTO and benchmark `-O2` versus `-O3`.
+4. Remove repeated audio-vector allocation.
+5. Prototype event-based timer stepping with correctness tests.
+6. Prototype event-based SPU stepping with audio regression tests.
+7. Add an instruction-fetch/MMU fast path.
+8. Optimize PPU tile-row rendering.
+9. Evaluate 16-bit or direct gsKit framebuffer upload.
+10. Re-measure the complete system on real hardware after each isolated change.
 
 ## Benchmark record template
 
@@ -250,7 +224,6 @@ ROM and scene:
 Build preset:
 Compiler flags:
 Overlay enabled:
-Observer enabled:
 Dot stepping:
 Presentation policy:
 
@@ -258,10 +231,6 @@ Emulated FPS:
 Presented FPS:
 Average emulation ms:
 Average presentation ms:
-CPU ms:
-PPU ms:
-Timer ms:
-SPU ms:
 Audio underruns or defects:
 Video or timing regressions:
 Notes:

@@ -23,8 +23,6 @@ add_subdirectory(
 )
 
 add_executable(GBSunnyPS2
-    component_performance_observer.cpp
-    component_performance_observer.h
     main_ps2.cpp
     performance_overlay.cpp
     performance_overlay.h

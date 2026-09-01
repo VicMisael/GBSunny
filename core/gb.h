@@ -10,7 +10,6 @@
 #include "utils/emu_flags.h"
 #include "serial/gb_serial.h"
 #include "logging/core_logger.h"
-#include "profiling/gb_component_observer.h"
 #include <ppu/ppu_base.h>
 #include <events/event_aggregator.h>
 #include <events/events.h>
@@ -30,14 +29,11 @@ class gb {
     std::shared_ptr<serial::GBSerial> _serial;
     std::shared_ptr<Joypad> _joypad;
     std::shared_ptr<logging::CoreLogger> _logger;
-    profiling::GBComponentObserver* _component_observer = nullptr;
     EmulatorEventAggregator bus;
     std::optional<CartridgeLoadedEvent> _last_cartridge_loaded_event;
 
 
     void init();
-    template <typename ComponentObserver>
-    void run_one_frame_with(ComponentObserver& observer);
 public:
     std::shared_ptr<mmu::MMU> _mmu;
     explicit gb(const std::string& rompath,
@@ -56,7 +52,6 @@ public:
     }
     void reset();
     void run_one_frame();
-    void set_component_observer(profiling::GBComponentObserver* observer) { _component_observer = observer; }
     void set_button(JoypadButton button, bool pressed);
     [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const;
     std::vector<spu::stereo_sample> consume_audio_samples();

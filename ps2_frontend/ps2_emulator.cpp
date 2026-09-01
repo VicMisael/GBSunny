@@ -1,6 +1,5 @@
 #include "ps2_emulator.h"
 
-#include "component_performance_observer.h"
 #include "gb.h"
 #include "performance_overlay.h"
 #include "ps2_font.h"
@@ -244,8 +243,7 @@ void draw_frame(SDL_Renderer* renderer,
                 SDL_Texture* texture,
                 bool paused,
                 bool show_performance,
-                const PerformanceOverlay& performance,
-                const ComponentPerformanceObserver& component_performance)
+                const PerformanceOverlay& performance)
 {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
@@ -253,7 +251,7 @@ void draw_frame(SDL_Renderer* renderer,
     const SDL_Rect destination{GameX, GameY, GameWidth, GameHeight};
     SDL_RenderCopy(renderer, texture, nullptr, &destination);
     if (show_performance) {
-        performance.draw(renderer, component_performance.current());
+        performance.draw(renderer);
     }
 
     const char* controls = paused
@@ -272,10 +270,8 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
     flags.useDotStepping = false;
 	flags.useSlowReadPath = false;
 
-    ComponentPerformanceObserver component_performance;
     auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
     gb gameboy(rom_path, flags, nullptr, std::move(serial));
-    gameboy.set_component_observer(&component_performance);
     gameboy.subscribe<CartridgeLoadedEvent>([](const CartridgeLoadedEvent& event) {
         std::cout << "Cartridge loaded: " << event.rom_name
                   << " (" << event.rom_type << ") from " << event.rom_path << '\n';
@@ -320,8 +316,6 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
                     reset_audio_timing();
                 } else if (event.key.keysym.sym == SDLK_F3) {
                     show_performance = !show_performance;
-                    component_performance.reset();
-                    gameboy.set_component_observer(show_performance ? &component_performance : nullptr);
                 } else if (event.key.keysym.sym == SDLK_ESCAPE) {
                     running = false;
                     result = EmulatorResult::SelectRom;
@@ -337,8 +331,6 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
                     reset_audio_timing();
                 } else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_X) {
                     show_performance = !show_performance;
-                    component_performance.reset();
-                    gameboy.set_component_observer(show_performance ? &component_performance : nullptr);
                 } else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_Y) {
                     running = false;
                     result = EmulatorResult::SelectRom;
@@ -381,8 +373,7 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
             texture,
             paused,
             show_performance,
-            performance,
-            component_performance);
+            performance);
         const Uint64 draw_ticks = SDL_GetPerformanceCounter() - draw_start;
 
         const Uint64 present_start = SDL_GetPerformanceCounter();
