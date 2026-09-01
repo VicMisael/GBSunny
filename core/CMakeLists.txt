@@ -42,7 +42,6 @@ add_library(CoreModule STATIC gb.cpp
  timer/base_timer.h 
  cartridge/modes/mbc5.cpp events/event_aggregator.h events/events.h
         logging/core_logger.h
-        profiling/gb_component_observer.h
         utils/emu_flags.h
         utils/compiler.h)
 

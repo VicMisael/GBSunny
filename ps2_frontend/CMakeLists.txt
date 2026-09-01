@@ -32,6 +32,8 @@ add_executable(GBSunnyPS2
     ps2_emulator.h
     rom_selector.cpp
     rom_selector.h
+        performance_overlay2.cpp
+        performance_overlay2.h
 )
 
 set_target_properties(GBSunnyPS2 PROPERTIES
