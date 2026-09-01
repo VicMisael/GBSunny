@@ -32,6 +32,9 @@ namespace frontend
             bool has_gameboy;
             bool paused;
             bool unlimited_speed;
+            bool show_run_one_frame_timing;
+            double run_one_frame_latest_ms;
+            double run_one_frame_average_ms;
         };
 
         Action draw(const ViewState& state, const Texture2D& texture, const Toast& toast);
