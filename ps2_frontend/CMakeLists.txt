@@ -41,6 +41,24 @@ set_target_properties(GBSunnyPS2 PROPERTIES
     SUFFIX ".elf"
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT LTO_SUPPORTED OUTPUT LTO_ERROR LANGUAGES CXX)
+    if(LTO_SUPPORTED)
+        set_property(TARGET CoreModule GBSunnyPS2 PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    else()
+        message(WARNING "LTO is unavailable: ${LTO_ERROR}")
+    endif()
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(TARGET GBSunnyPS2 POST_BUILD
+        COMMAND "${CMAKE_STRIP}" --strip-debug "$<TARGET_FILE:GBSunnyPS2>"
+        COMMENT "Stripping debug information from gbsunny.elf"
+        VERBATIM
+    )
+endif()
+
 target_compile_features(GBSunnyPS2 PRIVATE cxx_std_23)
 
 target_include_directories(GBSunnyPS2 PRIVATE

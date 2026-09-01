@@ -272,6 +272,7 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
 
     auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
     gb gameboy(rom_path, flags, nullptr, std::move(serial));
+
     gameboy.subscribe<CartridgeLoadedEvent>([](const CartridgeLoadedEvent& event) {
         std::cout << "Cartridge loaded: " << event.rom_name
                   << " (" << event.rom_type << ") from " << event.rom_path << '\n';

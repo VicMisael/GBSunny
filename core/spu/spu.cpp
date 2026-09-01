@@ -168,6 +168,7 @@ void spu::write_wave(uint16_t addr, uint8_t data)
 
 void spu::step(uint32_t cycles)
 {
+	return;
 	for (uint32_t cycle = 0; cycle < cycles; ++cycle) {
 		tick();
 	}

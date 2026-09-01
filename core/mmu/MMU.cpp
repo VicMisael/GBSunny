@@ -119,9 +119,6 @@ void mmu::MMU::init_read_mem_map()
 
 uint8_t mmu::MMU::read(uint16_t addr) const
 {
-	if (slowReadPath) [[unlikely]]
-		return read_slow(addr);
-
 	if (dma_active) [[unlikely]] {
 		if (addr < HRAM_START || addr > HRAM_END)
 			return 0xFF;
