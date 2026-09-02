@@ -1,6 +1,8 @@
 add_library(CoreModule STATIC gb.cpp
         cpu/cpu.cpp
         cpu/cpu.h
+        cpu/cpu_impl2.cpp
+        cpu/cpu_impl2.h
         cpu/register_file.cpp
         cpu/register_file.h
         mmu/MMU.cpp
@@ -26,8 +28,8 @@ add_library(CoreModule STATIC gb.cpp
         cartridge/boot_rom.h
         timer/gb_timer2.cpp
         timer/gb_timer2.h
-        timer/gb_timer.cpp
-        timer/gb_timer.h
+        timer/gb_timer3.cpp
+        timer/gb_timer3.h
         spu/spu.cpp
         spu/SpuChannelRegisters.h
         spu/SpuRegisterFile.h

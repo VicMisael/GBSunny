@@ -29,17 +29,17 @@ void gb_timer2::tick()
 	if(last_cycle_and_result && !andResult)
 	{
 
-			if (tima_reg == 0xFF) {
-				tima_reg = 0x00;
-				// Start reload sequence
-				tima_reload_pending = true;
-				tima_reload_delay = 4;
+		if (tima_reg == 0xFF) {
+			tima_reg = 0x00;
+			// Start reload sequence
+			tima_reload_pending = true;
+			tima_reload_delay = 4;
 
-			}
-			else {
-				tima_reg++;
-			}
-		
+		}
+		else {
+			tima_reg++;
+		}
+
 
 		// Handle delayed reload
 		if (tima_reload_pending) {
@@ -51,7 +51,7 @@ void gb_timer2::tick()
 		}
 
 		last_cycle_and_result = andResult;
-		
+
 	}
 
 
