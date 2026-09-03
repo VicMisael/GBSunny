@@ -57,10 +57,25 @@ void mmu::MMU::map_read_only_page(std::size_t page, const uint8_t* block) {
 	read_mem_regions[page] = block;
 }
 
-void mmu::MMU::on_boot_rom_control_set()
+void mmu::MMU::on_boot_rom_control_update()
 {
 	if (bootRomControl != 0) {
-			read_mem_regions[page_index(ROM0_START)] = nullptr;
+			on_rom0_bank_update();
+	}
+}
+
+void mmu::MMU::on_rom0_bank_update() {
+	if (bootRomControl == 0) {
+		return;
+	}
+
+	constexpr std::size_t rom0_start_page = page_index(ROM0_START);
+	const auto* base_page = _cartridge->rom0_data();
+	for (std::size_t page = 0; page < mapped_page_count(ROM0_START, ROM0_END); ++page) {
+		map_read_only_page(
+			rom0_start_page + page,
+			base_page ? base_page + (page * page_size) : nullptr
+		);
 	}
 }
 
@@ -105,6 +120,8 @@ void mmu::MMU::init_read_mem_map()
 	for (size_t page = 0; page < mapped_page_count(ECHO_WRAMX_START, ECHO_END); ++page) {
 		map_read_only_page(page_index(ECHO_WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
 	}
+
+
 
 	// Map according to the PPU's current access state.
 	on_ppu_vram_access_set(true);
@@ -316,7 +333,7 @@ void mmu::MMU::io_write(uint16_t addr, uint8_t data) {
 		return;
 	case 0xFF50: /* Boot ROM disable register */
 		bootRomControl = data;
-		on_boot_rom_control_set();
+		on_boot_rom_control_update();
 		return;
 	default:
 		break;

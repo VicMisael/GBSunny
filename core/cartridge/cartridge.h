@@ -38,6 +38,7 @@
 #include <span>
 #include <array>
 #include <cstdint>
+#include <functional>
 
 class Cartridge {
 public:
@@ -50,13 +51,18 @@ public:
     virtual void write(const uint16_t &address, uint8_t value) = 0;
     [[nodiscard]] virtual uint8_t read_sram(uint16_t addr) const = 0;
     virtual void write_sram(uint16_t addr,uint8_t value) = 0;
+    [[nodiscard]] virtual const uint8_t* rom0_data() const = 0;
 
     static std::shared_ptr<Cartridge> get_cartridge(const std::string &path);
     static std::shared_ptr<Cartridge> get_cartridge(const std::string &path,
                                                     EmulatorEventAggregator& event_bus);
     std::unique_ptr<CartridgeInfo> cartridge_info;
 
+    void set_rom0_bank_update_callback(std::function<void()> callback);
+
 protected:
+    void notify_rom0_bank_update() const;
+
     [[nodiscard]] static uint8_t read_rom_byte(const std::vector<uint8_t>& rom,
                                                uint16_t bank,
                                                uint16_t address);
@@ -69,6 +75,8 @@ protected:
                                uint8_t value);
     [[nodiscard]] uint16_t rom_bank_count(const std::vector<uint8_t>& rom) const;
     [[nodiscard]] uint8_t ram_bank_count(const std::vector<uint8_t>& ram) const;
+
+    std::function<void()> rom0_bank_update_callback;
 };
 
 
@@ -83,6 +91,7 @@ public:
 
     void write_sram(uint16_t addr,uint8_t value) override;
     void write(const uint16_t &address, uint8_t value) override;
+    [[nodiscard]] const uint8_t* rom0_data() const override;
 private:
     std::vector<uint8_t> rom;
     std::vector<uint8_t> ram;
@@ -103,6 +112,7 @@ public:
 
     [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
     void write_sram(uint16_t addr, uint8_t value) override;
+    [[nodiscard]] const uint8_t* rom0_data() const override;
 
 private:
     std::vector<uint8_t> rom;
@@ -129,6 +139,7 @@ public:
 
     [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
     void write_sram(uint16_t addr, uint8_t value) override;
+    [[nodiscard]] const uint8_t* rom0_data() const override;
 
 
 
@@ -151,6 +162,7 @@ public:
 
     [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
     void write_sram(uint16_t addr, uint8_t value) override;
+    [[nodiscard]] const uint8_t* rom0_data() const override;
 
 
 
@@ -188,6 +200,7 @@ public:
 
     [[nodiscard]] uint8_t read_sram(uint16_t addr) const override;
     void write_sram(uint16_t addr, uint8_t value) override;
+    [[nodiscard]] const uint8_t* rom0_data() const override;
 
 private:
     std::vector<uint8_t> rom;

@@ -2,9 +2,15 @@
 project(GBAsunny)
 
 set(CMAKE_CXX_STANDARD 23)
+option(GBSUNNY_BUILD_BENCHMARKS "Build GBSunny microbenchmarks" ON)
+
 find_package(raylib CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 add_subdirectory(core)
+
+if(GBSUNNY_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
 
 
 

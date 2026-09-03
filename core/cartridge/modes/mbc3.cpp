@@ -16,6 +16,10 @@ uint8_t MBC3::read(const uint16_t& address) const
 	return read_rom_byte(rom, current_rom_bank % rom_bank_count(rom), address);
 }
 
+const uint8_t* MBC3::rom0_data() const {
+	return rom.empty() ? nullptr : rom.data();
+}
+
 void MBC3::write(const uint16_t& address, uint8_t value)
 {
 	if (address <= 0x1FFF) {

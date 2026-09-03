@@ -82,6 +82,9 @@ namespace mmu {
 			_ppu->set_dma_callback([this](bool active) {
 				on_ppu_dma(active);
 			});
+			_cartridge->set_rom0_bank_update_callback([this] {
+				on_rom0_bank_update();
+			});
             init_read_mem_map();
         }
 
@@ -89,6 +92,9 @@ namespace mmu {
 			if (_ppu) {
 				_ppu->set_vram_access_callback({});
 				_ppu->set_dma_callback({});
+			}
+			if (_cartridge) {
+				_cartridge->set_rom0_bank_update_callback({});
 			}
 		}
 
@@ -102,7 +108,10 @@ namespace mmu {
 
 #pragma region Memory Mapping
         void map_read_only_page(std::size_t page, const uint8_t* block);
-        void on_boot_rom_control_set();
+        void on_boot_rom_control_update();
+
+        void on_rom0_bank_update();
+
         void on_rom_bank_swap();
         void on_ppu_vram_access_set(bool enable);
         void on_ppu_dma(bool active);

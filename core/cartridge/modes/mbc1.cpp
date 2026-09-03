@@ -21,10 +21,18 @@ void MBC1::write(const uint16_t& address, uint8_t value) {
         if (lower_rom_bank_bits == 0) lower_rom_bank_bits = 1;
     }
     else if (address <= 0x5FFF) {
-        upper_bank_bits = value & 0x03;
+        const uint8_t new_upper_bank_bits = value & 0x03;
+        if (upper_bank_bits != new_upper_bank_bits) {
+            upper_bank_bits = new_upper_bank_bits;
+            notify_rom0_bank_update();
+        }
     }
     else if (address <= 0x7FFF) {
-        advanced_banking_mode = (value & 0x01) == 1;
+        const bool new_advanced_banking_mode = (value & 0x01) == 1;
+        if (advanced_banking_mode != new_advanced_banking_mode) {
+            advanced_banking_mode = new_advanced_banking_mode;
+            notify_rom0_bank_update();
+        }
     }
 }
 
@@ -34,6 +42,15 @@ uint8_t MBC1::read(const uint16_t& address) const {
     }
 
     return read_rom_byte(rom, switchable_rom_bank(), address);
+}
+
+const uint8_t* MBC1::rom0_data() const {
+    const auto offset = static_cast<uint32_t>(fixed_rom_bank()) * 0x4000;
+    if (rom.empty() || offset >= rom.size()) {
+        return nullptr;
+    }
+
+    return rom.data() + offset;
 }
 
 void MBC1::write_sram(uint16_t addr, uint8_t value) {

@@ -78,6 +78,16 @@ Cartridge::Cartridge(std::unique_ptr<CartridgeInfo> in_cartridge_info)
     : cartridge_info(std::move(in_cartridge_info)) {
 }
 
+void Cartridge::set_rom0_bank_update_callback(std::function<void()> callback) {
+    rom0_bank_update_callback = std::move(callback);
+}
+
+void Cartridge::notify_rom0_bank_update() const {
+    if (rom0_bank_update_callback) {
+        rom0_bank_update_callback();
+    }
+}
+
 uint8_t Cartridge::read_rom_byte(const std::vector<uint8_t>& rom, uint16_t bank, uint16_t address) {
     if (rom.empty()) {
         return 0xFF;
@@ -167,6 +177,10 @@ auto NoMBC::read(const uint16_t &addr) const -> uint8_t {
     return rom[addr];
 }
 
+const uint8_t* NoMBC::rom0_data() const {
+    return rom.empty() ? nullptr : rom.data();
+}
+
 uint8_t NoMBC::read_sram(uint16_t addr) const
 {
     if (addr < 0xA000 || addr > 0xBFFF) {
@@ -174,4 +188,3 @@ uint8_t NoMBC::read_sram(uint16_t addr) const
     }
     return read_ram_byte(ram, 0, addr);
 }
-
