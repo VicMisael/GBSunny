@@ -79,6 +79,17 @@ void mmu::MMU::on_rom0_bank_update() {
 	}
 }
 
+void mmu::MMU::on_romx_bank_update() {
+	constexpr std::size_t romx_start_page = page_index(ROMX_START);
+	const auto* base_page = _cartridge->romx_data();
+	for (std::size_t page = 0; page < mapped_page_count(ROMX_START, ROMX_END); ++page) {
+		map_read_only_page(
+			romx_start_page + page,
+			base_page ? base_page + (page * page_size) : nullptr
+		);
+	}
+}
+
 void mmu::MMU::on_rom_bank_swap()
 {
 }
@@ -110,6 +121,7 @@ void mmu::MMU::init_read_mem_map()
 	//ROM 0
 
 	map_read_only_page(page_index(ROM0_START), cartridge::bootDMG.data());
+	on_romx_bank_update();
 
 	for (size_t page = 0; page < mapped_page_count(WRAM0_START, WRAM0_END); ++page) {
 		map_read_only_page(page_index(WRAM0_START) + page, internal_RAM.data() + (page * page_size));

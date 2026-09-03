@@ -85,6 +85,9 @@ namespace mmu {
 			_cartridge->set_rom0_bank_update_callback([this] {
 				on_rom0_bank_update();
 			});
+			_cartridge->set_romx_bank_update_callback([this] {
+				on_romx_bank_update();
+			});
             init_read_mem_map();
         }
 
@@ -95,6 +98,7 @@ namespace mmu {
 			}
 			if (_cartridge) {
 				_cartridge->set_rom0_bank_update_callback({});
+				_cartridge->set_romx_bank_update_callback({});
 			}
 		}
 
@@ -111,6 +115,8 @@ namespace mmu {
         void on_boot_rom_control_update();
 
         void on_rom0_bank_update();
+
+        void on_romx_bank_update();
 
         void on_rom_bank_swap();
         void on_ppu_vram_access_set(bool enable);
