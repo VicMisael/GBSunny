@@ -5,7 +5,8 @@
 #include <timer/gb_timer.h>
 #include <timer/gb_timer2.h>
 #include <events/events.h>
-#include <shared/hardware_constants.h>
+#include <shared/hardware_constants.h>	
+#include "cpu/cpu_impl2.h" // ajuste caminho conforme sua árvore de fontes
 //
 // Created by Misael on 07/03/2025.
 //
@@ -60,7 +61,7 @@ gb::gb(const std::string& rompath,
 		_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial, _joypad, _logger,
 		_flags.useSlowReadPath);
 
-	_cpu = std::make_unique<::cpu::cpu>(_mmu, _interrupt_controller, _logger);
+	_cpu = std::make_unique<::cpu::CPUImpl2>(_mmu, _interrupt_controller, _logger);
 
 
 

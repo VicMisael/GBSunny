@@ -5,6 +5,7 @@
 #ifndef GB_H
 #define GB_H
 #include "cpu/cpu.h"
+#include "cpu/cpu_impl2.h"
 #include "joypad/joypad.h"
 #include "spu/spu.h"
 #include "utils/emu_flags.h"
@@ -24,7 +25,7 @@ class gb {
     std::shared_ptr<shared::interrupt> _interrupt_controller;
     std::shared_ptr<PPU_Base> _ppu;
     std::shared_ptr<base_timer> _timer;
-    std::unique_ptr<cpu::cpu> _cpu;
+    std::unique_ptr<cpu::ICPU> _cpu;
     std::shared_ptr<spu> _spu;
     std::shared_ptr<serial::GBSerial> _serial;
     std::shared_ptr<Joypad> _joypad;
