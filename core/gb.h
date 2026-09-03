@@ -38,7 +38,7 @@ class gb {
 public:
     std::shared_ptr<mmu::MMU> _mmu;
     explicit gb(const std::string& rompath,
-                EmuFlags flags = { false, true, true, false },
+                EmuFlags flags = { false, true, true },
                 std::shared_ptr<logging::CoreLogger> logger = nullptr,
                 std::shared_ptr<serial::GBSerial> serial = nullptr);
     template <typename EventType>

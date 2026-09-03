@@ -63,10 +63,9 @@ namespace mmu {
             const std::shared_ptr<spu>& spu_ptr,
             std::shared_ptr<serial::GBSerial> serial_ptr,
             std::shared_ptr<Joypad> joypad_ptr,
-            std::shared_ptr<logging::CoreLogger> logger = nullptr,
-            bool use_slow_read_path = true
+            std::shared_ptr<logging::CoreLogger> logger = nullptr
 
-        ) : slowReadPath(use_slow_read_path),
+        ) :
             _ppu(std::move(ppu_ptr)), _timer(timer_ptr), _cartridge(cart),
             _spu(spu_ptr),
             _serial(std::move(serial_ptr)),

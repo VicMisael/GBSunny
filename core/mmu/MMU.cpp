@@ -138,8 +138,6 @@ void mmu::MMU::init_read_mem_map()
 
 uint8_t mmu::MMU::read(uint16_t addr) const
 {
-	if (slowReadPath) [[unlikely]]
-		return read_slow(addr);
 
 	if (dma_active) [[unlikely]] {
 		if (addr < HRAM_START || addr > HRAM_END)
@@ -148,8 +146,9 @@ uint8_t mmu::MMU::read(uint16_t addr) const
 
 	const auto& page = read_mem_regions[addr >> 8];
 
-	if (!page) [[unlikely]]
+	if (!page) [[unlikely]] {
 		return read_slow(addr);
+	}
 
 	return page[addr & 0xFF];
 }
