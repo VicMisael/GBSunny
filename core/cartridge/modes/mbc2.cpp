@@ -3,7 +3,7 @@
 #include "utils/utils.h"
 
 MBC2::MBC2(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info)
-	:rom(std::move(rom_data)), Cartridge(std::move(in_cartridge_info)) {
+	: Cartridge(std::move(in_cartridge_info)), rom(std::move(rom_data)) {
 
 }
 

@@ -54,7 +54,7 @@ gb::gb(const std::string& rompath,
 	_spu = std::make_shared<spu>(_interrupt_controller);
 	_joypad = std::make_shared<Joypad>(_interrupt_controller);
 
-	_cartridge = std::move(Cartridge::get_cartridge(rompath, bus));
+	_cartridge = Cartridge::get_cartridge(rompath, bus);
 
 
 	_mmu = std::make_shared<mmu::MMU>(

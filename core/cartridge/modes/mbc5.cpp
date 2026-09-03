@@ -2,7 +2,7 @@
 #include "utils/utils.h"
 
 MBC5::MBC5(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info)
-	: rom(std::move(rom_data)), Cartridge(std::move(in_cartridge_info)) {
+	: Cartridge(std::move(in_cartridge_info)), rom(std::move(rom_data)) {
 	ram.resize(get_actual_ram_size(cartridge_info->ram_size));
 }
 

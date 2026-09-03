@@ -16,23 +16,13 @@ constexpr uint16_t ROMX_START = 0x4000;
 constexpr uint16_t ROMX_END = 0x7FFF;
 constexpr uint16_t VRAM_START = 0x8000;
 constexpr uint16_t VRAM_END = 0x9FFF;
-constexpr uint16_t SRAM_START = 0xA000;
-constexpr uint16_t SRAM_END = 0xBFFF;
 constexpr uint16_t WRAM0_START = 0xC000;
 constexpr uint16_t WRAM0_END = 0xCFFF;
 constexpr uint16_t WRAMX_START = 0xD000;
-constexpr uint16_t WRAMX_END = 0xDFFF;
 constexpr uint16_t ECHO_START = 0xE000;
 constexpr uint16_t ECHO_END = 0xFDFF;
-constexpr uint16_t OAM_START = 0xFE00;
-constexpr uint16_t OAM_END = 0xFE9F;
-constexpr uint16_t UNUSED_START = 0xFEA0;
-constexpr uint16_t UNUSED_END = 0xFEFF;
-constexpr uint16_t IO_REG_START = 0xFF00;
-constexpr uint16_t IO_REG_END = 0xFF7F;
 constexpr uint16_t HRAM_START = 0xFF80;
 constexpr uint16_t HRAM_END = 0xFFFE;
-constexpr uint16_t IE_REGISTER = 0xFFFF;
 
 constexpr std::size_t page_index(uint16_t address) {
 	return address / mmu::page_size;

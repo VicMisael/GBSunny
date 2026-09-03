@@ -100,10 +100,10 @@ protected:
 	std::function<void(bool)> dma_changed_callback{};
 
 	const std::array<ppu_types::rgba, 4> colors = {
-			0xFFFFFFFF, // White
-			0xC0C0C0FF, // Light gray
-			0x606060FF, // Dark gray
-			0x000000FF  // Black
+			ppu_types::rgba{.value = 0xFFFFFFFF}, // White
+			ppu_types::rgba{.value = 0xC0C0C0FF}, // Light gray
+			ppu_types::rgba{.value = 0x606060FF}, // Dark gray
+			ppu_types::rgba{.value = 0x000000FF}  // Black
 	}
 	;
 

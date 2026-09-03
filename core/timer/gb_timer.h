@@ -14,7 +14,7 @@
 class gb_timer:public base_timer {
     public:
     gb_timer( const std::shared_ptr<shared::interrupt>& interrupt_controller):interrupt_controller(interrupt_controller){};
-    [[nodiscard]] uint8_t read(uint16_t addr) const;
+    [[nodiscard]] uint8_t read(uint16_t addr) const override;
     void write(uint16_t addr, uint8_t data) override;
 
     void reset() override;

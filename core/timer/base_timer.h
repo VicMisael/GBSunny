@@ -3,6 +3,7 @@
 class base_timer
 {
 public:
+	virtual ~base_timer() = default;
 	virtual  uint8_t read(uint16_t addr) const = 0;
 	virtual void write(uint16_t addr, uint8_t data) = 0;
 	virtual void reset() = 0;

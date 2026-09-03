@@ -9,6 +9,12 @@
 
 namespace ppu_types {
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#pragma clang diagnostic ignored "-Wnested-anon-types"
+#endif
+
 	enum ppu_mode {
 		HBLANK = 0,
 		VBLANK = 1,
@@ -147,4 +153,8 @@ namespace ppu_types {
 			return data | 0b10000000;
 		}
 	};
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 }

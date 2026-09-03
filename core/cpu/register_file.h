@@ -16,6 +16,11 @@ namespace cpu {
     //Assumes LittleEndian
     static_assert(std::endian::native == std::endian::little,
         "register_file assumes little-endian layout");
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#pragma clang diagnostic ignored "-Wnested-anon-types"
+#endif
     class register_file {
     public:
         register_file();
@@ -101,6 +106,9 @@ namespace cpu {
 
         // Exam
     };
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 }
 
 

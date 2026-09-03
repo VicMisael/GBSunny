@@ -6,7 +6,7 @@
 
 
 MBC1::MBC1(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info)
-    : rom(std::move(rom_data)),Cartridge( std::move(in_cartridge_info)) {
+    : Cartridge(std::move(in_cartridge_info)), rom(std::move(rom_data)) {
     const uint32_t ram_size_bytes = get_actual_ram_size(cartridge_info->ram_size);
     ram.resize(ram_size_bytes);
     lower_rom_bank_bits = 1;

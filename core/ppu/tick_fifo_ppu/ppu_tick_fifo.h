@@ -122,7 +122,7 @@ private:
 
 
 		[[nodiscard]] bool render_complete() const {
-			return current_x > gb_hardware::display::Width;
+			return current_x > static_cast<int>(gb_hardware::display::Width);
 		}
 
 

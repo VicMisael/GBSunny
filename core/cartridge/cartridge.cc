@@ -163,7 +163,7 @@ std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path,
 
 NoMBC::NoMBC(std::vector<uint8_t> rom_data,
              std::unique_ptr<CartridgeInfo> in_cartridge_info)
-    : rom(std::move(rom_data)),Cartridge(std::move(in_cartridge_info)) {
+    : Cartridge(std::move(in_cartridge_info)), rom(std::move(rom_data)) {
     if (cartridge_info->has_ram) {
         ram.resize(get_actual_ram_size(cartridge_info->ram_size));
     }
@@ -177,7 +177,7 @@ void NoMBC::write_sram(uint16_t addr,uint8_t value)
     write_ram_byte(ram, 0, addr, value);
 }
 
-void NoMBC::write(const uint16_t &uint16_t, uint8_t value) {
+void NoMBC::write(const uint16_t&, uint8_t) {
 }
 
 auto NoMBC::read(const uint16_t &addr) const -> uint8_t {
