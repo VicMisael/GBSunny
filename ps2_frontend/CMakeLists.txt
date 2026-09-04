@@ -22,6 +22,15 @@ add_subdirectory(
     "${CMAKE_CURRENT_BINARY_DIR}/core"
 )
 
+add_executable(cpu_benchmark
+    "${GBSUNNY_ROOT}/benchmarks/cpu_benchmark.cpp"
+)
+
+set_target_properties(cpu_benchmark PROPERTIES
+    OUTPUT_NAME "cpu_benchmark"
+    SUFFIX ".elf"
+)
+
 add_executable(GBSunnyPS2
     main_ps2.cpp
     performance_overlay.cpp
@@ -57,12 +66,22 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         COMMENT "Stripping debug information from gbsunny.elf"
         VERBATIM
     )
+    add_custom_command(TARGET cpu_benchmark POST_BUILD
+        COMMAND "${CMAKE_STRIP}" --strip-debug "$<TARGET_FILE:cpu_benchmark>"
+        COMMENT "Stripping debug information from cpu_benchmark.elf"
+        VERBATIM
+    )
 endif()
 
+target_compile_features(cpu_benchmark PRIVATE cxx_std_23)
 target_compile_features(GBSunnyPS2 PRIVATE cxx_std_23)
 
 target_include_directories(GBSunnyPS2 PRIVATE
     "${GBSUNNY_ROOT}"
+)
+
+target_link_libraries(cpu_benchmark PRIVATE
+    CoreModule
 )
 
 target_link_libraries(GBSunnyPS2 PRIVATE
