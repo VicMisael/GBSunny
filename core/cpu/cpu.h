@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <utility>
 #include <memory>
+#include "icpu.h"
 
 namespace cpu {
 
@@ -27,14 +28,7 @@ namespace cpu {
 		[[nodiscard]] constexpr uint8_t q() const { return (opcode >> 3) & 0x01; }
 	};
 
-	class ICPU {
-	public:
-		virtual ~ICPU() = default;
-		virtual void reset() = 0;
-		virtual uint32_t step() = 0;
-	};
-
-	class cpu : public ICPU {
+	class cpu final: public ICPU {
 		std::shared_ptr<mmu::MMU> _mmu;
 		register_file _registers;
 		std::shared_ptr<shared::interrupt> interrupt_control; //Shared space for interrupts

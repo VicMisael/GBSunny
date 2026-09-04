@@ -7,6 +7,10 @@
 #include <cstdint>
 #include <bitset>
 namespace shared{
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#endif
     union interrupt_register{
         uint8_t flag;
         //std::bitset<8> bitset;
@@ -19,5 +23,8 @@ namespace shared{
             uint8_t _padding : 3;
         };
     };
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 }
 #endif //TYPES_H

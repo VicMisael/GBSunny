@@ -1,0 +1,3 @@
+add_executable(cpu_benchmark cpu_benchmark.cpp)
+target_link_libraries(cpu_benchmark PRIVATE CoreModule)
+target_compile_features(cpu_benchmark PRIVATE cxx_std_23)

@@ -39,7 +39,7 @@ public:
     [[nodiscard]] bool is_oam_accessible() const final;
 
     // Interface for the frontend to get the final image
-    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const;
+    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const override;
 
 
 

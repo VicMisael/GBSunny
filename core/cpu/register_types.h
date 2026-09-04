@@ -9,6 +9,10 @@
 namespace cpu
 {
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#endif
     union f_reg {
         uint8_t f;
 
@@ -40,5 +44,8 @@ namespace cpu
             this->f &= 0x0f;
         }
     };
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 }
 #endif //REGISTER_TYPES_H

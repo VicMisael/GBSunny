@@ -2,7 +2,23 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "GBSunny (active CMake preset)",
+      "name": "Windows: Debug (MSVC)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${env:PATH};${command:cmake.getLaunchTargetDirectory}"
+        }
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Linux: Debug (GDB)",
       "type": "cppdbg",
       "request": "launch",
       "program": "${command:cmake.launchTargetPath}",
@@ -14,11 +30,28 @@
       "MIMode": "gdb",
       "setupCommands": [
         {
-          "description": "Enable GDB pretty-printing",
+          "description": "Use Intel assembly syntax",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Enable pretty-printing for gdb",
           "text": "-enable-pretty-printing",
           "ignoreFailures": true
         }
       ]
+     },
+    {
+      "name": "macOS: Debug (LLDB)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb"
     }
   ]
 }

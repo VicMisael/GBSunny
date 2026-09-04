@@ -17,8 +17,8 @@ class gb_timer2:public base_timer {
     [[nodiscard]] uint8_t read(uint16_t addr) const override;
     void write(uint16_t addr, uint8_t data) override;
 
-    void reset();
-    void tick();
+    void reset() override;
+    void tick() override;
     void step(uint32_t cycles) override;
 
 

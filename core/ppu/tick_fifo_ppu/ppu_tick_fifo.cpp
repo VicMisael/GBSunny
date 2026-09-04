@@ -72,7 +72,7 @@ void inline ppu_tick_fifo::tick()
 		break;
 	}
 	case ppu_types::DRAWING: {
-		if (state.current_x < gb_hardware::display::Width && state.drawing_cycles++ < DRAWING_MAX_CYCLES) { // Avoid locking on disabled cycles
+			if (state.current_x < static_cast<int>(gb_hardware::display::Width) && state.drawing_cycles++ < DRAWING_MAX_CYCLES) { // Avoid locking on disabled cycles
 			render_scanline();
 			break;
 		}
@@ -132,7 +132,7 @@ inline void ppu_tick_fifo::oam_scan()
 		check_lyc_coincidence();
 	}
 	state.oam_cycle++;
-	if (state.oam_cycle >= gb_hardware::ppu::OamScanDots) {
+	if (state.oam_cycle >= static_cast<int>(gb_hardware::ppu::OamScanDots)) {
 		sprite_buffer.clear();
 		fill_oam_buffer();
 		set_mode(ppu_types::DRAWING);

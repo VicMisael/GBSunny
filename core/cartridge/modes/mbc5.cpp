@@ -2,7 +2,7 @@
 #include "utils/utils.h"
 
 MBC5::MBC5(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info)
-	: rom(std::move(rom_data)), Cartridge(std::move(in_cartridge_info)) {
+	: Cartridge(std::move(in_cartridge_info)), rom(std::move(rom_data)) {
 	ram.resize(get_actual_ram_size(cartridge_info->ram_size));
 }
 
@@ -14,17 +14,38 @@ uint8_t MBC5::read(const uint16_t& address) const {
 	return read_rom_byte(rom, current_rom_bank % rom_bank_count(rom), address);
 }
 
+const uint8_t* MBC5::rom0_data() const {
+	return rom.empty() ? nullptr : rom.data();
+}
+
+const uint8_t* MBC5::romx_data() const {
+	const auto offset = static_cast<uint32_t>(current_rom_bank) * 0x4000;
+	if (rom.empty() || offset >= rom.size()) {
+		return nullptr;
+	}
+
+	return rom.data() + offset;
+}
+
 void MBC5::write(const uint16_t& address, uint8_t value) {
 	if (address <= 0x1FFF) {
 		ram_enabled = (value & 0x0F) == 0x0A;
 	}
 	else if (address <= 0x2FFF) {
-		current_rom_bank = (current_rom_bank & 0x100) | value;
-		current_rom_bank %= rom_bank_count(rom);
+		auto new_current_rom_bank = static_cast<uint16_t>((current_rom_bank & 0x100) | value);
+		new_current_rom_bank %= rom_bank_count(rom);
+		if (current_rom_bank != new_current_rom_bank) {
+			current_rom_bank = new_current_rom_bank;
+			notify_romx_bank_update();
+		}
 	}
 	else if (address <= 0x3FFF) {
-		current_rom_bank = (current_rom_bank & 0x0FF) | ((value & 0x01) << 8);
-		current_rom_bank %= rom_bank_count(rom);
+		auto new_current_rom_bank = static_cast<uint16_t>((current_rom_bank & 0x0FF) | ((value & 0x01) << 8));
+		new_current_rom_bank %= rom_bank_count(rom);
+		if (current_rom_bank != new_current_rom_bank) {
+			current_rom_bank = new_current_rom_bank;
+			notify_romx_bank_update();
+		}
 	}
 	else if (address <= 0x5FFF) {
 		if (cartridge_info->has_rumble) {

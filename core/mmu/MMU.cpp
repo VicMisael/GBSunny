@@ -16,23 +16,13 @@ constexpr uint16_t ROMX_START = 0x4000;
 constexpr uint16_t ROMX_END = 0x7FFF;
 constexpr uint16_t VRAM_START = 0x8000;
 constexpr uint16_t VRAM_END = 0x9FFF;
-constexpr uint16_t SRAM_START = 0xA000;
-constexpr uint16_t SRAM_END = 0xBFFF;
 constexpr uint16_t WRAM0_START = 0xC000;
 constexpr uint16_t WRAM0_END = 0xCFFF;
 constexpr uint16_t WRAMX_START = 0xD000;
-constexpr uint16_t WRAMX_END = 0xDFFF;
 constexpr uint16_t ECHO_START = 0xE000;
 constexpr uint16_t ECHO_END = 0xFDFF;
-constexpr uint16_t OAM_START = 0xFE00;
-constexpr uint16_t OAM_END = 0xFE9F;
-constexpr uint16_t UNUSED_START = 0xFEA0;
-constexpr uint16_t UNUSED_END = 0xFEFF;
-constexpr uint16_t IO_REG_START = 0xFF00;
-constexpr uint16_t IO_REG_END = 0xFF7F;
 constexpr uint16_t HRAM_START = 0xFF80;
 constexpr uint16_t HRAM_END = 0xFFFE;
-constexpr uint16_t IE_REGISTER = 0xFFFF;
 
 constexpr std::size_t page_index(uint16_t address) {
 	return address / mmu::page_size;
@@ -57,15 +47,37 @@ void mmu::MMU::map_read_only_page(std::size_t page, const uint8_t* block) {
 	read_mem_regions[page] = block;
 }
 
-void mmu::MMU::on_boot_rom_control_set()
+void mmu::MMU::on_boot_rom_control_update()
 {
 	if (bootRomControl != 0) {
-			read_mem_regions[page_index(ROM0_START)] = nullptr;
+			on_rom0_bank_update();
 	}
 }
 
-void mmu::MMU::on_rom_bank_swap()
-{
+void mmu::MMU::on_rom0_bank_update() {
+	if (bootRomControl == 0) {
+		return;
+	}
+
+	constexpr std::size_t rom0_start_page = page_index(ROM0_START);
+	const auto* base_page = _cartridge->rom0_data();
+	for (std::size_t page = 0; page < mapped_page_count(ROM0_START, ROM0_END); ++page) {
+		map_read_only_page(
+			rom0_start_page + page,
+			base_page ? base_page + (page * page_size) : nullptr
+		);
+	}
+}
+
+void mmu::MMU::on_romx_bank_update() {
+	constexpr std::size_t romx_start_page = page_index(ROMX_START);
+	const auto* base_page = _cartridge->romx_data();
+	for (std::size_t page = 0; page < mapped_page_count(ROMX_START, ROMX_END); ++page) {
+		map_read_only_page(
+			romx_start_page + page,
+			base_page ? base_page + (page * page_size) : nullptr
+		);
+	}
 }
 
 void mmu::MMU::on_ppu_vram_access_set(bool enable)
@@ -95,6 +107,7 @@ void mmu::MMU::init_read_mem_map()
 	//ROM 0
 
 	map_read_only_page(page_index(ROM0_START), cartridge::bootDMG.data());
+	on_romx_bank_update();
 
 	for (size_t page = 0; page < mapped_page_count(WRAM0_START, WRAM0_END); ++page) {
 		map_read_only_page(page_index(WRAM0_START) + page, internal_RAM.data() + (page * page_size));
@@ -105,6 +118,8 @@ void mmu::MMU::init_read_mem_map()
 	for (size_t page = 0; page < mapped_page_count(ECHO_WRAMX_START, ECHO_END); ++page) {
 		map_read_only_page(page_index(ECHO_WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
 	}
+
+
 
 	// Map according to the PPU's current access state.
 	on_ppu_vram_access_set(true);
@@ -126,8 +141,9 @@ uint8_t mmu::MMU::read(uint16_t addr) const
 
 	const auto& page = read_mem_regions[addr >> 8];
 
-	if (!page) [[unlikely]]
+	if (!page) [[unlikely]] {
 		return read_slow(addr);
+	}
 
 	return page[addr & 0xFF];
 }
@@ -313,7 +329,7 @@ void mmu::MMU::io_write(uint16_t addr, uint8_t data) {
 		return;
 	case 0xFF50: /* Boot ROM disable register */
 		bootRomControl = data;
-		on_boot_rom_control_set();
+		on_boot_rom_control_update();
 		return;
 	default:
 		break;

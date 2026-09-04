@@ -3,7 +3,7 @@
 #include "utils/utils.h"
 
 MBC3::MBC3(std::vector<uint8_t> rom_data, std::unique_ptr<CartridgeInfo> in_cartridge_info)
-	:rom(std::move(rom_data)), Cartridge(std::move(in_cartridge_info)) {
+	: Cartridge(std::move(in_cartridge_info)), rom(std::move(rom_data)) {
 	ram.resize(get_actual_ram_size(cartridge_info->ram_size));
 }
 
@@ -16,16 +16,33 @@ uint8_t MBC3::read(const uint16_t& address) const
 	return read_rom_byte(rom, current_rom_bank % rom_bank_count(rom), address);
 }
 
+const uint8_t* MBC3::rom0_data() const {
+	return rom.empty() ? nullptr : rom.data();
+}
+
+const uint8_t* MBC3::romx_data() const {
+	const auto offset = static_cast<uint32_t>(current_rom_bank) * 0x4000;
+	if (rom.empty() || offset >= rom.size()) {
+		return nullptr;
+	}
+
+	return rom.data() + offset;
+}
+
 void MBC3::write(const uint16_t& address, uint8_t value)
 {
 	if (address <= 0x1FFF) {
 		ram_enabled = (value & 0x0F) == 0x0A;
 	}
 	else if (address <= 0x3FFF) {
-		current_rom_bank = value & 0x7F;
-		if (current_rom_bank == 0) current_rom_bank = 1;
-		current_rom_bank %= rom_bank_count(rom);
-		if (current_rom_bank == 0) current_rom_bank = 1;
+		auto new_current_rom_bank = static_cast<uint8_t>(value & 0x7F);
+		if (new_current_rom_bank == 0) new_current_rom_bank = 1;
+		new_current_rom_bank %= rom_bank_count(rom);
+		if (new_current_rom_bank == 0) new_current_rom_bank = 1;
+		if (current_rom_bank != new_current_rom_bank) {
+			current_rom_bank = new_current_rom_bank;
+			notify_romx_bank_update();
+		}
 	}
 	else if (address <= 0x5FFF) {
 		selected_ram_or_rtc = value;

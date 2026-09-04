@@ -70,10 +70,10 @@ namespace cpu {
 		void RET();
 		void POP(uint16_t& regref);
 
-		uint8_t& reg_ref(uint8_t index);
-		uint8_t reg_readonly(uint8_t index) const;
-		uint16_t& reg16_sp_ref(uint8_t index);
-		uint16_t& reg16_af_ref(uint8_t index);
+		constexpr uint8_t& reg_ref(uint8_t index);
+		constexpr uint8_t reg_readonly(uint8_t index) const;
+		constexpr uint16_t& reg16_sp_ref(uint8_t index);
+		constexpr uint16_t& reg16_af_ref(uint8_t index);
 		bool readflag_tbl(uint8_t id) const;
 		uint16_t r16mem(uint16_t index);
 		bool waiting_interrupt() const;

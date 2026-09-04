@@ -78,6 +78,26 @@ Cartridge::Cartridge(std::unique_ptr<CartridgeInfo> in_cartridge_info)
     : cartridge_info(std::move(in_cartridge_info)) {
 }
 
+void Cartridge::set_rom0_bank_update_callback(std::function<void()> callback) {
+    rom0_bank_update_callback = std::move(callback);
+}
+
+void Cartridge::set_romx_bank_update_callback(std::function<void()> callback) {
+    romx_bank_update_callback = std::move(callback);
+}
+
+void Cartridge::notify_rom0_bank_update() const {
+    if (rom0_bank_update_callback) {
+        rom0_bank_update_callback();
+    }
+}
+
+void Cartridge::notify_romx_bank_update() const {
+    if (romx_bank_update_callback) {
+        romx_bank_update_callback();
+    }
+}
+
 uint8_t Cartridge::read_rom_byte(const std::vector<uint8_t>& rom, uint16_t bank, uint16_t address) {
     if (rom.empty()) {
         return 0xFF;
@@ -143,7 +163,7 @@ std::shared_ptr<Cartridge> Cartridge::get_cartridge(const std::string &path,
 
 NoMBC::NoMBC(std::vector<uint8_t> rom_data,
              std::unique_ptr<CartridgeInfo> in_cartridge_info)
-    : rom(std::move(rom_data)),Cartridge(std::move(in_cartridge_info)) {
+    : Cartridge(std::move(in_cartridge_info)), rom(std::move(rom_data)) {
     if (cartridge_info->has_ram) {
         ram.resize(get_actual_ram_size(cartridge_info->ram_size));
     }
@@ -157,7 +177,7 @@ void NoMBC::write_sram(uint16_t addr,uint8_t value)
     write_ram_byte(ram, 0, addr, value);
 }
 
-void NoMBC::write(const uint16_t &uint16_t, uint8_t value) {
+void NoMBC::write(const uint16_t&, uint8_t) {
 }
 
 auto NoMBC::read(const uint16_t &addr) const -> uint8_t {
@@ -167,6 +187,14 @@ auto NoMBC::read(const uint16_t &addr) const -> uint8_t {
     return rom[addr];
 }
 
+const uint8_t* NoMBC::rom0_data() const {
+    return rom.empty() ? nullptr : rom.data();
+}
+
+const uint8_t* NoMBC::romx_data() const {
+    return rom.size() > 0x4000 ? rom.data() + 0x4000 : nullptr;
+}
+
 uint8_t NoMBC::read_sram(uint16_t addr) const
 {
     if (addr < 0xA000 || addr > 0xBFFF) {
@@ -174,4 +202,3 @@ uint8_t NoMBC::read_sram(uint16_t addr) const
     }
     return read_ram_byte(ram, 0, addr);
 }
-

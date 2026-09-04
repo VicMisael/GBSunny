@@ -1,8 +1,9 @@
 add_library(CoreModule STATIC gb.cpp
         cpu/cpu.cpp
         cpu/cpu.h
-        cpu/cpu_impl2.cpp
+        cpu/icpu.h
         cpu/cpu_impl2.h
+        cpu/cpu_impl2.cpp
         cpu/register_file.cpp
         cpu/register_file.h
         mmu/MMU.cpp

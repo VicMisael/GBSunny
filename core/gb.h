@@ -27,7 +27,7 @@ class gb {
     std::shared_ptr<shared::interrupt> _interrupt_controller;
     std::shared_ptr<PPU_scanline> _ppu;
     std::shared_ptr<base_timer> _timer;
-    std::unique_ptr<cpu::CPUImpl2> _cpu;
+    std::unique_ptr<cpu::ICPU> _cpu;
     std::shared_ptr<spu> _spu;
     std::shared_ptr<serial::GBSerial> _serial;
     std::shared_ptr<Joypad> _joypad;
@@ -40,7 +40,7 @@ class gb {
 public:
     std::shared_ptr<mmu::MMU> _mmu;
     explicit gb(const std::string& rompath,
-                EmuFlags flags = { false, true, true, false },
+                EmuFlags flags = { false, true, true },
                 std::shared_ptr<logging::CoreLogger> logger = nullptr,
                 std::shared_ptr<serial::GBSerial> serial = nullptr);
     template <typename EventType>

@@ -67,7 +67,7 @@ void CPUImpl2::reset() {
 	interrupt_control->enable.flag = 0;
 }
 
-uint8_t& CPUImpl2::reg_ref(uint8_t index) {
+constexpr uint8_t& CPUImpl2::reg_ref(uint8_t index) {
 	switch (index) {
 	case 0: return _registers.b;
 	case 1: return _registers.c;
@@ -81,7 +81,7 @@ uint8_t& CPUImpl2::reg_ref(uint8_t index) {
 	}
 }
 
-uint8_t CPUImpl2::reg_readonly(uint8_t index) const {
+constexpr uint8_t CPUImpl2::reg_readonly(uint8_t index) const {
 	switch (index) {
 	case 0: return _registers.b;
 	case 1: return _registers.c;
@@ -95,7 +95,7 @@ uint8_t CPUImpl2::reg_readonly(uint8_t index) const {
 	}
 }
 
-uint16_t& CPUImpl2::reg16_sp_ref(uint8_t index) {
+constexpr uint16_t& CPUImpl2::reg16_sp_ref(uint8_t index) {
 	switch (index) {
 	case 0: return _registers.bc;
 	case 1: return _registers.de;
@@ -105,7 +105,7 @@ uint16_t& CPUImpl2::reg16_sp_ref(uint8_t index) {
 	}
 }
 
-uint16_t& CPUImpl2::reg16_af_ref(uint8_t index) {
+constexpr uint16_t& CPUImpl2::reg16_af_ref(uint8_t index) {
 	switch (index) {
 	case 0: return _registers.bc;
 	case 1: return _registers.de;

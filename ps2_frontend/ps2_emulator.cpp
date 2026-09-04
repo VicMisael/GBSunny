@@ -268,7 +268,6 @@ EmulatorResult run_emulator(SDL_Renderer* renderer, const std::string& rom_path)
     flags.useFastPPU = true;
     flags.useNewTimer = true;
     flags.useDotStepping = false;
-	flags.useSlowReadPath = false;
 
     auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
     gb gameboy(rom_path, flags, nullptr, std::move(serial));
