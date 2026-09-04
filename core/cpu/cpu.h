@@ -214,8 +214,6 @@ namespace cpu {
 //#pragma region debugging
 		void gb_doctor_print(std::ostream& out_stream) const;
 //#pragma endregion
-
-
 	public:
 		explicit cpu(const std::shared_ptr<mmu::MMU> &mmu,
 		             const std::shared_ptr<shared::interrupt> interrupt_control,

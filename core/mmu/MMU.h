@@ -30,7 +30,6 @@ namespace mmu {
         std::array<uint8_t,128> HRAM{};
 
         uint8_t bootRomControl = 0;
-        bool slowReadPath = true;
 		bool dma_active = false;
         std::shared_ptr<PPU_Base> _ppu;
         std::shared_ptr<base_timer> _timer;

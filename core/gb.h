@@ -19,11 +19,13 @@
 #include <type_traits>
 #include <vector>
 
+#include "ppu/scanline_ppu/ppu_scanline.h"
+
 class gb {
     EmuFlags _flags;
     std::shared_ptr<Cartridge> _cartridge;
     std::shared_ptr<shared::interrupt> _interrupt_controller;
-    std::shared_ptr<PPU_Base> _ppu;
+    std::shared_ptr<PPU_scanline> _ppu;
     std::shared_ptr<base_timer> _timer;
     std::unique_ptr<cpu::ICPU> _cpu;
     std::shared_ptr<spu> _spu;
