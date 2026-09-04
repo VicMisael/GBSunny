@@ -80,10 +80,6 @@ void mmu::MMU::on_romx_bank_update() {
 	}
 }
 
-void mmu::MMU::on_rom_bank_swap()
-{
-}
-
 void mmu::MMU::on_ppu_vram_access_set(bool enable)
 {
 	const auto vram = _ppu->get_vram_ptr();

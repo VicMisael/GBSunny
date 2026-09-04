@@ -116,8 +116,7 @@ namespace mmu {
         void on_rom0_bank_update();
 
         void on_romx_bank_update();
-
-        void on_rom_bank_swap();
+    	
         void on_ppu_vram_access_set(bool enable);
         void on_ppu_dma(bool active);
 #pragma endregion Memory Mapping
