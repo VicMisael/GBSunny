@@ -124,6 +124,11 @@ namespace cpu {
 
 		void POP(uint16_t &regref);
 
+		void POP_BC();
+		void POP_DE();
+		void POP_HL();
+		void POP_AF();
+
 		using _addA = void(cpu::cpu::*)(const uint8_t);
 
 		static constexpr  std::array<_addA, 8> alu_table = {

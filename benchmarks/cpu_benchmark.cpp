@@ -111,7 +111,7 @@ public:
 
         memory = std::make_shared<mmu::MMU>(
             cartridge, ppu, timer, interrupts, audio, serial, joypad,
-            std::make_shared<logging::NullCoreLogger>(), false);
+            std::make_shared<logging::NullCoreLogger>());
 
         if (implementation == Implementation::Old) {
             processor = std::make_unique<cpu::cpu>(memory, interrupts);

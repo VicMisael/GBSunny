@@ -253,7 +253,7 @@ uint32_t CPUImpl2::step() {
 		halt_bug = false;
 	}
 
-	const uint8_t opcode = _mmu->read(fetch_addr);
+	const uint8_t opcode = _mmu->read( fetch_addr);
 	if (opcode == 0xCB) {
 		const uint32_t spent_cycles = 4 * execute_cb();
 		if (ime_enable_delay > 0 && --ime_enable_delay == 0) {

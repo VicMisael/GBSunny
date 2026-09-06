@@ -4,6 +4,9 @@ project(GBAsunny)
 set(CMAKE_CXX_STANDARD 23)
 option(GBSUNNY_BUILD_BENCHMARKS "Build GBSunny microbenchmarks" ON)
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT GBSUNNY_IPO_SUPPORTED OUTPUT GBSUNNY_IPO_ERROR LANGUAGES CXX)
+
 find_package(raylib CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 add_subdirectory(core)
@@ -11,8 +14,6 @@ add_subdirectory(core)
 if(GBSUNNY_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
-
-
 
 add_executable(GBAsunny
         main.cpp
@@ -33,3 +34,10 @@ target_link_libraries(GBAsunny PRIVATE CoreModule
         raylib
         glfw
 )
+
+if(GBSUNNY_IPO_SUPPORTED)
+    message(STATUS "IPO / LTO enabled")
+    set_property(TARGET GBAsunny CoreModule PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    message(STATUS "IPO / LTO not supported: <${GBSUNNY_IPO_ERROR}>")
+endif()

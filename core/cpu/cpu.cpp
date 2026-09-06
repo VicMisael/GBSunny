@@ -238,6 +238,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 			ADD_HL(*reg_16_sp[result.p()]);
 			break;
 		};
+		default: ;
 		}
 		break;
 	};
@@ -370,8 +371,13 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 	}
 	case 1: {
 		if (result.q() == 0) {
-			//q=0;
-			POP(*reg_16_af[result.p()]);
+			switch (result.p()) {
+			case 0: POP_BC(); break;
+			case 1: POP_DE(); break;
+			case 2: POP_HL(); break;
+			case 3: POP_AF(); break;
+			default: break;
+			}
 		}
 		else {
 			//q=1;

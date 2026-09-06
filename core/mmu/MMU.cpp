@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "../../utils/debug_utils.h"
 #include "cartridge/boot_rom.h"
 #include "spu/spu.h"
 #include "utils/compiler.h"
@@ -55,13 +56,15 @@ void mmu::MMU::on_boot_rom_control_update()
 }
 
 void mmu::MMU::on_rom0_bank_update() {
+	size_t firstMapped = 0;
 	if (bootRomControl == 0) {
-		return;
+		//If for some reason this is called while the boot rom is still enabled, only map further regions
+		firstMapped	= 1;
 	}
 
 	constexpr std::size_t rom0_start_page = page_index(ROM0_START);
 	const auto* base_page = _cartridge->rom0_data();
-	for (std::size_t page = 0; page < mapped_page_count(ROM0_START, ROM0_END); ++page) {
+	for (std::size_t page = firstMapped; page < mapped_page_count(ROM0_START, ROM0_END); ++page) {
 		map_read_only_page(
 			rom0_start_page + page,
 			base_page ? base_page + (page * page_size) : nullptr
@@ -107,6 +110,7 @@ void mmu::MMU::init_read_mem_map()
 	//ROM 0
 
 	map_read_only_page(page_index(ROM0_START), cartridge::bootDMG.data());
+	on_rom0_bank_update();
 	on_romx_bank_update();
 
 	for (size_t page = 0; page < mapped_page_count(WRAM0_START, WRAM0_END); ++page) {
@@ -132,32 +136,36 @@ void mmu::MMU::init_read_mem_map()
 
 #pragma region MemoryReadAndWrite
 
-uint8_t mmu::MMU::read(uint16_t addr) const
-{
-
-	if (dma_active) [[unlikely]] {
-		if (addr < HRAM_START || addr > HRAM_END)
-			return 0xFF;
-	}
-
-	const auto& page = read_mem_regions[addr >> 8];
-
-	if (!page) [[unlikely]] {
-		return read_slow(addr);
-	}
-
-	return page[addr & 0xFF];
+namespace {
+mmu::ReadStats read_stats;
 }
 
-enum class MemRegion {
-	ROM0, ROMX, VRAM, SRAM,
-	WRAM0, WRAMX, ECHO,
-	OAM, UNUSED, IO, HRAM,
-	IE, INVALID
-};
+
+uint8_t mmu::MMU::read(uint16_t addr) const
+{
+	read_stats.total++;
+	if (dma_active && (addr < HRAM_START || addr > HRAM_END)) [[unlikely]] {
+		return 0xFF;
+	}
+
+	const auto* mapped_page = read_mem_regions[addr >> 8];
+	if (mapped_page != nullptr)[[likely]] {
+		return mapped_page[addr & 0xFF];
+	}
+
+	if (addr >= HRAM_START && addr <= HRAM_END) {
+		return HRAM[addr - HRAM_START];
+	}
+
+	return read_slow(addr);
+}
+
+
+using mmu::MemRegion;
 
 
 constexpr static MemRegion decode_region(uint16_t addr) {
+
 	static constexpr std::array region_lut = {
 		MemRegion::ROM0,  MemRegion::ROM0,  MemRegion::ROM0,  MemRegion::ROM0,
 		MemRegion::ROMX,  MemRegion::ROMX,  MemRegion::ROMX,  MemRegion::ROMX,
@@ -185,20 +193,21 @@ constexpr static MemRegion decode_region(uint16_t addr) {
 
 NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 	const auto region = decode_region(addr);
-
+	read_stats.slow++;
+	read_stats.slow_by_region[static_cast<std::size_t>(region)]++;
 
 	if (dma_active && region != MemRegion::HRAM) {
 		return 0xFF;
 	}
 
 	switch (region) {
-	case MemRegion::ROM0:
-	case MemRegion::ROMX:
+	[[unlikely]] case MemRegion::ROM0:
+	[[unlikely]] case MemRegion::ROMX:
 		if (!bootRomControl && addr < 0x100) {
 			return cartridge::bootDMG[addr];
 		}
 		return _cartridge->read(addr);
-	case MemRegion::VRAM:
+	[[unlikely]] case MemRegion::VRAM:
 		return _ppu->is_vram_accessible() ? _ppu->read_vram(addr) : 0xFF;
 	case MemRegion::SRAM:
 		return _cartridge->read_sram(addr);
@@ -206,7 +215,7 @@ NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 		return internal_RAM[addr & 0x0FFF];
 	case MemRegion::WRAMX:
 		return internal_RAM2[addr & 0x0FFF]; // CGB
-	case MemRegion::ECHO:
+	[[unlikely]] case MemRegion::ECHO:
 		return read(addr-0x2000);
 	case MemRegion::OAM:
 		return _ppu->is_oam_accessible() ? _ppu->read_oam(addr) : 0xFF;
@@ -267,8 +276,14 @@ void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 	case MemRegion::IE: set_interrupt_enable(data);  break;
 	case MemRegion::INVALID: break;
 	}
-	return;
 
+}
+
+mmu::ReadStats mmu::MMU::get_read_stats()
+{
+	const auto snapshot = read_stats;
+	read_stats = {};
+	return snapshot;
 }
 #pragma endregion MemoryReadAndWrite
 

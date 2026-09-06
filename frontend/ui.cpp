@@ -98,11 +98,61 @@ namespace frontend::ui
 
         void draw_frame_timing(const ViewState& state)
         {
+            constexpr std::array RegionNames{
+                "ROM0", "ROMX", "VRAM", "SRAM", "WRAM0", "WRAMX", "ECHO",
+                "OAM", "UNUSED", "IO", "HRAM", "IE", "INVALID"
+            };
+            constexpr int FontSize = 14;
+            constexpr Color TimingColor{255, 220, 120, 255};
+
             std::ostringstream text;
             text << std::fixed << std::setprecision(3)
                  << "RunOneFrame: " << std::setw(8) << state.run_one_frame_latest_ms << " ms avg "
                  << std::setw(8) << state.run_one_frame_average_ms << " ms";
-            DrawText(text.str().c_str(), 12, TopBarHeight + 10, 14, Color{255, 220, 120, 255});
+            DrawText(text.str().c_str(), 12, TopBarHeight + 10, FontSize, TimingColor);
+
+            const auto& stats = state.mmu_read_stats;
+            const double slow_percentage = stats.total == 0
+                ? 0.0
+                : 100.0 * static_cast<double>(stats.slow) / static_cast<double>(stats.total);
+            text.str({});
+            text.clear();
+            text << std::fixed << std::setprecision(2)
+                 << "MMU reads: " << stats.total
+                 << " slow: " << stats.slow
+                 << " (" << slow_percentage << "%)";
+            DrawText(text.str().c_str(), 12, TopBarHeight + 28, FontSize, TimingColor);
+
+            std::string line = "Slow blocks:";
+            int line_y = TopBarHeight + 46;
+            bool has_regions = false;
+            for (std::size_t region = 0; region < stats.slow_by_region.size(); ++region)
+            {
+                const uint64_t count = stats.slow_by_region[region];
+                if (count == 0)
+                {
+                    continue;
+                }
+
+                has_regions = true;
+                const std::string entry = " " + std::string{RegionNames[region]} + ":" + std::to_string(count);
+                if (MeasureText((line + entry).c_str(), FontSize) > GetScreenWidth() - 24)
+                {
+                    DrawText(line.c_str(), 12, line_y, FontSize, TimingColor);
+                    line = "  " + entry.substr(1);
+                    line_y += 18;
+                }
+                else
+                {
+                    line += entry;
+                }
+            }
+
+            if (!has_regions)
+            {
+                line += " none";
+            }
+            DrawText(line.c_str(), 12, line_y, FontSize, TimingColor);
         }
     }
 

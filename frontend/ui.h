@@ -1,8 +1,10 @@
 #pragma once
 
 #include "raylib.h"
+#include "mmu/MMU.h"
 #include "shared/hardware_constants.h"
 
+#include <cstdint>
 #include <string_view>
 
 namespace frontend
@@ -35,6 +37,7 @@ namespace frontend
             bool show_run_one_frame_timing;
             double run_one_frame_latest_ms;
             double run_one_frame_average_ms;
+            mmu::ReadStats mmu_read_stats;
         };
 
         Action draw(const ViewState& state, const Texture2D& texture, const Toast& toast);
