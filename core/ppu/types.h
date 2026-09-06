@@ -78,7 +78,7 @@ namespace ppu_types {
 	union oam_sprite_flags {
 		
 		struct {
-			uint8_t cgb_placeholder : 3;
+			uint8_t cgb_placeholders : 4;
 			bool palette_number : 1;
 			bool x_flip : 1;
 			bool y_flip : 1;
