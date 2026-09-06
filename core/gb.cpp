@@ -73,7 +73,7 @@ void gb::reset() {
 
 void gb::run_one_frame() {
 	uint32_t cycles_this_frame = 0;
-	constexpr uint32_t cpu_cycles_per_component_update = 75;
+	constexpr uint32_t cpu_cycles_per_component_update = 1;
 
 	while (cycles_this_frame < gb_hardware::ppu::DotsPerFrame) {
 		uint32_t spent_cycles = 0;

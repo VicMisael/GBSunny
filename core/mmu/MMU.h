@@ -35,6 +35,9 @@ namespace mmu {
     struct ReadStats {
         uint64_t total = 0;
         uint64_t slow = 0;
+        uint64_t mapped = 0;
+        uint64_t hram = 0;
+        uint64_t dma_blocked = 0;
         std::array<uint64_t, MemRegionCount> slow_by_region{};
     };
 

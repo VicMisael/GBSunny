@@ -112,19 +112,36 @@ namespace frontend::ui
             DrawText(text.str().c_str(), 12, TopBarHeight + 10, FontSize, TimingColor);
 
             const auto& stats = state.mmu_read_stats;
-            const double slow_percentage = stats.total == 0
-                ? 0.0
-                : 100.0 * static_cast<double>(stats.slow) / static_cast<double>(stats.total);
+            const auto percentage = [&stats](const uint64_t count)
+            {
+                return stats.total == 0
+                    ? 0.0
+                    : 100.0 * static_cast<double>(count) / static_cast<double>(stats.total);
+            };
             text.str({});
             text.clear();
             text << std::fixed << std::setprecision(2)
                  << "MMU reads: " << stats.total
                  << " slow: " << stats.slow
-                 << " (" << slow_percentage << "%)";
+                 << " (" << percentage(stats.slow) << "%)";
             DrawText(text.str().c_str(), 12, TopBarHeight + 28, FontSize, TimingColor);
 
+            text.str({});
+            text.clear();
+            text << std::fixed << std::setprecision(2)
+                 << "Fast mapped: " << stats.mapped << " (" << percentage(stats.mapped) << "%)"
+                 << " HRAM: " << stats.hram << " (" << percentage(stats.hram) << "%)";
+            DrawText(text.str().c_str(), 12, TopBarHeight + 46, FontSize, TimingColor);
+
+            text.str({});
+            text.clear();
+            text << std::fixed << std::setprecision(2)
+                 << "DMA blocked: " << stats.dma_blocked
+                 << " (" << percentage(stats.dma_blocked) << "%)";
+            DrawText(text.str().c_str(), 12, TopBarHeight + 64, FontSize, TimingColor);
+
             std::string line = "Slow blocks:";
-            int line_y = TopBarHeight + 46;
+            int line_y = TopBarHeight + 82;
             bool has_regions = false;
             for (std::size_t region = 0; region < stats.slow_by_region.size(); ++region)
             {

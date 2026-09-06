@@ -143,17 +143,33 @@ mmu::ReadStats read_stats;
 
 uint8_t mmu::MMU::read(uint16_t addr) const
 {
+#ifdef READ_STATS
 	read_stats.total++;
+#endif // READ_STATS
+#ifdef SLOW_MEM_READS
+	return read_slow(addr);
+#endif // SLOW_MEM_READS
+
+
 	if (dma_active && (addr < HRAM_START || addr > HRAM_END)) [[unlikely]] {
+#ifdef READ_STATS
+		read_stats.dma_blocked++;
+#endif // READ_STATS
 		return 0xFF;
 	}
 
 	const auto* mapped_page = read_mem_regions[addr >> 8];
 	if (mapped_page != nullptr)[[likely]] {
+#ifdef READ_STATS
+		read_stats.mapped++;
+#endif // READ_STATS
 		return mapped_page[addr & 0xFF];
 	}
 
 	if (addr >= HRAM_START && addr <= HRAM_END) {
+#ifdef READ_STATS
+		read_stats.hram++;
+#endif // READ_STATS
 		return HRAM[addr - HRAM_START];
 	}
 
@@ -193,10 +209,15 @@ constexpr static MemRegion decode_region(uint16_t addr) {
 
 NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 	const auto region = decode_region(addr);
+#ifdef READ_STATS
 	read_stats.slow++;
 	read_stats.slow_by_region[static_cast<std::size_t>(region)]++;
+#endif // READ_STATS
 
 	if (dma_active && region != MemRegion::HRAM) {
+#ifdef READ_STATS
+		read_stats.dma_blocked++;
+#endif // READ_STATS
 		return 0xFF;
 	}
 

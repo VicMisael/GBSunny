@@ -28,6 +28,9 @@ add_executable(GBAsunny
         utils/file_dialog.cpp
 )
 
+
+target_compile_definitions(CoreModule PRIVATE READ_STATS)
+# target_compile_definitions(CoreModule PRIVATE SLOW_MEM_READS)
 target_include_directories(GBAsunny PRIVATE ${CMAKE_SOURCE_DIR})
 
 target_link_libraries(GBAsunny PRIVATE CoreModule

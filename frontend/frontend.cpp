@@ -129,7 +129,7 @@ namespace frontend
             {
                 stop_and_clear_audio(app, audio_stream);
                 EmuFlags flags;
-                flags.useFastPPU = false;
+                flags.useFastPPU = true;
                 flags.useNewTimer = true;
                 flags.useDotStepping = false;
                 auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
