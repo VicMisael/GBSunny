@@ -44,7 +44,6 @@ private:
 	void render_bg(bool window);
 	[[nodiscard]] bool oam_render_possible() const;
 	void render_oam();
-	[[nodiscard]] ppu_types::rgba render_oam_pixel(const ppu_fifo_types::fifo_element& bg, ppu_types::rgba color) const;
 	void reset_lcd_state();
 	[[nodiscard]] bool stat_interrupt_signal() const;
 	void update_stat_interrupt_line();
@@ -97,6 +96,12 @@ private:
 
 		int current_pixel = 0;
 		int bg_fetcher_cycle = 0;
+		int startup_dots = 12;
+		int discard_pixels = 0;
+		int sprite_fetch_cycle = 0;
+		int sprite_wait_dots = 0;
+		int last_sprite_tile = -1;
+		int window_start_x = 0;
 		int total_dots = 0;
 #pragma region Window
 		uint16_t window_line = -1;
@@ -131,6 +136,13 @@ private:
 			oam_cycle = 0;
 			current_x = 0;
 			current_pixel = 0;
+			bg_fetcher_cycle = 0;
+			startup_dots = 12;
+			discard_pixels = 0;
+			sprite_fetch_cycle = 0;
+			sprite_wait_dots = 0;
+			last_sprite_tile = -1;
+			window_start_x = 0;
 			bg_tile_id = 0;
 			bg_fetcher_running = false;
 			oam_fetcher_running = false;

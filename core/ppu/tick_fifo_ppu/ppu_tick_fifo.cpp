@@ -4,8 +4,6 @@
 #include <algorithm>
 #include <cstddef>
 
-constexpr int DRAWING_MAX_CYCLES = 289;
-
 ppu_tick_fifo::ppu_tick_fifo(std::shared_ptr<shared::interrupt> interrupt_controller) :
 	interrupt_controller(std::move(interrupt_controller)) {
 	ppu_tick_fifo::reset();
@@ -30,6 +28,9 @@ void ppu_tick_fifo::reset() {
 	wy = 0;
 	wx = 0;
 	stat_interrupt_line = false;
+	state.vblank_reset();
+	sprite_buffer.clear();
+	unlock_vram_access();
 	set_mode(ppu_types::OAM_SCAN);
 
 	std::ranges::fill(vram, 0x00);
@@ -72,11 +73,11 @@ void inline ppu_tick_fifo::tick()
 		break;
 	}
 	case ppu_types::DRAWING: {
-			if (state.current_x < static_cast<int>(gb_hardware::display::Width) && state.drawing_cycles++ < DRAWING_MAX_CYCLES) { // Avoid locking on disabled cycles
-			render_scanline();
-			break;
+		++state.drawing_cycles;
+		render_scanline();
+		if (state.current_x == static_cast<int>(gb_hardware::display::Width)) {
+			set_mode(ppu_types::HBLANK);
 		}
-		set_mode(ppu_types::HBLANK);
 		break;
 	}
 	case ppu_types::HBLANK: {
@@ -135,6 +136,7 @@ inline void ppu_tick_fifo::oam_scan()
 	if (state.oam_cycle >= static_cast<int>(gb_hardware::ppu::OamScanDots)) {
 		sprite_buffer.clear();
 		fill_oam_buffer();
+		state.discard_pixels = scx & 7;
 		set_mode(ppu_types::DRAWING);
 		if (ly == wy)
 		{
@@ -146,94 +148,82 @@ inline void ppu_tick_fifo::oam_scan()
 
 
 void ppu_tick_fifo::render_scanline() {
-	//if (line_state.first_fetch > 0) {
-	//	//delay 12 cycles
-	//	line_state.first_fetch--;
-	//	if (line_state.first_fetch == 0) {
-	//		return; //return and wait for the next cycles from the CPU
-	//	}
-	//}
-
-
-
-
-	render_bg(state.window_triggered);
-
-	if (!state.background_fifo.empty()) {
-		const ppu_fifo_types::fifo_element bg = state.background_fifo.back();
-		state.background_fifo.pop_back();
-
-		auto color = get_color_from_palette(bg.color, bgp);
-		if (lcdc.bits.OBJ_Enable) {
-			color = render_oam_pixel(bg, color);
-		}
-
-		framebuffer[ly * gb_hardware::display::Width + state.current_x++] = color;
+	if (state.startup_dots > 0) {
+		--state.startup_dots;
+		render_bg(state.window_triggered);
+		return;
 	}
 
+	if (state.discard_pixels > 0) {
+		if (!state.background_fifo.empty()) {
+			state.background_fifo.pop_front();
+			--state.discard_pixels;
+		}
+		render_bg(state.window_triggered);
+		return;
+	}
 
+	if (state.oam_fetcher_running) {
+		render_oam();
+		return;
+	}
 
 	const int window_x = static_cast<int>(wx) - 7;
-	if (lcdc.bits.window_enable && state.window_ly_equals_wy && !state.window_triggered && state.current_pixel >= window_x) {
+	if (lcdc.bits.BG_window_enable && lcdc.bits.window_enable && state.window_ly_equals_wy
+		&& !state.window_triggered && state.current_x >= window_x) {
 		state.window_triggered = true;
 		state.window_line++;
+		state.window_start_x = window_x;
+		state.current_pixel = 0;
+		state.discard_pixels = std::max(0, -window_x);
+		state.last_sprite_tile = -1;
 		state.reset_bg_fifo();
+		state.bg_fetcher_cycle = 0;
 		state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
+		render_bg(true);
+		return;
 	}
 
-
-
-}
-
-ppu_types::rgba ppu_tick_fifo::render_oam_pixel(const ppu_fifo_types::fifo_element& bg, ppu_types::rgba color) const {
-	const int x = state.current_x;
-	const int sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
-
-	for (const auto& entry : sprite_buffer) {
-		const auto& sprite = entry.sprite;
-		const int left = static_cast<int>(sprite.x) - 8;
-		const int sprite_x = x - left;
-		if (sprite_x < 0 || sprite_x >= 8) continue;
-
-		int y_offset = static_cast<int>(ly) + 16 - static_cast<int>(sprite.y);
-		if (y_offset < 0 || y_offset >= sprite_height) continue;
-		if (sprite.flags.y_flip) {
-			y_offset = sprite_height - 1 - y_offset;
-		}
-
-		const uint8_t tile_index = lcdc.bits.OBJ_SIZE ? (sprite.tile_index & 0xFE) : sprite.tile_index;
-		const uint16_t addr = 0x8000 + tile_index * 16 + y_offset * 2;
-		const ppu_types::line line{
-			.lsb = read_vram_internal(addr),
-			.msb = read_vram_internal(addr + 1)
-		};
-		const auto pixels = line.decoded_pixels(sprite.flags.x_flip);
-		const uint8_t sprite_color = pixels[static_cast<std::size_t>(sprite_x)];
-		if (sprite_color == 0) continue;
-
-		const bool sprite_has_priority = !sprite.flags.obj_to_dbg_priority;
-		const bool bg_is_transparent = (bg.color == 0);
-		if (sprite_has_priority || bg_is_transparent) {
-			const uint8_t palette = sprite.flags.palette_number ? obp1 : obp0;
-			color = get_color_from_palette(sprite_color, palette);
-		}
-		break;
+	if (state.background_fifo.empty()) {
+		render_bg(state.window_triggered);
+		return;
 	}
 
-	return color;
+	if (lcdc.bits.OBJ_Enable && oam_render_possible()) {
+		state.current_sprite = sprite_buffer.front().sprite;
+		sprite_buffer.pop();
+		const int tile_pixel = state.window_triggered
+			? state.current_x - state.window_start_x : state.current_x + (scx & 7);
+		const int tile = tile_pixel / 8;
+		state.sprite_wait_dots = tile != state.last_sprite_tile ? std::max(0, 5 - (tile_pixel & 7)) : 0;
+		state.last_sprite_tile = tile;
+		if (state.current_sprite.x == 0) {
+			state.sprite_wait_dots = 5;
+		}
+		state.sprite_fetch_cycle = 0;
+		state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
+		state.oam_fetcher_running = true;
+		render_oam();
+		return;
+	}
+
+	const auto bg = state.background_fifo.front();
+	state.background_fifo.pop_front();
+	const uint8_t bg_color = lcdc.bits.BG_window_enable ? bg.color : 0;
+	auto color = lcdc.bits.BG_window_enable ? get_color_from_palette(bg_color, bgp) : colors[0];
+	if (!state.sprite_fifo.empty()) {
+		const auto sprite = state.sprite_fifo.front();
+		state.sprite_fifo.pop_front();
+		if (lcdc.bits.OBJ_Enable && sprite.color != 0 && (!sprite.bg_priority || bg_color == 0)) {
+			color = get_color_from_palette(sprite.color, sprite.palette ? obp1 : obp0);
+		}
+	}
+	framebuffer[ly * gb_hardware::display::Width + state.current_x++] = color;
+	render_bg(state.window_triggered);
 }
 
 bool ppu_tick_fifo::oam_render_possible() const {
-	//if (state.oam_fetcher_running) return true;
-	//if (state.sprite_fifo.empty()) return true;
-	for (const auto& element : sprite_buffer)
-	{
-		if (element.sprite.x <= state.current_x + 8)
-		{
-			return true;
-		}
-	}
-	return false;
+	return !sprite_buffer.empty() && sprite_buffer.front().sprite.x <= state.current_x + 8;
 }
 uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
 {
@@ -243,8 +233,7 @@ uint16_t ppu_tick_fifo::extract_tile_map_addr(bool fetching_window) const
 		uint16_t tile_map_area = lcdc.bits.window_tile_map_area ? 0x9C00 : 0x9800;
 		uint8_t y_in_map = (state.window_line);
 		uint8_t tile_row = y_in_map / 8;
-		const int window_x = static_cast<int>(wx) - 7;
-		uint8_t x_in_map = static_cast<uint8_t>(state.current_pixel - window_x);
+		uint8_t x_in_map = static_cast<uint8_t>(state.current_pixel);
 		uint8_t tile_col = x_in_map / 8;
 		return tile_map_area + tile_row * 32 + tile_col;
 
@@ -307,134 +296,86 @@ void ppu_tick_fifo::render_bg(bool fetching_window)
 		state.current_bg_line.msb = read_vram_internal(addr);
 
 		state.bg_fetcher_cycle = 0;
-		state.background_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
-		break;
-	}
-	case ppu_fifo_types::fifo_state::SLEEP: {
 		state.background_fifo_state = ppu_fifo_types::fifo_state::PUSH;
 		[[fallthrough]];
 	}
 	case ppu_fifo_types::fifo_state::PUSH: {
-		if (++state.bg_fetcher_cycle < 2) break;
 		if (state.background_fifo.empty()) {
 			const auto pixels = state.current_bg_line.decoded_pixels();
-
-			const uint8_t discard = !fetching_window && (state.current_pixel == 0) ? (scx % 8) : 0;
-
-
-			for (uint8_t i = discard; i < 8; ++i) {
-				const uint8_t color = pixels[i];
+			for (const uint8_t color : pixels) {
 
 				ppu_fifo_types::fifo_element element{ .color = color,.bg_priority = color == 0 };
 
-				state.background_fifo.push_front(element);
+				state.background_fifo.push_back(element);
 				state.current_pixel++;
 			}
 
 
 
-			state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
+			state.bg_fetcher_cycle = 0;
+			state.background_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
 			state.bg_fetcher_running = false;
 			break;
 		}
+		break;
+	}
+	case ppu_fifo_types::fifo_state::SLEEP: {
+		if (++state.bg_fetcher_cycle < 2) break;
 		state.bg_fetcher_cycle = 0;
+		state.background_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		break;
 	}
 	}
-}
-
-uint8_t reverse_bits(uint8_t n) {
-	n = (n >> 4) | (n << 4);                 // swap nibbles
-	n = ((n & 0xCC) >> 2) | ((n & 0x33) << 2); // swap pairs
-	n = ((n & 0xAA) >> 1) | ((n & 0x55) << 1); // swap individual bits
-	return n;
 }
 
 void ppu_tick_fifo::render_oam() {
-	const auto sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
+	if (state.sprite_wait_dots > 0) {
+		--state.sprite_wait_dots;
+		return;
+	}
+	if (++state.sprite_fetch_cycle < 2) return;
+	state.sprite_fetch_cycle = 0;
+
+	const auto& sprite = state.current_sprite;
+	const int sprite_height = lcdc.bits.OBJ_SIZE ? 16 : 8;
+	int y_offset = static_cast<int>(ly) + 16 - sprite.y;
+	if (sprite.flags.y_flip) {
+		y_offset = sprite_height - 1 - y_offset;
+	}
+	const uint8_t tile_index = lcdc.bits.OBJ_SIZE ? (sprite.tile_index & 0xFE) : sprite.tile_index;
+	const uint16_t address = 0x8000 + tile_index * 16 + y_offset * 2;
+
 	switch (state.sprite_fifo_state) {
-	case ppu_fifo_types::fifo_state::GET_TILE: {
-		if (sprite_buffer.empty()) {
-			state.oam_fetcher_running = false;
-			return;
-		}
-
-		state.oam_fetcher_running = true;
-		const auto sprite = sprite_buffer.front();
-
-		state.current_sprite = sprite.sprite;
+	case ppu_fifo_types::fifo_state::GET_TILE:
 		state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW;
-	}
-											 break;
-	case ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW: {
-		const auto& sprite = state.current_sprite;
-		uint8_t y_offset = ly + 16 - (sprite.y);
-		const bool y_flip = sprite.flags.y_flip;
-		if (y_flip) {
-			y_offset = sprite_height - 1 - y_offset;
-		}
-		const auto addr = 0x8000 + sprite.tile_index * 16 + y_offset * 2;
-		//if (sprite.flags.x_flip) {
-		//	state.current_oam_line.msb = reverse_bits(read_vram_internal(addr));
-		//}else
-		//{
-		//	state.current_oam_line.lsb = read_vram_internal(addr);
-		//}
-		state.current_oam_line.lsb = read_vram_internal(addr);
-
+		break;
+	case ppu_fifo_types::fifo_state::GET_TILE_DATA_LOW:
+		state.current_oam_line.lsb = read_vram_internal(address);
 		state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH;
-	}
-													  break;
+		break;
 	case ppu_fifo_types::fifo_state::GET_TILE_DATA_HIGH: {
-
-		const auto& sprite = state.current_sprite;
-		const bool y_flip = sprite.flags.y_flip;
-		uint8_t y_offset = ly + 16 - (sprite.y);
-		if (y_flip) {
-			y_offset = sprite_height - 1 - y_offset;
+		state.current_oam_line.msb = read_vram_internal(address + 1);
+		const auto pixels = state.current_oam_line.decoded_pixels(sprite.flags.x_flip);
+		while (!state.sprite_fifo.full()) {
+			state.sprite_fifo.push_back({});
 		}
-		const uint16_t addr = 1 + 0x8000 + sprite.tile_index * 16 + y_offset * 2;
-		
-		//if (sprite.flags.x_flip) {
-		//	state.current_oam_line.lsb = reverse_bits(read_vram_internal(addr));
-		//}
-		//else
-		//{
-		//	state.current_oam_line.msb = read_vram_internal(addr);
-		//}
-		state.current_oam_line.msb = read_vram_internal(addr);
-		state.sprite_fifo_state = ppu_fifo_types::fifo_state::SLEEP;
-	}
-													   break;
-	case ppu_fifo_types::fifo_state::SLEEP:
-	{
-		state.sprite_fifo_state = ppu_fifo_types::fifo_state::PUSH;
-	}
-	break;
-	case ppu_fifo_types::fifo_state::PUSH: {
-		const auto pixel_list = state.current_oam_line.decoded_pixels(state.current_sprite.flags.x_flip);
-		const auto sprite = state.current_sprite;
-		state.sprite_fifo.clear();
-		for (std::size_t x = 0; x < pixel_list.size(); ++x) {
-			const auto pixel = pixel_list[x];
-			const int screen_x = sprite.x - 8 + static_cast<int>(x);
-			if (screen_x < 0 || screen_x >= static_cast<int>(gb_hardware::display::Width)) continue;
-
-			ppu_fifo_types::fifo_element element{
-					.color = pixel,
-					.palette = state.current_sprite.flags.palette_number,
-					.bg_priority = state.current_sprite.flags.obj_to_dbg_priority
+		for (int pixel = 0; pixel < 8; ++pixel) {
+			const int offset = static_cast<int>(sprite.x) - 8 + pixel - state.current_x;
+			if (offset < 0 || offset >= 8 || pixels[pixel] == 0) continue;
+			auto& queued = state.sprite_fifo[static_cast<std::size_t>(offset)];
+			if (queued.color != 0) continue;
+			queued = {
+				.color = pixels[pixel],
+				.palette = sprite.flags.palette_number,
+				.bg_priority = sprite.flags.obj_to_dbg_priority
 			};
-
-			state.sprite_fifo.push_front(element);
-
 		}
-		sprite_buffer.pop();
 		state.sprite_fifo_state = ppu_fifo_types::fifo_state::GET_TILE;
 		state.oam_fetcher_running = false;
 		break;
-
 	}
+	default:
+		break;
 	}
 }
 
@@ -618,7 +559,7 @@ void ppu_tick_fifo::fill_oam_buffer() {
 	for (const auto sprite : oam_sprites) {
 
 		const auto ly_plus_16 = ly + 16;
-		if (!sprite_buffer.full() && sprite.x > 0 && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + sprite_height)) {
+		if (!sprite_buffer.full() && ly_plus_16 >= sprite.y && ly_plus_16 < (sprite.y + sprite_height)) {
 			ppu_fifo_types::OAM_priority_queue_element element{ .sprite = sprite,.oam_index = i };
 			sprite_buffer.push(element);
 		}
