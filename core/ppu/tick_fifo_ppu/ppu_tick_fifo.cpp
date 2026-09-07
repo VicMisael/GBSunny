@@ -2,6 +2,7 @@
 
 #include "ppu_tick_fifo.h"
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 
 ppu_tick_fifo::ppu_tick_fifo(std::shared_ptr<shared::interrupt> interrupt_controller) :
@@ -380,9 +381,12 @@ void ppu_tick_fifo::render_oam() {
 }
 
 void ppu_tick_fifo::step(uint32_t cycles) {
-	for (uint32_t i = 0; i < cycles; i++) {
-		//Run this tick by tick, step by step, might be slower than every option, Should be more accurate
-		tick();
+	assert((cycles % 4) == 0);
+	for (uint32_t cycle_group = cycles / 4; cycle_group > 0; --cycle_group) {
+		ppu_tick_fifo::tick();
+		ppu_tick_fifo::tick();
+		ppu_tick_fifo::tick();
+		ppu_tick_fifo::tick();
 	}
 }
 

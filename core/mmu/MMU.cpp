@@ -284,7 +284,16 @@ void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
 			internal_RAM2[addr & 0x0FFF] = data;
 		}
 	} break;
-	case MemRegion::ECHO: internal_RAM[(addr - 0x2000) & 0x0FFF] = data;  break;
+	case MemRegion::ECHO:
+	{
+		const uint16_t mirrored = addr - 0x2000;
+		if (mirrored < WRAMX_START) {
+			internal_RAM[mirrored & 0x0FFF] = data;
+		}
+		else {
+			internal_RAM2[mirrored & 0x0FFF] = data;
+		}
+	} break;
 	case MemRegion::OAM:
 	{
 		if (_ppu->is_oam_accessible()) {
