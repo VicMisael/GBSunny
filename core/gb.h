@@ -7,7 +7,7 @@
 #include "cpu/cpu.h"
 #include "cpu/cpu_impl2.h"
 #include "joypad/joypad.h"
-#include "spu/spu.h"
+#include "spu/SPUBase.h"
 #include "utils/emu_flags.h"
 #include "serial/gb_serial.h"
 #include "logging/core_logger.h"
@@ -26,7 +26,7 @@ class gb {
     std::shared_ptr<PPU_Base> _ppu;
     std::shared_ptr<base_timer> _timer;
     std::unique_ptr<cpu::ICPU> _cpu;
-    std::shared_ptr<spu> _spu;
+    std::shared_ptr<SPUBase> _spu;
     std::shared_ptr<serial::GBSerial> _serial;
     std::shared_ptr<Joypad> _joypad;
     std::shared_ptr<logging::CoreLogger> _logger;
@@ -55,7 +55,7 @@ public:
     void run_one_frame();
     void set_button(JoypadButton button, bool pressed);
     [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const;
-    std::vector<spu::stereo_sample> consume_audio_samples();
+    std::vector<SPUBase::stereo_sample> consume_audio_samples();
 
 
 

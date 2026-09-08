@@ -2,8 +2,8 @@
 // Created by visael on 14/03/25.
 //
 
-#ifndef SPU_H
-#define SPU_H
+#ifndef SPU2_H
+#define SPU2_H
 
 #include <cstdint>
 #include <memory>
@@ -13,11 +13,11 @@
 #include "SPUBase.h"
 #include "SpuRegisterFile.h"
 
-class spu : public SPUBase {
+class SPU2 : public SPUBase {
 public:
 	using stereo_sample = SPUBase::stereo_sample;
 
-	explicit spu(std::shared_ptr<shared::interrupt> interrupts);
+	explicit SPU2(std::shared_ptr<shared::interrupt> interrupts);
 
 	[[nodiscard]] uint8_t read(uint16_t addr) const override;
 	[[nodiscard]] uint8_t read_wave(uint16_t addr) const override;
@@ -94,6 +94,10 @@ private:
 	void tick_pulse(pulse_channel_state& channel, uint16_t period_value);
 	void tick_wave();
 	void tick_noise();
+	void advance_channels(uint32_t cycles);
+	void advance_pulse(pulse_channel_state& channel, uint16_t period_value, uint32_t cycles);
+	void advance_wave(uint32_t cycles);
+	void advance_noise(uint32_t cycles);
 
 	void trigger_channel1();
 	void trigger_channel2();
@@ -117,4 +121,4 @@ private:
 	void mix_sample();
 };
 
-#endif //SPU_H
+#endif //SPU2_H

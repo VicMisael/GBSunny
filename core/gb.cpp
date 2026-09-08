@@ -2,6 +2,8 @@
 
 #include "ppu/scanline_ppu/ppu_scanline.h"
 #include "ppu/tick_fifo_ppu/ppu_tick_fifo.h"
+#include "spu/SPU2.h"
+#include "spu/spu.h"
 #include <timer/gb_timer.h>
 #include <timer/gb_timer2.h>
 #include <events/events.h>
@@ -51,7 +53,12 @@ gb::gb(const std::string& rompath,
 		_timer = std::make_shared<gb_timer>(_interrupt_controller);
 	}
 
-	_spu = std::make_shared<spu>(_interrupt_controller);
+	if (_flags.useFastSPU) {
+		_spu = std::make_shared<SPU2>(_interrupt_controller);
+	}
+	else {
+		_spu = std::make_shared<spu>(_interrupt_controller);
+	}
 	_joypad = std::make_shared<Joypad>(_interrupt_controller);
 
 	_cartridge = Cartridge::get_cartridge(rompath, bus);
@@ -114,6 +121,6 @@ const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& gb::get_fra
 	return _ppu->get_framebuffer();
 }
 
-std::vector<spu::stereo_sample> gb::consume_audio_samples() {
+std::vector<SPUBase::stereo_sample> gb::consume_audio_samples() {
 	return _spu->consume_samples();
 }

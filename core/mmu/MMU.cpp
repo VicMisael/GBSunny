@@ -6,7 +6,7 @@
 
 #include "../../utils/debug_utils.h"
 #include "cartridge/boot_rom.h"
-#include "spu/spu.h"
+#include "spu/SPUBase.h"
 #include "utils/compiler.h"
 #include "utils/utils.h"
 

@@ -32,6 +32,9 @@ add_library(CoreModule STATIC gb.cpp
         timer/gb_timer.cpp
         timer/gb_timer.h
         spu/spu.cpp
+        spu/SPU2.cpp
+        spu/SPU2.h
+        spu/SPUBase.h
         spu/SpuChannelRegisters.h
         spu/SpuRegisterFile.h
         "spu/spu.h"
