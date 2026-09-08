@@ -1,5 +1,6 @@
 #include "MMU.h"
 
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 
@@ -154,10 +155,9 @@ uint16_t mmu::MMU::read16(const uint16_t addr) const
 
 			const auto offset = addr & 0xFF;
 
-			return utils::make_u16(
-				page[offset],
-				page[offset + 1]
-			);
+			std::uint16_t value;
+			std::memcpy(&value, page + offset, sizeof(value));
+			return value;
 		}
 	}
 #endif
