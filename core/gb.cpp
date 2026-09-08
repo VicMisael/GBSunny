@@ -64,9 +64,16 @@ void gb::reset() {
 
 void gb::run_one_frame() {
 	uint32_t cycles_this_frame = 0;
+	constexpr uint32_t cpu_advance_cycles = 1;
 
 	while (cycles_this_frame < gb_hardware::ppu::DotsPerFrame) {
-		uint32_t spent_cycles = _cpu->step();
+		uint32_t spent_cycles = 0;
+		uint32_t cpu_advance = 0;
+		do {
+			//Cpu runs more cycles then update others accordingly
+			spent_cycles += _cpu->step();
+			cpu_advance++;
+		} while (cpu_advance < cpu_advance_cycles);
 
 		_ppu->step(spent_cycles);
 		_timer->step(spent_cycles);
