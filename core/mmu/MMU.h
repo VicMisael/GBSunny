@@ -23,6 +23,24 @@
 
 
 namespace mmu {
+    enum class MemRegion : uint8_t {
+        ROM0, ROMX, VRAM, SRAM,
+        WRAM0, WRAMX, ECHO,
+        OAM, UNUSED, IO, HRAM,
+        IE, INVALID, COUNT
+    };
+
+    inline constexpr std::size_t MemRegionCount = static_cast<std::size_t>(MemRegion::COUNT);
+
+    struct ReadStats {
+        uint64_t total = 0;
+        uint64_t slow = 0;
+        uint64_t mapped = 0;
+        uint64_t hram = 0;
+        uint64_t dma_blocked = 0;
+        std::array<uint64_t, MemRegionCount> slow_by_region{};
+    };
+
     class MMU {
 
         std::array<uint8_t,4096> internal_RAM{};
@@ -106,7 +124,11 @@ namespace mmu {
 
         [[nodiscard]] uint8_t read(uint16_t addr) const ;
 
+		[[nodiscard]] uint16_t read16(uint16_t addr) const;
+
         void write(uint16_t addr, const uint8_t &data);
+
+        [[nodiscard]] static ReadStats get_read_stats();
 
 #pragma region Memory Mapping
         void map_read_only_page(std::size_t page, const uint8_t* block);

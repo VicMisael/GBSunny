@@ -7,7 +7,7 @@
 #include "utils/utils.h"
 
 
-class ppu_tick_fifo :public PPU_Base {
+class ppu_tick_fifo final:public PPU_Base {
 public:
 	//Constructor takes a shared_ptr to the interrupt controller
 	explicit ppu_tick_fifo(std::shared_ptr<shared::interrupt> interrupt_controller);
@@ -18,20 +18,20 @@ public:
 	void tick() override;
 
 	//Memory-mapped I/O handlers for the MMU to call
-	[[nodiscard]] uint8_t read_vram(uint16_t address) const final;
-	void write_vram(uint16_t address, uint8_t value) final;
-	[[nodiscard]] const uint8_t* get_vram_ptr() const final { return vram.data(); }
-	[[nodiscard]] uint8_t read_control(uint16_t addr) const final;
-	void write_control(uint16_t addr, uint8_t data) final;
+	[[nodiscard]] uint8_t read_vram(uint16_t address) const override;
+	void write_vram(uint16_t address, uint8_t value) override;
+	[[nodiscard]] const uint8_t* get_vram_ptr() const override { return vram.data(); }
+	[[nodiscard]] uint8_t read_control(uint16_t addr) const override;
+	void write_control(uint16_t addr, uint8_t data) override;
 
 	//DMA transfer handling
-	void start_dma_transfer() final;
-	[[nodiscard]] bool is_dma_active() const final;
+	void start_dma_transfer() override;
+	[[nodiscard]] bool is_dma_active() const override;
 
-	[[nodiscard]] bool is_oam_accessible() const final;
-	[[nodiscard]] bool is_vram_accessible() const final;
+	[[nodiscard]] bool is_oam_accessible() const override;
+	[[nodiscard]] bool is_vram_accessible() const override;
 	//Interface for the frontend to get the final image
-    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const final;
+    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const override;
 private:
 	void lock_vram_access();
 	void unlock_vram_access();
@@ -44,7 +44,6 @@ private:
 	void render_bg(bool window);
 	[[nodiscard]] bool oam_render_possible() const;
 	void render_oam();
-	[[nodiscard]] ppu_types::rgba render_oam_pixel(const ppu_fifo_types::fifo_element& bg, ppu_types::rgba color) const;
 	void reset_lcd_state();
 	[[nodiscard]] bool stat_interrupt_signal() const;
 	void update_stat_interrupt_line();
@@ -97,6 +96,12 @@ private:
 
 		int current_pixel = 0;
 		int bg_fetcher_cycle = 0;
+		int startup_dots = 12;
+		int discard_pixels = 0;
+		int sprite_fetch_cycle = 0;
+		int sprite_wait_dots = 0;
+		int last_sprite_tile = -1;
+		int window_start_x = 0;
 		int total_dots = 0;
 #pragma region Window
 		uint16_t window_line = -1;
@@ -131,6 +136,13 @@ private:
 			oam_cycle = 0;
 			current_x = 0;
 			current_pixel = 0;
+			bg_fetcher_cycle = 0;
+			startup_dots = 12;
+			discard_pixels = 0;
+			sprite_fetch_cycle = 0;
+			sprite_wait_dots = 0;
+			last_sprite_tile = -1;
+			window_start_x = 0;
 			bg_tile_id = 0;
 			bg_fetcher_running = false;
 			oam_fetcher_running = false;

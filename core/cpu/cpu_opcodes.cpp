@@ -320,15 +320,46 @@ void cpu::cpu::RET() {
     POP(_registers.pc);
 }
 
+
 void cpu::cpu::POP(uint16_t &regref) {
 
-    const auto lower = _mmu->read(_registers.sp++);
-    const auto upper = _mmu->read(_registers.sp++);
+	const auto value = _mmu->read16(_registers.sp);
 
-    regref = utils::uint16_little_endian(lower, upper);
+    _registers.sp += 2;
+
+    regref = value;
     if (&regref == &_registers.af) {
         _registers.f.zero_unused_nibble();
     }
+}
+
+constexpr static uint16_t pop_from_sp(const mmu::MMU& mmu, cpu::register_file& file)
+{
+    const auto value = mmu.read16(file.sp);
+
+    file.sp += 2;
+
+    return value;
+}
+void cpu::cpu::POP_BC()
+{
+    _registers.bc = pop_from_sp(*this->_mmu, _registers);
+}
+
+void cpu::cpu::POP_DE()
+{
+    _registers.de = pop_from_sp(*this->_mmu, _registers);
+}
+
+void cpu::cpu::POP_HL()
+{
+    _registers.hl = pop_from_sp(*this->_mmu, _registers);
+}
+
+void cpu::cpu::POP_AF()
+{
+    _registers.af = pop_from_sp(*this->_mmu, _registers);
+    _registers.f.zero_unused_nibble();
 }
 
 void cpu::cpu::JP_16(const uint16_t address) {

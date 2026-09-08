@@ -40,7 +40,7 @@ gb::gb(const std::string& rompath,
 
 
 
-		_timer = std::make_shared<gb_timer3>(_interrupt_controller);
+	_timer = std::make_shared<gb_timer3>(_interrupt_controller);
 
 
 	_spu = std::make_shared<spu>(_interrupt_controller);
@@ -52,7 +52,7 @@ gb::gb(const std::string& rompath,
 	_mmu = std::make_shared<mmu::MMU>(
 		_cartridge, _ppu, _timer, _interrupt_controller, _spu, _serial, _joypad, _logger);
 
-	_cpu = std::make_unique<::cpu::CPUImpl2>(_mmu, _interrupt_controller, _logger);
+	_cpu = std::make_unique<::cpu::cpu>(_mmu, _interrupt_controller, _logger);
 
 
 
@@ -68,9 +68,9 @@ void gb::run_one_frame() {
 	while (cycles_this_frame < gb_hardware::ppu::DotsPerFrame) {
 		uint32_t spent_cycles = _cpu->step();
 
-			_ppu->step(spent_cycles);
-			_timer->step(spent_cycles);
-			_spu->step(spent_cycles);
+		_ppu->step(spent_cycles);
+		_timer->step(spent_cycles);
+		_spu->step(spent_cycles);
 		// 2. Update all other components by the exact same amount of time.
 
 

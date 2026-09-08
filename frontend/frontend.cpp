@@ -129,7 +129,7 @@ namespace frontend
             {
                 stop_and_clear_audio(app, audio_stream);
                 EmuFlags flags;
-                flags.useFastPPU = false;
+                flags.useFastPPU = true;
                 flags.useNewTimer = true;
                 flags.useDotStepping = false;
                 auto serial = std::make_shared<serial::ConsoleGBSerial>(std::cout);
@@ -390,6 +390,10 @@ namespace frontend
                 app.last_stat_update = now;
             }
 
+            const auto mmu_stats = app.gameboy == nullptr
+                ? mmu::ReadStats{}
+                : app.gameboy->_mmu->get_read_stats();
+
             const ui::Action action = ui::draw(
                 {
                     .status = app.status,
@@ -400,7 +404,8 @@ namespace frontend
                     .unlimited_speed = app.unlimited_speed,
                     .show_run_one_frame_timing = app.run_one_frame_time_show,
                     .run_one_frame_latest_ms = app.run_one_frame_time_latest_ms,
-                    .run_one_frame_average_ms = app.run_one_frame_time_average_ms
+                    .run_one_frame_average_ms = app.run_one_frame_time_average_ms,
+                    .mmu_read_stats = mmu_stats
                 },
                 texture,
                 app.toast);

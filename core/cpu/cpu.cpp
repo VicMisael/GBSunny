@@ -195,9 +195,10 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		} //NOP
 		case 1: {
 			//LD (nn),SP
-			const auto lower = _mmu->read(_registers.pc++);
-			const auto upper = _mmu->read(_registers.pc++);
-			this->LD_nn_SP(utils::uint16_little_endian(lower, upper));
+			const auto addr = _mmu->read16(_registers.pc);
+			_registers.pc += 2;
+
+			this->LD_nn_SP(addr);
 			break;
 		}
 		case 2: {
@@ -229,15 +230,18 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 	case 1: {
 		switch (result.q()) {
 		case 0: {
-			const auto lower = _mmu->read(_registers.pc++);
-			const auto high = _mmu->read(_registers.pc++);
-			LD_16bit_reg_NN(*reg_16_sp[result.p()], utils::uint16_little_endian(lower, high));
+			const auto value = _mmu->read16(_registers.pc);
+			
+			_registers.pc += 2;
+
+			LD_16bit_reg_NN(*reg_16_sp[result.p()], value);
 			break;
 		};
 		case 1: {
 			ADD_HL(*reg_16_sp[result.p()]);
 			break;
 		};
+		default: ;
 		}
 		break;
 	};
@@ -370,8 +374,13 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 	}
 	case 1: {
 		if (result.q() == 0) {
-			//q=0;
-			POP(*reg_16_af[result.p()]);
+			switch (result.p()) {
+			case 0: POP_BC(); break;
+			case 1: POP_DE(); break;
+			case 2: POP_HL(); break;
+			case 3: POP_AF(); break;
+			default: break;
+			}
 		}
 		else {
 			//q=1;
@@ -405,11 +414,11 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 		case 1:
 		case 2:
 		case 3: {
-			const auto lower = _mmu->read(_registers.pc++);
-			const auto upper = _mmu->read(_registers.pc++);
+			const auto addr = _mmu->read16(_registers.pc);
+			_registers.pc += 2;
 			if (readflag_tbl(result.y())) {
 				branch_taken = true;
-				JP_16(utils::uint16_little_endian(lower, upper));
+				JP_16(addr);
 			}
 			break;
 		}
@@ -418,11 +427,10 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 			break;
 		}
 		case 5: {
-			const auto lower = _mmu->read(_registers.pc++);
-			const auto upper = _mmu->read(_registers.pc++);
+			const auto addr = _mmu->read16(_registers.pc);
+			_registers.pc += 2;
 
-
-			LD_mem(utils::uint16_little_endian(lower, upper), _registers.a);
+			LD_mem(addr, _registers.a);
 			break;
 		}
 		case 6: {
@@ -431,10 +439,10 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 
 		}
 		case 7: {
-			const auto lower = _mmu->read(_registers.pc++);
-			const auto upper = _mmu->read(_registers.pc++);
+			const auto addr = _mmu->read16(_registers.pc);
+			_registers.pc += 2;
 
-			LD_8bit(_registers.a, _mmu->read(utils::uint16_little_endian(lower, upper)));
+			LD_8bit(_registers.a, _mmu->read(addr));
 			break;
 		}
 		default:
@@ -445,10 +453,10 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 	case 3: {
 		switch (result.y()) {
 		case 0: {
-			const auto lower = _mmu->read(_registers.pc++);
-			const auto high = _mmu->read(_registers.pc++);
+			const auto addr = _mmu->read16(_registers.pc);
+			_registers.pc += 2;
 
-			this->JP_16(utils::uint16_little_endian(lower, high));
+			this->JP_16(addr);
 			break;
 		};
 
@@ -472,11 +480,11 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 		break;
 	}
 	case 4: {
-		const auto lower = _mmu->read(_registers.pc++);
-		const auto upper = _mmu->read(_registers.pc++);
+		const auto addr = _mmu->read16(_registers.pc);
+		_registers.pc += 2;
 		if (readflag_tbl(result.y())) {
 			branch_taken = true;
-			CALL(utils::uint16_little_endian(lower, upper));
+			CALL(addr);
 		}
 		break;
 	}
@@ -488,9 +496,9 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 		}
 		case 1: {
 			if (result.p() == 0) {
-				const auto lower = _mmu->read(_registers.pc++);
-				const auto upper = _mmu->read(_registers.pc++);
-				CALL(utils::uint16_little_endian(lower, upper));
+				const auto addr = _mmu->read16(_registers.pc);
+				_registers.pc += 2;
+				CALL(addr);
 			}
 			else {
 				throw std::runtime_error("Failt at Instruction " + (opcode_names[result.opcode]));
