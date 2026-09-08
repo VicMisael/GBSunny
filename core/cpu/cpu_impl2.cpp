@@ -273,7 +273,7 @@ uint32_t CPUImpl2::step() {
 	case 0x31: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		LD_16bit_reg_NN(reg16_sp_ref((opcode >> 4) & 0x03), utils::uint16_little_endian(lower, upper));
+		LD_16bit_reg_NN(reg16_sp_ref((opcode >> 4) & 0x03), utils::make_u16(lower, upper));
 		break;
 	}
 	case 0x02:
@@ -321,7 +321,7 @@ uint32_t CPUImpl2::step() {
 	case 0x08: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		LD_nn_SP(utils::uint16_little_endian(lower, upper));
+		LD_nn_SP(utils::make_u16(lower, upper));
 		break;
 	}
 	case 0x09:
@@ -561,14 +561,14 @@ uint32_t CPUImpl2::step() {
 		const auto upper = _mmu->read(_registers.pc++);
 		if (readflag_tbl((opcode >> 3) & 0x03)) {
 			branch_taken = true;
-			JP_16(utils::uint16_little_endian(lower, upper));
+			JP_16(utils::make_u16(lower, upper));
 		}
 		break;
 	}
 	case 0xC3: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		JP_16(utils::uint16_little_endian(lower, upper));
+		JP_16(utils::make_u16(lower, upper));
 		break;
 	}
 	case 0xC4:
@@ -579,7 +579,7 @@ uint32_t CPUImpl2::step() {
 		const auto upper = _mmu->read(_registers.pc++);
 		if (readflag_tbl((opcode >> 3) & 0x03)) {
 			branch_taken = true;
-			CALL(utils::uint16_little_endian(lower, upper));
+			CALL(utils::make_u16(lower, upper));
 		}
 		break;
 	}
@@ -615,7 +615,7 @@ uint32_t CPUImpl2::step() {
 	case 0xCD: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		CALL(utils::uint16_little_endian(lower, upper));
+		CALL(utils::make_u16(lower, upper));
 		break;
 	}
 	case 0xD9:
@@ -638,7 +638,7 @@ uint32_t CPUImpl2::step() {
 	case 0xEA: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		LD_mem(utils::uint16_little_endian(lower, upper), _registers.a);
+		LD_mem(utils::make_u16(lower, upper), _registers.a);
 		break;
 	}
 	case 0xF0: {
@@ -662,7 +662,7 @@ uint32_t CPUImpl2::step() {
 	case 0xFA: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		LD_8bit(_registers.a, _mmu->read(utils::uint16_little_endian(lower, upper)));
+		LD_8bit(_registers.a, _mmu->read(utils::make_u16(lower, upper)));
 		break;
 	}
 	case 0xFB:
@@ -990,7 +990,7 @@ void CPUImpl2::RET() {
 void CPUImpl2::POP(uint16_t& regref) {
 	const auto lower = _mmu->read(_registers.sp++);
 	const auto upper = _mmu->read(_registers.sp++);
-	regref = utils::uint16_little_endian(lower, upper);
+	regref = utils::make_u16(lower, upper);
 	if (&regref == &_registers.af) {
 		_registers.f.zero_unused_nibble();
 	}

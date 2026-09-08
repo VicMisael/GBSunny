@@ -125,6 +125,8 @@ namespace mmu {
 
         [[nodiscard]] uint8_t read(uint16_t addr) const ;
 
+		[[nodiscard]] uint16_t read16(uint16_t addr) const;
+
         void write(uint16_t addr, const uint8_t &data);
 
         [[nodiscard]] static ReadStats get_read_stats();

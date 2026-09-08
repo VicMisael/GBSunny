@@ -323,10 +323,11 @@ void cpu::cpu::RET() {
 
 void cpu::cpu::POP(uint16_t &regref) {
 
-    const auto lower = _mmu->read(_registers.sp++);
-    const auto upper = _mmu->read(_registers.sp++);
+	const auto value = _mmu->read16(_registers.sp);
 
-    regref = utils::uint16_little_endian(lower, upper);
+    _registers.sp += 2;
+
+    regref = value;
     if (&regref == &_registers.af) {
         _registers.f.zero_unused_nibble();
     }
@@ -334,10 +335,11 @@ void cpu::cpu::POP(uint16_t &regref) {
 
 constexpr static uint16_t pop_from_sp(const mmu::MMU& mmu, cpu::register_file& file)
 {
-    const auto lower = mmu.read(file.sp++);
-    const auto upper = mmu.read(file.sp++);
+    const auto value = mmu.read16(file.sp);
 
-    return utils::uint16_little_endian(lower, upper);
+    file.sp += 2;
+
+    return value;
 }
 void cpu::cpu::POP_BC()
 {

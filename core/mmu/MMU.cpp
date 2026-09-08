@@ -140,6 +140,34 @@ namespace {
 mmu::ReadStats read_stats;
 }
 
+uint16_t mmu::MMU::read16(const uint16_t addr) const
+{
+#ifndef SLOW_MEM_READS
+	if (!dma_active && (addr & 0xFF) != 0xFF) [[likely]] {
+		const auto* page = read_mem_regions[addr >> 8];
+
+		if (page != nullptr) [[likely]] {
+#ifdef READ_STATS
+			read_stats.total += 2;
+			read_stats.mapped += 2;
+#endif
+
+			const auto offset = addr & 0xFF;
+
+			return utils::make_u16(
+				page[offset],
+				page[offset + 1]
+			);
+		}
+	}
+#endif
+
+	const uint8_t low = read(addr);
+	const uint8_t high =
+		read(static_cast<uint16_t>(addr + 1));
+
+	return utils::make_u16(low, high);
+}
 
 uint8_t mmu::MMU::read(uint16_t addr) const
 {
@@ -175,6 +203,7 @@ uint8_t mmu::MMU::read(uint16_t addr) const
 
 	return read_slow(addr);
 }
+
 
 
 using mmu::MemRegion;
@@ -435,7 +464,7 @@ void mmu::MMU::set_interrupt_flag(uint8_t input) {
 {
 	const auto ppu = this->_ppu;
 	for (uint8_t i = 0; i < 0xA0; i++) {
-		const auto address = utils::uint16_little_endian(i, params);
+		const auto address = utils::make_u16(i, params);
 		ppu->write_oam(0xfe00 + i, this->read(address));
 	}
 

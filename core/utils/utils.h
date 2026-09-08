@@ -18,7 +18,8 @@ namespace  utils {
         return { lowByte, highByte };  // Return as a pair
     }
 
-    constexpr uint16_t uint16_little_endian(const uint8_t& LSB, const uint8_t& MSB) {
+    constexpr uint16_t make_u16(const uint8_t LSB, const uint8_t MSB) {
+		//Makes a Little Endian 16-bit value from two 8-bit values
         return (static_cast<uint16_t>(LSB)) | static_cast<uint16_t>(MSB)<<8;
     };
 
