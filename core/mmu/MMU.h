@@ -13,7 +13,7 @@
 #include "blocked_memory_page.h"
 #include "memory_page.h"
 #include "joypad/joypad.h"
-#include "spu/spu.h"
+#include "spu/SPUBase.h"
 #include "timer/gb_timer2.h"
 #include "shared/interrupt.h"
 #include "serial/gb_serial.h"
@@ -52,7 +52,7 @@ namespace mmu {
         std::shared_ptr<PPU_Base> _ppu;
         std::shared_ptr<base_timer> _timer;
         std::shared_ptr<Cartridge> _cartridge;
-        std::shared_ptr<spu> _spu;
+        std::shared_ptr<SPUBase> _spu;
         std::shared_ptr<serial::GBSerial> _serial;
         std::shared_ptr<Joypad> _joypad;
         std::shared_ptr<logging::CoreLogger> _logger;
@@ -77,7 +77,7 @@ namespace mmu {
             std::shared_ptr<PPU_Base> ppu_ptr,
             const std::shared_ptr<base_timer>& timer_ptr,
             const std::shared_ptr<shared::interrupt>& interrupt_ptr,
-            const std::shared_ptr<spu>& spu_ptr,
+            const std::shared_ptr<SPUBase>& spu_ptr,
             std::shared_ptr<serial::GBSerial> serial_ptr,
             std::shared_ptr<Joypad> joypad_ptr,
             std::shared_ptr<logging::CoreLogger> logger = nullptr

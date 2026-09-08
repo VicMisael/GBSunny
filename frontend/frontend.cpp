@@ -30,7 +30,7 @@ namespace frontend
         constexpr int MaxCatchUpFrames = 6;
         constexpr std::size_t RunOneFrameTimingSampleCount = 120;
 
-        using StereoAudioRing = AudioRingBuffer<spu::stereo_sample, AudioRingCapacity>;
+        using StereoAudioRing = AudioRingBuffer<SPUBase::stereo_sample, AudioRingCapacity>;
 
         std::atomic<StereoAudioRing*> active_audio_ring{nullptr};
 
@@ -41,7 +41,7 @@ namespace frontend
 
             for (unsigned int frame = 0; frame < frame_count; ++frame)
             {
-                spu::stereo_sample sample{};
+                SPUBase::stereo_sample sample{};
                 if (ring != nullptr)
                 {
                     ring->pop(sample);

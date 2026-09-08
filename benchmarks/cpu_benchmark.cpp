@@ -21,7 +21,8 @@
 #include "ppu/scanline_ppu/ppu_scanline.h"
 #include "serial/gb_serial.h"
 #include "shared/interrupt.h"
-#include "spu/spu.h"
+#include "spu/SPUBase.h"
+#include "spu/SPU2.h"
 #include "timer/gb_timer2.h"
 
 namespace {
@@ -96,7 +97,7 @@ public:
         interrupts = std::make_shared<shared::interrupt>();
         ppu = std::make_shared<PPU_scanline>(interrupts);
         timer = std::make_shared<gb_timer2>(interrupts);
-        audio = std::make_shared<spu>(interrupts);
+        audio = std::make_shared<SPU2>(interrupts);
         serial = std::make_shared<serial::NullGBSerial>();
         joypad = std::make_shared<Joypad>(interrupts);
 
@@ -150,7 +151,7 @@ private:
     std::shared_ptr<shared::interrupt> interrupts;
     std::shared_ptr<PPU_scanline> ppu;
     std::shared_ptr<gb_timer2> timer;
-    std::shared_ptr<spu> audio;
+    std::shared_ptr<SPUBase> audio;
     std::shared_ptr<serial::GBSerial> serial;
     std::shared_ptr<Joypad> joypad;
     std::shared_ptr<Cartridge> cartridge;
