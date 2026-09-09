@@ -36,13 +36,19 @@ namespace cpu
             f=input;
             return *this;
         }
+
+        constexpr void set_flags(bool zero, bool subtract, bool half_carry, bool carry) {
+            f = static_cast<uint8_t>(
+                (static_cast<uint8_t>(zero) << 7) |
+                (static_cast<uint8_t>(subtract) << 6) |
+                (static_cast<uint8_t>(half_carry) << 5) |
+                (static_cast<uint8_t>(carry) << 4));
+        }
+
         void zero_unused_nibble() {
             this->f &= 0xf0;
         };
 
-        void reset_all_flags() {
-            this->f &= 0x0f;
-        }
     };
 #if defined(__clang__)
 #pragma clang diagnostic pop

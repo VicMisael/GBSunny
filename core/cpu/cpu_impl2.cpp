@@ -681,78 +681,64 @@ uint32_t CPUImpl2::step() {
 
 void CPUImpl2::ADD_a(uint8_t data) {
 	const uint16_t result = _registers.a + data;
-	_registers.f.SUBTRACT = false;
-	_registers.f.HALF_CARRY = ((_registers.a & 0x0F) + (data & 0x0F)) > 0x0F;
-	_registers.f.CARRY = result > 0xFF;
+	const bool half_carry = ((_registers.a & 0x0F) + (data & 0x0F)) > 0x0F;
 	_registers.a = static_cast<uint8_t>(result);
-	_registers.f.ZERO = (_registers.a == 0);
+	_registers.f.set_flags(_registers.a == 0, false, half_carry, result > 0xFF);
 }
 
 void CPUImpl2::ADC_a(uint8_t data) {
 	const uint8_t carry = _registers.f.CARRY;
 	const uint16_t result = _registers.a + data + carry;
-	_registers.f.SUBTRACT = false;
-	_registers.f.HALF_CARRY = ((_registers.a & 0x0F) + (data & 0x0F) + carry) > 0x0F;
-	_registers.f.CARRY = result > 0xFF;
+	const bool half_carry = ((_registers.a & 0x0F) + (data & 0x0F) + carry) > 0x0F;
 	_registers.a = static_cast<uint8_t>(result);
-	_registers.f.ZERO = (_registers.a == 0);
+	_registers.f.set_flags(_registers.a == 0, false, half_carry, result > 0xFF);
 }
 
 void CPUImpl2::ADD_SP_I8(const int8_t& i) {
 	const uint16_t result = _registers.sp + i;
-	_registers.f.reset_all_flags();
-	_registers.f.HALF_CARRY = ((_registers.sp & 0x0F) + (i & 0x0F)) > 0x0F;
-	_registers.f.CARRY = ((_registers.sp & 0xFF) + (i & 0xFF)) > 0xFF;
+	const bool half_carry = ((_registers.sp & 0x0F) + (i & 0x0F)) > 0x0F;
+	const bool carry = ((_registers.sp & 0xFF) + (i & 0xFF)) > 0xFF;
+	_registers.f.set_flags(false, false, half_carry, carry);
 	_registers.sp = result;
 }
 
 void CPUImpl2::SUB_a(uint8_t data) {
-	_registers.f.SUBTRACT = true;
-	_registers.f.HALF_CARRY = (_registers.a & 0x0F) < (data & 0x0F);
-	_registers.f.CARRY = _registers.a < data;
+	const bool half_carry = (_registers.a & 0x0F) < (data & 0x0F);
+	const bool carry = _registers.a < data;
 	_registers.a -= data;
-	_registers.f.ZERO = (_registers.a == 0);
+	_registers.f.set_flags(_registers.a == 0, true, half_carry, carry);
 }
 
 void CPUImpl2::SBC_A(uint8_t data) {
 	const uint8_t carry = _registers.f.CARRY;
 	const uint16_t result = _registers.a - data - carry;
-	_registers.f.SUBTRACT = true;
-	_registers.f.HALF_CARRY = (_registers.a & 0x0F) < ((data & 0x0F) + carry);
-	_registers.f.CARRY = _registers.a < (data + carry);
+	const bool half_carry = (_registers.a & 0x0F) < ((data & 0x0F) + carry);
+	const bool result_carry = _registers.a < (data + carry);
 	_registers.a = static_cast<uint8_t>(result);
-	_registers.f.ZERO = (_registers.a == 0);
+	_registers.f.set_flags(_registers.a == 0, true, half_carry, result_carry);
 }
 
 void CPUImpl2::AND_a(uint8_t data) {
 	_registers.a &= data;
-	_registers.f.ZERO = (_registers.a == 0);
-	_registers.f.SUBTRACT = false;
-	_registers.f.HALF_CARRY = true;
-	_registers.f.CARRY = false;
+	_registers.f.set_flags(_registers.a == 0, false, true, false);
 }
 
 void CPUImpl2::XOR_a(uint8_t data) {
 	_registers.a ^= data;
-	_registers.f.ZERO = (_registers.a == 0);
-	_registers.f.SUBTRACT = false;
-	_registers.f.HALF_CARRY = false;
-	_registers.f.CARRY = false;
+	_registers.f.set_flags(_registers.a == 0, false, false, false);
 }
 
 void CPUImpl2::OR_a(uint8_t data) {
 	_registers.a |= data;
-	_registers.f.ZERO = (_registers.a == 0);
-	_registers.f.SUBTRACT = false;
-	_registers.f.HALF_CARRY = false;
-	_registers.f.CARRY = false;
+	_registers.f.set_flags(_registers.a == 0, false, false, false);
 }
 
 void CPUImpl2::CP_a(uint8_t data) {
-	_registers.f.ZERO = (_registers.a == data);
-	_registers.f.SUBTRACT = true;
-	_registers.f.HALF_CARRY = (_registers.a & 0x0F) < (data & 0x0F);
-	_registers.f.CARRY = _registers.a < data;
+	_registers.f.set_flags(
+		_registers.a == data,
+		true,
+		(_registers.a & 0x0F) < (data & 0x0F),
+		_registers.a < data);
 }
 
 void CPUImpl2::INC_8bit(uint8_t& data) {
@@ -798,59 +784,49 @@ void CPUImpl2::DEC_16bit(uint16_t& data) {
 void CPUImpl2::RLC(uint8_t& data) {
 	const bool carry = (data & 0x80) != 0;
 	data = std::rotl(data, 1);
-	_registers.f.reset_all_flags();
-	_registers.f.ZERO = data == 0;
-	_registers.f.CARRY = carry;
+	_registers.f.set_flags(data == 0, false, false, carry);
 }
 
 void CPUImpl2::RRC(uint8_t& data) {
 	const bool carry = (data & 0x01) != 0;
 	data = std::rotr(data, 1);
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = carry;
-	_registers.f.ZERO = (data == 0);
+	_registers.f.set_flags(data == 0, false, false, carry);
 }
 
 void CPUImpl2::RL(uint8_t& data) {
 	const bool new_carry = (data & 0x80) != 0;
 	data = (data << 1) | (_registers.f.CARRY ? 1 : 0);
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = new_carry;
-	_registers.f.ZERO = (data == 0);
+	_registers.f.set_flags(data == 0, false, false, new_carry);
 }
 
 void CPUImpl2::RR(uint8_t& data) {
 	const bool new_carry = (data & 0x01) != 0;
 	data = (data >> 1) | (_registers.f.CARRY ? 0x80 : 0);
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = new_carry;
-	_registers.f.ZERO = (data == 0);
+	_registers.f.set_flags(data == 0, false, false, new_carry);
 }
 
 void CPUImpl2::RLCA() {
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = (_registers.a & 0x80) > 0;
+	const bool carry = (_registers.a & 0x80) != 0;
 	_registers.a = std::rotl(_registers.a, 1);
+	_registers.f.set_flags(false, false, false, carry);
 }
 
 void CPUImpl2::RRCA() {
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = (_registers.a & 0x01) > 0;
+	const bool carry = (_registers.a & 0x01) != 0;
 	_registers.a = std::rotr(_registers.a, 1);
+	_registers.f.set_flags(false, false, false, carry);
 }
 
 void CPUImpl2::RLA() {
 	const bool new_carry = (_registers.a & 0x80) != 0;
 	_registers.a = (_registers.a << 1) | (_registers.f.CARRY ? 1 : 0);
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = new_carry;
+	_registers.f.set_flags(false, false, false, new_carry);
 }
 
 void CPUImpl2::RRA() {
 	const bool new_carry = (_registers.a & 0x01) != 0;
 	_registers.a = (_registers.a >> 1) | (_registers.f.CARRY ? 0x80 : 0);
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = new_carry;
+	_registers.f.set_flags(false, false, false, new_carry);
 }
 
 void CPUImpl2::DAA() {
@@ -898,32 +874,25 @@ void CPUImpl2::CCF() {
 void CPUImpl2::SLA(uint8_t& data) {
 	const auto carry = (data & 0x80) != 0;
 	data <<= 1;
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = carry;
-	_registers.f.ZERO = (data == 0);
+	_registers.f.set_flags(data == 0, false, false, carry);
 }
 
 void CPUImpl2::SRA(uint8_t& data) {
 	const auto carry = (data & 0x01) != 0;
 	const auto copy = data;
 	data = copy >> 1 | (copy & 0x80);
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = carry;
-	_registers.f.ZERO = (data == 0);
+	_registers.f.set_flags(data == 0, false, false, carry);
 }
 
 void CPUImpl2::SWAP(uint8_t& data) {
 	data = ((data & 0x0F) << 4) | ((data & 0xF0) >> 4);
-	_registers.f.reset_all_flags();
-	_registers.f.ZERO = (data == 0);
+	_registers.f.set_flags(data == 0, false, false, false);
 }
 
 void CPUImpl2::SRL(uint8_t& data) {
 	const auto carry = (data & 0x01) != 0;
 	data >>= 1;
-	_registers.f.reset_all_flags();
-	_registers.f.CARRY = carry;
-	_registers.f.ZERO = (data == 0);
+	_registers.f.set_flags(data == 0, false, false, carry);
 }
 
 void CPUImpl2::BIT(uint8_t y, uint8_t operand) {
@@ -946,9 +915,9 @@ void CPUImpl2::LD_8bit(uint8_t& dest, uint8_t src) {
 
 void CPUImpl2::LD_HL_SP_i8(int8_t value) {
 	const uint16_t result = _registers.sp + value;
-	_registers.f.reset_all_flags();
-	_registers.f.HALF_CARRY = ((_registers.sp & 0x0F) + (static_cast<uint8_t>(value) & 0x0F)) > 0x0F;
-	_registers.f.CARRY = ((_registers.sp & 0xFF) + (static_cast<uint8_t>(value) & 0xFF)) > 0xFF;
+	const bool half_carry = ((_registers.sp & 0x0F) + (static_cast<uint8_t>(value) & 0x0F)) > 0x0F;
+	const bool carry = ((_registers.sp & 0xFF) + (static_cast<uint8_t>(value) & 0xFF)) > 0xFF;
+	_registers.f.set_flags(false, false, half_carry, carry);
 	_registers.hl = result;
 }
 
