@@ -123,7 +123,7 @@ uint8_t& cpu::cpu::reg_ref(uint8_t index)
 }
 
 inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
-	switch (index) {
+	switch (index&0x07) {
 	case 0: return _registers.b;
 	case 1: return _registers.c;
 	case 2: return _registers.d;
@@ -132,7 +132,7 @@ inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
 	case 5: return _registers.l;
 	case 6: return _mmu->read(_registers.hl); // Be careful when using this
 	case 7: return _registers.a;
-	default: throw std::out_of_range("Invalid register index");
+	default: std::unreachable();
 	}
 }
 
@@ -327,9 +327,31 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 	}
 }
 
+enum class AluOperation :uint8_t{
+	ADD_A,
+	ADC_A,
+	SUB_A,
+	SBC_A,
+	AND_a,
+	XOR_a,
+	OR_a,
+	CP_a,
+} ;
+
 void cpu::cpu::block2(const decoded_instruction& result) {
-	auto alu_operation = (alu_table[result.y()]);
-	(this->*alu_operation)(reg_readonly(result.z()));
+	const uint8_t value = reg_readonly(result.z());
+
+	switch (static_cast<AluOperation>(result.y())) {
+	case AluOperation::ADD_A: ADD_a(value); break;
+	case AluOperation::ADC_A: ADC_a(value); break;
+	case AluOperation::SUB_A: SUB_a(value); break;
+	case AluOperation::SBC_A: SBC_A(value); break;
+	case AluOperation::AND_a: AND_a(value); break;
+	case AluOperation::XOR_a: XOR_a(value); break;
+	case AluOperation::OR_a:  OR_a(value);  break;
+	case AluOperation::CP_a:  CP_a(value);  break;
+	}
+}
 }
 
 void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
