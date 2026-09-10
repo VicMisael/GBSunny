@@ -171,6 +171,9 @@ uint16_t mmu::MMU::read16(const uint16_t addr) const
 
 uint8_t mmu::MMU::read(uint16_t addr) const
 {
+#ifdef SLOW_MEM_READS
+	return  read_slow(addr);
+#endif
 
 	if (dma_active) [[unlikely]] {
 		if (addr < HRAM_START || addr > HRAM_END)

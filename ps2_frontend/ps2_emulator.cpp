@@ -9,11 +9,12 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <vector>
+
+#include "spu/spu.h"
 
 namespace ps2_frontend {
 namespace {

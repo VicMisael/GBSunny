@@ -71,7 +71,7 @@ void gb::reset() {
 
 void gb::run_one_frame() {
 	uint32_t cycles_this_frame = 0;
-	constexpr uint32_t cpu_advance_cycles = 1;
+	constexpr uint32_t cpu_advance_cycles = 20;
 
 	while (cycles_this_frame < gb_hardware::ppu::DotsPerFrame) {
 		uint32_t spent_cycles = 0;
@@ -84,7 +84,7 @@ void gb::run_one_frame() {
 
 		_ppu->step(spent_cycles);
 		_timer->step(spent_cycles);
-		_spu->step(spent_cycles);
+		//_spu->step(spent_cycles);
 		// 2. Update all other components by the exact same amount of time.
 
 

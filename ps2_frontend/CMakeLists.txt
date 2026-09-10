@@ -9,6 +9,8 @@ if(NOT PS2)
     )
 endif()
 
+#target_compile_definitions(CoreModule PRIVATE READ_STATS)
+# target_compile_definitions(CoreModule PRIVATE SLOW_MEM_READS)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -49,6 +51,9 @@ set_target_properties(GBSunnyPS2 PROPERTIES
     OUTPUT_NAME "gbsunny"
     SUFFIX ".elf"
 )
+
+#target_compile_definitions(CoreModule PRIVATE READ_STATS)
+#target_compile_definitions(CoreModule PRIVATE SLOW_MEM_READS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     include(CheckIPOSupported)
