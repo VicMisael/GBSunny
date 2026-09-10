@@ -60,6 +60,7 @@ namespace mmu {
         std::shared_ptr<shared::interrupt> interrupt; //Shared space for interrupts
 
         std::array<const uint8_t*, page_count> read_mem_regions{};
+        std::array<uint8_t*, page_count> write_mem_regions{};
 
         [[nodiscard]] uint8_t read_interrupt_enable() const;
         [[nodiscard]] uint8_t read_interrupt_flag() const;
@@ -71,6 +72,7 @@ namespace mmu {
 
         [[nodiscard]] uint8_t io_read(uint16_t addr) const;
         [[nodiscard]] uint8_t read_slow(uint16_t addr) const;
+        void write_slow(uint16_t addr, const uint8_t& data);
         void io_write(uint16_t addr, uint8_t data);
 
     public:
@@ -129,10 +131,29 @@ namespace mmu {
 
         void write(uint16_t addr, const uint8_t &data);
 
+		[[nodiscard]] uint8_t* get_writable_memory_block(uint16_t addr)
+		{
+			constexpr uint16_t HRAM_START = 0xFF80;
+			constexpr uint16_t HRAM_END = 0xFFFE;
+
+			if (dma_active && (addr < HRAM_START || addr > HRAM_END)) [[unlikely]] {
+				return nullptr;
+			}
+
+			if (addr >= HRAM_START && addr <= HRAM_END) {
+
+				return &HRAM[addr - HRAM_START];
+			}
+
+			return &write_mem_regions[addr >> 8][addr&0xff];
+
+		};
+
         [[nodiscard]] static ReadStats get_read_stats();
 
 #pragma region Memory Mapping
         void map_read_only_page(std::size_t page, const uint8_t* block);
+        void map_write_page(std::size_t page, uint8_t* block);
         void on_boot_rom_control_update();
 
         void on_rom0_bank_update();

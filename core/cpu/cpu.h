@@ -169,8 +169,6 @@ namespace cpu {
 
 
 
-		uint8_t& reg_ref(uint8_t index);
-
 		uint8_t reg_readonly(uint8_t index) const;
 
 		 const std::array<uint16_t*, 4> reg_16_sp = {

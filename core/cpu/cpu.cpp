@@ -105,23 +105,6 @@ void cpu::cpu::reset() {
 
 }
 
-//Store Run Cycles on
-
-uint8_t& cpu::cpu::reg_ref(uint8_t index)
-{
-	switch (index) {
-	case 0: return _registers.b;
-	case 1: return _registers.c;
-	case 2: return _registers.d;
-	case 3: return _registers.e;
-	case 4: return _registers.h;
-	case 5: return _registers.l;
-	case 6: throw std::runtime_error("getting a reference to memory is not possible, write and read instead"); // Be careful when using this
-	case 7: return _registers.a;
-	default: throw std::out_of_range("Invalid register index");
-	}
-}
-
 inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
 	switch (index&0x07) {
 	case 0: return _registers.b;
@@ -144,16 +127,28 @@ uint8_t cpu::cpu::cb_prefixed()
 	switch (result.x()) {
 	case 0: {
 		const auto func = rot_table[result.y()];
-		if (result.z() == 6) {
-			uint16_t hl = _registers.hl;
-			uint8_t operand = _mmu->read(hl);
-			(this->*func)(operand);
-			_mmu->write(hl, operand);
+		switch (result.z()) {
+		case 0: (this->*func)(_registers.b); break;
+		case 1: (this->*func)(_registers.c); break;
+		case 2: (this->*func)(_registers.d); break;
+		case 3: (this->*func)(_registers.e); break;
+		case 4: (this->*func)(_registers.h); break;
+		case 5: (this->*func)(_registers.l); break;
+		case 6: {
+			const uint16_t hl = _registers.hl;
+			if (auto block = _mmu->get_writable_memory_block(hl); block != nullptr) {
+				(this->*func)(*block);
+			}
+			else {
+				uint8_t operand = _mmu->read(hl);
+				(this->*func)(operand);
+				_mmu->write(hl, operand);
+			}
+			break;
 		}
-		else {
-			(this->*func)(reg_ref(result.z()));
+		case 7: (this->*func)(_registers.a); break;
+		default: std::unreachable();
 		}
-
 		break;
 	}
 	case 1:
@@ -166,7 +161,16 @@ uint8_t cpu::cpu::cb_prefixed()
 			_mmu->write(_registers.hl, operand);
 		}
 		else {
-			this->RES(result.y(), this->reg_ref(result.z()));
+			switch (result.z()) {
+			case 0: RES(result.y(), _registers.b); break;
+			case 1: RES(result.y(), _registers.c); break;
+			case 2: RES(result.y(), _registers.d); break;
+			case 3: RES(result.y(), _registers.e); break;
+			case 4: RES(result.y(), _registers.h); break;
+			case 5: RES(result.y(), _registers.l); break;
+			case 7: RES(result.y(), _registers.a); break;
+			default: std::unreachable();
+			}
 		}
 		break;
 	case 3:
@@ -177,7 +181,16 @@ uint8_t cpu::cpu::cb_prefixed()
 			_mmu->write(hl, operand);
 		}
 		else {
-			this->SET(result.y(), this->reg_ref(result.z()));
+			switch (result.z()) {
+			case 0: SET(result.y(), _registers.b); break;
+			case 1: SET(result.y(), _registers.c); break;
+			case 2: SET(result.y(), _registers.d); break;
+			case 3: SET(result.y(), _registers.e); break;
+			case 4: SET(result.y(), _registers.h); break;
+			case 5: SET(result.y(), _registers.l); break;
+			case 7: SET(result.y(), _registers.a); break;
+			default: std::unreachable();
+			}
 		}
 		break;
 	default: break;
@@ -281,7 +294,16 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 			INC_HL_8bit();
 			break;
 		}
-		INC_8bit(reg_ref(result.y()));
+		switch (result.y()) {
+		case 0: INC_8bit(_registers.b); break;
+		case 1: INC_8bit(_registers.c); break;
+		case 2: INC_8bit(_registers.d); break;
+		case 3: INC_8bit(_registers.e); break;
+		case 4: INC_8bit(_registers.h); break;
+		case 5: INC_8bit(_registers.l); break;
+		case 7: INC_8bit(_registers.a); break;
+		default: std::unreachable();
+		}
 		break;
 	}
 	case 5: {
@@ -289,12 +311,35 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 			DEC_HL_8bit();
 			break;
 		}
-		DEC_8bit(reg_ref(result.y()));
+		switch (result.y()) {
+		case 0: DEC_8bit(_registers.b); break;
+		case 1: DEC_8bit(_registers.c); break;
+		case 2: DEC_8bit(_registers.d); break;
+		case 3: DEC_8bit(_registers.e); break;
+		case 4: DEC_8bit(_registers.h); break;
+		case 5: DEC_8bit(_registers.l); break;
+		case 7: DEC_8bit(_registers.a); break;
+		default: std::unreachable();
+		}
 		break;
 	}
 	case 6: {
 		auto immediate = _mmu->read(_registers.pc++);
-		result.y() == 6 ? LD_mem(_registers.hl, immediate) : LD_8bit(reg_ref(result.y()), immediate);
+		if (result.y() == 6) {
+			LD_mem(_registers.hl, immediate);
+		}
+		else {
+			switch (result.y()) {
+			case 0: LD_8bit(_registers.b, immediate); break;
+			case 1: LD_8bit(_registers.c, immediate); break;
+			case 2: LD_8bit(_registers.d, immediate); break;
+			case 3: LD_8bit(_registers.e, immediate); break;
+			case 4: LD_8bit(_registers.h, immediate); break;
+			case 5: LD_8bit(_registers.l, immediate); break;
+			case 7: LD_8bit(_registers.a, immediate); break;
+			default: std::unreachable();
+			}
+		}
 		break;
 	}
 	case 7: {
@@ -323,7 +368,16 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 		LD_mem(_registers.hl, src);
 	}
 	else {
-		LD_8bit(reg_ref(result.y()), src);
+		switch (result.y()) {
+		case 0: LD_8bit(_registers.b, src); break;
+		case 1: LD_8bit(_registers.c, src); break;
+		case 2: LD_8bit(_registers.d, src); break;
+		case 3: LD_8bit(_registers.e, src); break;
+		case 4: LD_8bit(_registers.h, src); break;
+		case 5: LD_8bit(_registers.l, src); break;
+		case 7: LD_8bit(_registers.a, src); break;
+		default: std::unreachable();
+		}
 	}
 }
 
@@ -351,7 +405,6 @@ void cpu::cpu::block2(const decoded_instruction& result) {
 	case AluOperation::OR_a:  OR_a(value);  break;
 	case AluOperation::CP_a:  CP_a(value);  break;
 	}
-}
 }
 
 void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {

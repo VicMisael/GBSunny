@@ -49,6 +49,10 @@ void mmu::MMU::map_read_only_page(std::size_t page, const uint8_t* block) {
 	read_mem_regions[page] = block;
 }
 
+void mmu::MMU::map_write_page(std::size_t page, uint8_t* block) {
+	write_mem_regions[page] = block;
+}
+
 void mmu::MMU::on_boot_rom_control_update()
 {
 	if (bootRomControl != 0) {
@@ -91,12 +95,15 @@ void mmu::MMU::on_ppu_vram_access_set(bool enable)
 	{
 		for (size_t page = 0; page < mapped_page_count(VRAM_START, VRAM_END); ++page) {
 			map_read_only_page(page_index(VRAM_START) + page, vram + (page * page_size));
+			map_write_page(page_index(VRAM_START) + page,
+				const_cast<uint8_t*>(vram + (page * page_size)));
 		}
 		return;
 	}
 
 	for (size_t page = 0; page < mapped_page_count(VRAM_START, VRAM_END); ++page) {
 		map_read_only_page(page_index(VRAM_START) + page, blocked_memory_page.data());
+		map_write_page(page_index(VRAM_START) + page, nullptr);
 	}
 }
 
@@ -108,6 +115,7 @@ void mmu::MMU::on_ppu_dma(bool active)
 void mmu::MMU::init_read_mem_map()
 {
 	read_mem_regions.fill({});
+	write_mem_regions.fill({});
 	//ROM 0
 
 	map_read_only_page(page_index(ROM0_START), cartridge::bootDMG.data());
@@ -118,10 +126,14 @@ void mmu::MMU::init_read_mem_map()
 		map_read_only_page(page_index(WRAM0_START) + page, internal_RAM.data() + (page * page_size));
 		map_read_only_page(page_index(WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
 		map_read_only_page(page_index(ECHO_START) + page, internal_RAM.data() + (page * page_size));
+		map_write_page(page_index(WRAM0_START) + page, internal_RAM.data() + (page * page_size));
+		map_write_page(page_index(WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
+		map_write_page(page_index(ECHO_START) + page, internal_RAM.data() + (page * page_size));
 	}
 
 	for (size_t page = 0; page < mapped_page_count(ECHO_WRAMX_START, ECHO_END); ++page) {
 		map_read_only_page(page_index(ECHO_WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
+		map_write_page(page_index(ECHO_WRAMX_START) + page, internal_RAM2.data() + (page * page_size));
 	}
 
 
@@ -289,14 +301,29 @@ NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 }
 
 
-void mmu::MMU::write(uint16_t addr, const uint8_t& data) {
-
-	const auto region = decode_region(addr);
-
-
-	if (dma_active && region != MemRegion::HRAM) {
+void mmu::MMU::write(uint16_t addr, const uint8_t& data)
+{
+	if (dma_active && (addr < HRAM_START || addr > HRAM_END)) [[unlikely]] {
 		return;
 	}
+
+	if (auto* mapped_page = write_mem_regions[addr >> 8]; mapped_page != nullptr) [[likely]] {
+		mapped_page[addr & 0xFF] = data;
+		return;
+	}
+
+	if (HRAM_START<= addr && addr<HRAM_END){
+		HRAM[addr - HRAM_START] = data;
+		return;
+	}
+
+
+	write_slow(addr, data);
+}
+
+
+void mmu::MMU::write_slow(uint16_t addr, const uint8_t& data) {
+	const auto region = decode_region(addr);
 
 	switch (region) {
 	case MemRegion::ROM0:
