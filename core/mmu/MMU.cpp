@@ -183,19 +183,13 @@ uint16_t mmu::MMU::read16(const uint16_t addr) const
 
 uint8_t mmu::MMU::read(uint16_t addr) const
 {
-#ifdef READ_STATS
-	read_stats.total++;
-#endif // READ_STATS
 #ifdef SLOW_MEM_READS
-	return read_slow(addr);
-#endif // SLOW_MEM_READS
+	return  read_slow(addr);
+#endif
 
-
-	if (dma_active && (addr < HRAM_START || addr > HRAM_END)) [[unlikely]] {
-#ifdef READ_STATS
-		read_stats.dma_blocked++;
-#endif // READ_STATS
-		return 0xFF;
+	if (dma_active) [[unlikely]] {
+		if (addr < HRAM_START || addr > HRAM_END)
+			return 0xFF;
 	}
 
 	const auto* mapped_page = read_mem_regions[addr >> 8];
