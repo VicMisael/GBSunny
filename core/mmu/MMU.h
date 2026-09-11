@@ -144,8 +144,12 @@ namespace mmu {
 
 				return &HRAM[addr - HRAM_START];
 			}
-
-			return &write_mem_regions[addr >> 8][addr&0xff];
+			auto writeMem = write_mem_regions[addr >> 8];
+			if (writeMem == nullptr)
+			{
+				return nullptr;
+			}
+			return &writeMem[addr&0xff];
 
 		};
 

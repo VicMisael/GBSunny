@@ -68,35 +68,37 @@ void cpu::cpu::CP_a(uint8_t data) {
 }
 
 void cpu::cpu::INC_8bit(uint8_t &data) {
-    _registers.f.HALF_CARRY = ((data & 0x0F) == 0x0F);
+    const bool half_carry = (data & 0x0F) == 0x0F;
     data++;
-    _registers.f.ZERO = (data == 0);
-    _registers.f.SUBTRACT = false;
+    _registers.f.set_flags(data == 0, false, half_carry, _registers.f.CARRY);
 }
 
 void cpu::cpu::DEC_8bit(uint8_t &data) {
-    _registers.f.HALF_CARRY = (data & 0x0F) == 0x00;
+    const bool half_carry = (data & 0x0F) == 0x00;
     data--;
-    _registers.f.ZERO = (data == 0);
-    _registers.f.SUBTRACT = true;
+    _registers.f.set_flags(data == 0, true, half_carry, _registers.f.CARRY);
 }
 
 void cpu::cpu::INC_HL_8bit() {
+	if (auto* operand = _mmu->get_writable_memory_block(_registers.hl); operand != nullptr) {
+		INC_8bit(*operand);
+		return;
+	}
+
     uint8_t value = _mmu->read(_registers.hl);
-    _registers.f.HALF_CARRY = ((value & 0x0F) == 0x0F);
-    value++;
+	INC_8bit(value);
     _mmu->write(_registers.hl, value);
-    _registers.f.ZERO = (value == 0);
-    _registers.f.SUBTRACT = false;
 }
 
 void cpu::cpu::DEC_HL_8bit() {
+	if (auto* operand = _mmu->get_writable_memory_block(_registers.hl); operand != nullptr) {
+		DEC_8bit(*operand);
+		return;
+	}
+
     uint8_t value = _mmu->read(_registers.hl);
-    _registers.f.HALF_CARRY = (value & 0x0F) == 0x00;
-    value--;
+	DEC_8bit(value);
     _mmu->write(_registers.hl, value);
-    _registers.f.ZERO = (value == 0);
-    _registers.f.SUBTRACT = true;
 }
 
 void cpu::cpu::INC_16bit(uint16_t &data) {
@@ -163,34 +165,33 @@ void cpu::cpu::RRA() {
 
 void cpu::cpu::DAA() {
     uint16_t a = _registers.a;
-    if (!_registers.f.SUBTRACT) {
-        if (_registers.f.CARRY || a > 0x99) { a += 0x60; _registers.f.CARRY = true; }
+    const bool subtract = _registers.f.SUBTRACT;
+    bool carry = _registers.f.CARRY;
+    if (!subtract) {
+        if (carry || a > 0x99) {
+            a += 0x60;
+            carry = true;
+        }
         if (_registers.f.HALF_CARRY || (a & 0x0F) > 0x09) { a += 0x06; }
     } else {
-        if (_registers.f.CARRY) { a -= 0x60; }
+        if (carry) { a -= 0x60; }
         if (_registers.f.HALF_CARRY) { a -= 0x06; }
     }
     _registers.a = static_cast<uint8_t>(a);
-    _registers.f.ZERO = (_registers.a == 0);
-    _registers.f.HALF_CARRY = false;
+    _registers.f.set_flags(_registers.a == 0, subtract, false, carry);
 }
 
 void cpu::cpu::CPL() {
     _registers.a = ~_registers.a;
-    _registers.f.SUBTRACT = true;
-    _registers.f.HALF_CARRY = true;
+    _registers.f.set_flags(_registers.f.ZERO, true, true, _registers.f.CARRY);
 }
 
 void cpu::cpu::SCF() {
-    _registers.f.SUBTRACT = false;
-    _registers.f.HALF_CARRY = false;
-    _registers.f.CARRY = true;
+    _registers.f.set_flags(_registers.f.ZERO, false, false, true);
 }
 
 void cpu::cpu::CCF() {
-    _registers.f.SUBTRACT = false;
-    _registers.f.HALF_CARRY = false;
-    _registers.f.CARRY = !_registers.f.CARRY;
+    _registers.f.set_flags(_registers.f.ZERO, false, false, !_registers.f.CARRY);
 }
 
 void cpu::cpu::SLA(uint8_t &data) {
@@ -218,9 +219,11 @@ void cpu::cpu::SRL(uint8_t &data) {
 }
 
 void cpu::cpu::BIT(uint8_t y, uint8_t operand) {
-    _registers.f.ZERO = (operand & (1 << y)) == 0;
-    _registers.f.SUBTRACT = false;
-    _registers.f.HALF_CARRY = true;
+    _registers.f.set_flags(
+        (operand & (1 << y)) == 0,
+        false,
+        true,
+        _registers.f.CARRY);
 }
 
 void cpu::cpu::RES(uint8_t y, uint8_t &operand) {
@@ -260,13 +263,8 @@ void cpu::cpu::ADD_HL(const uint16_t &data) {
     uint16_t hl = _registers.hl;
     uint32_t result = static_cast<uint32_t>(hl) + data;
 
-    _registers.f.SUBTRACT = false;
-
-    // Half-Carry: if carry from bit 11 (lower 12 bits)
-    _registers.f.HALF_CARRY = ((hl & 0x0FFF) + (data & 0x0FFF)) > 0x0FFF;
-
-    // Carry: if carry from bit 15
-    _registers.f.CARRY = result > 0xFFFF;
+    const bool half_carry = ((hl & 0x0FFF) + (data & 0x0FFF)) > 0x0FFF;
+    _registers.f.set_flags(_registers.f.ZERO, false, half_carry, result > 0xFFFF);
 
     _registers.hl = static_cast<uint16_t>(result);
 }
@@ -280,22 +278,7 @@ void cpu::cpu::CALL(const uint16_t address) {
     _registers.pc = address;
 }
 
-void cpu::cpu::RET() {
-    POP(_registers.pc);
-}
 
-
-void cpu::cpu::POP(uint16_t &regref) {
-
-	const auto value = _mmu->read16(_registers.sp);
-
-    _registers.sp += 2;
-
-    regref = value;
-    if (&regref == &_registers.af) {
-        _registers.f.zero_unused_nibble();
-    }
-}
 
 constexpr static uint16_t pop_from_sp(const mmu::MMU& mmu, cpu::register_file& file)
 {
@@ -305,6 +288,13 @@ constexpr static uint16_t pop_from_sp(const mmu::MMU& mmu, cpu::register_file& f
 
     return value;
 }
+
+
+void cpu::cpu::RET() {
+    _registers.pc = pop_from_sp(*this->_mmu, _registers);
+}
+
+
 void cpu::cpu::POP_BC()
 {
     _registers.bc = pop_from_sp(*this->_mmu, _registers);

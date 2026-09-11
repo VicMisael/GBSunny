@@ -101,8 +101,8 @@ namespace cpu {
 		void SRL(uint8_t& data);
 		//BIT RES
 		void BIT(uint8_t y,uint8_t operand);
-		void RES(uint8_t y,uint8_t& operand);
-		void SET(uint8_t y,uint8_t& operand);
+		static void RES(uint8_t y,uint8_t& operand);
+		static void SET(uint8_t y,uint8_t& operand);
 		//8 BIt Loads
 		static void LD_8bit(uint8_t& dest, uint8_t src);
 
@@ -121,8 +121,6 @@ namespace cpu {
 		void CALL( uint16_t address);
 
 		void RET();
-
-		void POP(uint16_t &regref);
 
 		void POP_BC();
 		void POP_DE();
@@ -169,7 +167,7 @@ namespace cpu {
 
 
 
-		uint8_t reg_readonly(uint8_t index) const;
+		[[nodiscard]] uint8_t reg_readonly(uint8_t index) const;
 
 		 const std::array<uint16_t*, 4> reg_16_sp = {
 			&_registers.bc,
@@ -187,16 +185,16 @@ namespace cpu {
 
 
 
-		 bool readflag_tbl(uint8_t id) const {
+		 [[nodiscard]] bool readflag_tbl(uint8_t id) const {
 			//Should crash on wrong lookup
 			 switch (id) {
 			 case 0:return !_registers.f.ZERO;
 			 case 1:return _registers.f.ZERO;
 			 case 2:return !_registers.f.CARRY;
 			 case 3:return _registers.f.CARRY;
-				 default: ;
+			 default:std::unreachable() ;
 			 };
-			 _logger->error("Invalid CPU flag condition index");
+
 		 	return false;
 		}
 
@@ -206,7 +204,7 @@ namespace cpu {
 				case 1:return _registers.de;
 				case 2:return _registers.hl++;
 				case 3:return _registers.hl--;
-				default: throw std::out_of_range("Invalid register index");
+			default: std::unreachable();
 			}
 			throw std::out_of_range("Invalid register index");
 		};
@@ -228,8 +226,8 @@ namespace cpu {
 				_logger = std::make_shared<logging::NullCoreLogger>();
 			}
 		}
-		void reset();
-		uint32_t step();
+		void reset() final;
+		uint32_t step() override;
 
 
 	};

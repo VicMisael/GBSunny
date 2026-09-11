@@ -50,7 +50,7 @@ void cpu::cpu::gb_doctor_print(std::ostream& out_stream) const
 
 bool cpu::cpu::waiting_interrupt() const {
 	const auto interrupt = this->interrupt_control->allowed();
-	
+
 	return ime && (interrupt.flag != 0);
 }
 
@@ -58,7 +58,7 @@ uint32_t cpu::cpu::handle_interrupt() {
 	static constexpr std::array<uint16_t, 5> jmp_table = { 0x40, 0x48, 0x50, 0x58, 0x60 };
 
 	// Interrupt handling takes 5 M-cycles (20 T-cycles)
-	
+
 	halted = false;
 
 	// Manually PUSH PC to stack
@@ -155,12 +155,6 @@ uint8_t cpu::cpu::cb_prefixed()
 		this->BIT(result.y(), this->reg_readonly(result.z()));
 		break;
 	case 2:
-		if (result.z() == 6) {
-			uint8_t operand = _mmu->read(_registers.hl);
-			RES(result.y(), operand);
-			_mmu->write(_registers.hl, operand);
-		}
-		else {
 			switch (result.z()) {
 			case 0: RES(result.y(), _registers.b); break;
 			case 1: RES(result.y(), _registers.c); break;
@@ -168,32 +162,48 @@ uint8_t cpu::cpu::cb_prefixed()
 			case 3: RES(result.y(), _registers.e); break;
 			case 4: RES(result.y(), _registers.h); break;
 			case 5: RES(result.y(), _registers.l); break;
-			case 7: RES(result.y(), _registers.a); break;
+			case 6: {
+				const uint16_t hl = _registers.hl;
+				if (auto block = _mmu->get_writable_memory_block(hl); block != nullptr) {
+					RES(result.y(),*block);
+				}
+				else {
+					uint8_t operand = _mmu->read(hl);
+					RES(result.y(),operand);
+					_mmu->write(hl, operand);
+				}
+			};
+			break;
+			case 7: RES(result.y(), _registers.a);break;
 			default: std::unreachable();
 			}
-		}
+
 		break;
 	case 3:
-		if (result.z() == 6) {
-			const uint16_t hl = _registers.hl;
-			uint8_t operand = _mmu->read(hl);
-			SET(result.y(), operand);
-			_mmu->write(hl, operand);
-		}
-		else {
-			switch (result.z()) {
-			case 0: SET(result.y(), _registers.b); break;
-			case 1: SET(result.y(), _registers.c); break;
-			case 2: SET(result.y(), _registers.d); break;
-			case 3: SET(result.y(), _registers.e); break;
-			case 4: SET(result.y(), _registers.h); break;
-			case 5: SET(result.y(), _registers.l); break;
-			case 7: SET(result.y(), _registers.a); break;
-			default: std::unreachable();
-			}
+		switch (result.z()) {
+		case 0: SET(result.y(), _registers.b); break;
+		case 1: SET(result.y(), _registers.c); break;
+		case 2: SET(result.y(), _registers.d); break;
+		case 3: SET(result.y(), _registers.e); break;
+		case 4: SET(result.y(), _registers.h); break;
+		case 5: SET(result.y(), _registers.l); break;
+		case 6:
+			{
+				const uint16_t hl = _registers.hl;
+				if (auto block = _mmu->get_writable_memory_block(hl); block != nullptr) {
+					SET(result.y(),*block);
+				}
+				else {
+					uint8_t operand = _mmu->read(hl);
+					SET(result.y(),operand);
+					_mmu->write(hl, operand);
+				}
+			};break;
+		case 7: SET(result.y(), _registers.a); break;
+		default: std::unreachable();
 		}
 		break;
-	default: break;
+	default: std::unreachable();
 	}
 	return opcode_cycles_cb[result.opcode];
 }
@@ -244,7 +254,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		switch (result.q()) {
 		case 0: {
 			const auto value = _mmu->read16(_registers.pc);
-			
+
 			_registers.pc += 2;
 
 			LD_16bit_reg_NN(*reg_16_sp[result.p()], value);
@@ -428,7 +438,7 @@ void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
 		}
 		case 5: {
 			const auto data = _mmu->read(_registers.pc++);
-			ADD_SP_I8(data);
+			ADD_SP_I8(static_cast<int8_t>(data));
 			break;
 		}
 		case 6: {
@@ -664,6 +674,7 @@ uint32_t cpu::cpu::step() {
 		block3(instruction, branchTaken);
 		break;
 	}
+	default: std::unreachable();
 	}
 	if (ime_enable_delay > 0 && --ime_enable_delay == 0) {
 		ime = true;
