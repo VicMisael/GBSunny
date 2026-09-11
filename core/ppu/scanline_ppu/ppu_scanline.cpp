@@ -216,8 +216,8 @@ void PPU_scanline::render_background() {
         uint8_t tile_col = x_in_map / 8;
 
         uint16_t tile_map_addr = tile_map_area + tile_row * 32 + tile_col;
-        uint8_t tile_id = read_vram(tile_map_addr);
-
+        uint8_t tile_id = PPU_scanline::read_vram(tile_map_addr);
+            
         uint16_t tile_data_addr;
         if (lcdc.bits.BG_window_tiles_adressing) {
             tile_data_addr =  tile_id;
@@ -226,8 +226,8 @@ void PPU_scanline::render_background() {
         }
 
         uint8_t y_in_tile = y_in_map % 8;
-        uint8_t byte1 = read_vram(base + tile_data_addr*16 + y_in_tile * 2 );
-        uint8_t byte2 = read_vram(base + tile_data_addr*16 + y_in_tile * 2 + 1);
+        uint8_t byte1 = PPU_scanline::read_vram(base + tile_data_addr*16 + y_in_tile * 2 );
+        uint8_t byte2 = PPU_scanline::read_vram(base + tile_data_addr*16 + y_in_tile * 2 + 1);
         uint8_t x_in_tile = 7 - (x_in_map % 8);
         uint8_t color_id = (((byte2 >> x_in_tile) & 1) << 1) | ((byte1 >> x_in_tile) & 1);
 
@@ -261,8 +261,8 @@ void PPU_scanline::render_window() {
         }
 
         uint8_t y_in_tile = y_in_map % 8;
-        uint8_t byte1 = read_vram(tile_data_addr + y_in_tile * 2);
-        uint8_t byte2 = read_vram(tile_data_addr + y_in_tile * 2 + 1);
+        uint8_t byte1 = PPU_scanline::read_vram(tile_data_addr + y_in_tile * 2);
+        uint8_t byte2 = PPU_scanline::read_vram(tile_data_addr + y_in_tile * 2 + 1);
         uint8_t x_in_tile = 7 - (x_in_map % 8);
         uint8_t color_id = (((byte2 >> x_in_tile) & 1) << 1) | ((byte1 >> x_in_tile) & 1);
 
@@ -317,8 +317,8 @@ void PPU_scanline::render_sprites() {
         if (y_flip) y_in_sprite = sprite_height - 1 - y_in_sprite;
 
         uint16_t tile_data_addr = 0x8000 + sprite.tile_index * 16;
-        uint8_t byte1 = read_vram(tile_data_addr + y_in_sprite * 2);
-        uint8_t byte2 = read_vram(tile_data_addr + y_in_sprite * 2 + 1);
+        uint8_t byte1 = PPU_scanline::read_vram(tile_data_addr + y_in_sprite * 2);
+        uint8_t byte2 = PPU_scanline::read_vram(tile_data_addr + y_in_sprite * 2 + 1);
 
         for (int x = 0; x < 8; ++x) {
             int pixel_x = (sprite.x - 8) + x;
@@ -338,7 +338,7 @@ void PPU_scanline::render_sprites() {
 }
 
 // Memory and Register Access
-uint8_t PPU_scanline::read_vram(uint16_t address) const {
+inline uint8_t PPU_scanline::read_vram(uint16_t address) const {
     //if(!this->is_vram_accessible()) return 0xff;
     return vram[address - 0x8000];
 }
@@ -348,7 +348,7 @@ void PPU_scanline::write_vram(uint16_t address, uint8_t value) {
     vram[address - 0x8000] = value;
 }
 
-uint8_t PPU_scanline::read_control(uint16_t addr) const {
+inline uint8_t PPU_scanline::read_control(uint16_t addr) const {
     switch (addr) {
         case 0xFF40: return lcdc.data;
         case 0xFF41: return stat.read();

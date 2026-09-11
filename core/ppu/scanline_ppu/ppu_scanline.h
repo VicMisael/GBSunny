@@ -20,16 +20,16 @@ public:
     explicit PPU_scanline(std::shared_ptr<shared::interrupt> interrupt_controller);
 
     // Main PPU lifecycle methods
-    void reset() override;
-    void step(uint32_t cycles) override;
-    void tick() override;
+    void reset() final;
+    void step(uint32_t cycles) final;
+    void tick() final;
 
     // Memory-mapped I/O handlers for the MMU to call
-    [[nodiscard]] uint8_t read_vram(uint16_t address) const override;
-    void write_vram(uint16_t address, uint8_t value) override;
+    [[nodiscard]] uint8_t read_vram(uint16_t address) const final;
+    void write_vram(uint16_t address, uint8_t value)  final;
     [[nodiscard]] const uint8_t* get_vram_ptr() const final { return vram.data(); }
     [[nodiscard]] uint8_t read_control(uint16_t addr) const final;
-    void write_control(uint16_t addr, uint8_t data) override ;
+    void write_control(uint16_t addr, uint8_t data)  final;
 
     // DMA transfer handling
     void start_dma_transfer() final;
@@ -39,7 +39,7 @@ public:
     [[nodiscard]] bool is_oam_accessible() const final;
 
     // Interface for the frontend to get the final image
-    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const override;
+    [[nodiscard]] const std::array<ppu_types::rgba, gb_hardware::display::PixelCount>& get_framebuffer() const final;
 
 
 
