@@ -49,7 +49,8 @@ add_library(CoreModule STATIC gb.cpp
  cartridge/modes/mbc5.cpp events/event_aggregator.h events/events.h
         logging/core_logger.h
         utils/emu_flags.h
-        utils/compiler.h)
+        utils/compiler.h
+        utils/arithmetic.h)
 
 
 target_include_directories(CoreModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

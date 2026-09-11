@@ -1,47 +1,47 @@
 #include "cpu.h"
+#include <utils/arithmetic.h>
 #include <utils/utils.h>
 
-
 void cpu::cpu::ADD_a(uint8_t data) {
-    const uint16_t result = _registers.a + data;
+    const auto result = utils::add_carry(_registers.a, data);
     const bool half_carry = ((_registers.a & 0x0F) + (data & 0x0F)) > 0x0F;
-    _registers.a = static_cast<uint8_t>(result);
-    _registers.f.set_flags(_registers.a == 0, false, half_carry, result > 0xFF);
+    _registers.a = result.value;
+    _registers.f.set_flags(_registers.a == 0, false, half_carry, result.carry);
 }
 
 void cpu::cpu::ADC_a(uint8_t data) {
-    const uint8_t carry = _registers.f.CARRY;
-    const uint16_t result = _registers.a + data + carry;
+    const bool carry = _registers.f.CARRY;
+    const auto result = utils::add_carry(_registers.a, data, carry);
     const bool half_carry = ((_registers.a & 0x0F) + (data & 0x0F) + carry) > 0x0F;
-    _registers.a = static_cast<uint8_t>(result);
-    _registers.f.set_flags(_registers.a == 0, false, half_carry, result > 0xFF);
+    _registers.a = result.value;
+    _registers.f.set_flags(_registers.a == 0, false, half_carry, result.carry);
 }
 
 void cpu::cpu::ADD_SP_I8(const int8_t &i) {
 
-    uint16_t result = _registers.sp + i;
+    const auto result = utils::add_carry(_registers.sp, static_cast<uint16_t>(i));
 
     const bool half_carry = ((_registers.sp & 0x0F) + (i & 0x0F)) > 0x0F;
-    const bool carry = ((_registers.sp & 0xFF) + (i & 0xFF)) > 0xFF;
+    const bool carry = utils::add_carry(
+        static_cast<uint8_t>(_registers.sp), static_cast<uint8_t>(i)).carry;
     _registers.f.set_flags(false, false, half_carry, carry);
 
-    _registers.sp = result;
+    _registers.sp = result.value;
 }
 
 void cpu::cpu::SUB_a(uint8_t data) {
+    const auto result = utils::subtract_carry(_registers.a, data);
     const bool half_carry = (_registers.a & 0x0F) < (data & 0x0F);
-    const bool carry = _registers.a < data;
-    _registers.a -= data;
-    _registers.f.set_flags(_registers.a == 0, true, half_carry, carry);
+    _registers.a = result.value;
+    _registers.f.set_flags(_registers.a == 0, true, half_carry, result.carry);
 }
 
 void cpu::cpu::SBC_A(uint8_t data) {
-    const uint8_t carry = _registers.f.CARRY;
-    const uint16_t result = _registers.a - data - carry;
+    const bool carry = _registers.f.CARRY;
+    const auto result = utils::subtract_carry(_registers.a, data, carry);
     const bool half_carry = (_registers.a & 0x0F) < ((data & 0x0F) + carry);
-    const bool result_carry = _registers.a < (data + carry);
-    _registers.a = static_cast<uint8_t>(result);
-    _registers.f.set_flags(_registers.a == 0, true, half_carry, result_carry);
+    _registers.a = result.value;
+    _registers.f.set_flags(_registers.a == 0, true, half_carry, result.carry);
 }
 
 void cpu::cpu::AND_a(uint8_t data) {
@@ -60,11 +60,12 @@ void cpu::cpu::OR_a(uint8_t data) {
 }
 
 void cpu::cpu::CP_a(uint8_t data) {
+    const auto result = utils::subtract_carry(_registers.a, data);
     _registers.f.set_flags(
-        _registers.a == data,
+        result.value == 0,
         true,
         (_registers.a & 0x0F) < (data & 0x0F),
-        _registers.a < data);
+        result.carry);
 }
 
 void cpu::cpu::INC_8bit(uint8_t &data) {
@@ -239,11 +240,12 @@ void cpu::cpu::LD_8bit(uint8_t &dest, const uint8_t src) {
 }
 
 void cpu::cpu::LD_HL_SP_i8(const int8_t i) {
-    const uint16_t result = _registers.sp + i;
+    const auto result = utils::add_carry(_registers.sp, static_cast<uint16_t>(i));
     const bool half_carry = ((_registers.sp & 0x0F) + (static_cast<uint8_t>(i) & 0x0F)) > 0x0F;
-    const bool carry = ((_registers.sp & 0xFF) + (static_cast<uint8_t>(i) & 0xFF)) > 0xFF;
+    const bool carry = utils::add_carry(
+        static_cast<uint8_t>(_registers.sp), static_cast<uint8_t>(i)).carry;
     _registers.f.set_flags(false, false, half_carry, carry);
-    _registers.hl = result;
+    _registers.hl = result.value;
 }
 
 void cpu::cpu::LD_mem(uint16_t addr, const uint8_t src) {
@@ -260,13 +262,13 @@ void cpu::cpu::LD_16bit_reg_NN(uint16_t &regref, uint16_t value) {
 }
 
 void cpu::cpu::ADD_HL(const uint16_t &data) {
-    uint16_t hl = _registers.hl;
-    uint32_t result = static_cast<uint32_t>(hl) + data;
+    const uint16_t hl = _registers.hl;
+    const auto result = utils::add_carry(hl, data);
 
     const bool half_carry = ((hl & 0x0FFF) + (data & 0x0FFF)) > 0x0FFF;
-    _registers.f.set_flags(_registers.f.ZERO, false, half_carry, result > 0xFFFF);
+    _registers.f.set_flags(_registers.f.ZERO, false, half_carry, result.carry);
 
-    _registers.hl = static_cast<uint16_t>(result);
+    _registers.hl = result.value;
 }
 
 void cpu::cpu::RST(const uint8_t rst) {
