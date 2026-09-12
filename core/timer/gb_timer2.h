@@ -18,7 +18,9 @@ class gb_timer2:public base_timer {
     void write(uint16_t addr, uint8_t data) override;
 
     void reset() override;
+    bool timer_signal() const;
     void tick() override;
+    void increment_tima();
     void step(uint32_t cycles) override;
 
 
