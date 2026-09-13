@@ -149,74 +149,8 @@ void mmu::MMU::init_read_mem_map()
 
 #pragma region MemoryReadAndWrite
 
-namespace {
-mmu::ReadStats read_stats;
-}
-
-uint16_t mmu::MMU::read16(const uint16_t addr) const
-{
-#ifndef SLOW_MEM_READS
-	if (!dma_active && (addr & 0xFF) != 0xFF) [[likely]] {
-		const auto* page = read_mem_regions[addr >> 8];
-
-		if (page != nullptr) [[likely]] {
-#ifdef READ_STATS
-			read_stats.total += 2;
-			read_stats.mapped += 2;
-#endif
-
-			const auto offset = addr & 0xFF;
-
-			std::uint16_t value;
-			std::memcpy(&value, page + offset, sizeof(value));
-			return value;
-		}
-	}
-#endif
-
-	const uint8_t low = read(addr);
-	const uint8_t high =
-		read(static_cast<uint16_t>(addr + 1));
-
-	return utils::make_u16(low, high);
-}
-
-uint8_t mmu::MMU::read(uint16_t addr) const
-{
-#ifdef READ_STATS
-	read_stats.total++;
-#endif // READ_STATS
-#ifdef SLOW_MEM_READS
-	return read_slow(addr);
-#endif // SLOW_MEM_READS
-
-
-	if (dma_active && (addr < HRAM_START || addr > HRAM_END)) [[unlikely]] {
-#ifdef READ_STATS
-		read_stats.dma_blocked++;
-#endif // READ_STATS
-		return 0xFF;
-	}
-
-	const auto* mapped_page = read_mem_regions[addr >> 8];
-	if (mapped_page != nullptr)[[likely]] {
-#ifdef READ_STATS
-		read_stats.mapped++;
-#endif // READ_STATS
-		return mapped_page[addr & 0xFF];
-	}
-
-	if (addr >= HRAM_START && addr <= HRAM_END) {
-#ifdef READ_STATS
-		read_stats.hram++;
-#endif // READ_STATS
-		return HRAM[addr - HRAM_START];
-	}
-
-	return read_slow(addr);
-}
-
-
+// read_stats is defined as an inline namespace variable in MMU.h so the
+// header-defined read fast paths update the same counters.
 
 using mmu::MemRegion;
 
@@ -298,27 +232,6 @@ NO_INLINE uint8_t mmu::MMU::read_slow(uint16_t addr) const {
 	_logger->warning(message.str());
 
 	return 0xFF;
-}
-
-
-void mmu::MMU::write(uint16_t addr, const uint8_t& data)
-{
-	if (dma_active && (addr < HRAM_START || addr > HRAM_END)) [[unlikely]] {
-		return;
-	}
-
-	if (auto* mapped_page = write_mem_regions[addr >> 8]; mapped_page != nullptr) [[likely]] {
-		mapped_page[addr & 0xFF] = data;
-		return;
-	}
-
-	if (HRAM_START<= addr && addr<HRAM_END){
-		HRAM[addr - HRAM_START] = data;
-		return;
-	}
-
-
-	write_slow(addr, data);
 }
 
 

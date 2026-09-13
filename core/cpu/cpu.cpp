@@ -123,7 +123,7 @@ inline uint8_t cpu::cpu::reg_readonly(uint8_t index) const {
 
 uint8_t cpu::cpu::cb_prefixed()
 {
-	decoded_instruction result = { .opcode = _mmu->read(_registers.pc++) };
+	const decoded_instruction result = decoded_instruction(_mmu->read(_registers.pc++));
 	switch (result.x()) {
 	case 0: {
 		const auto func = rot_table[result.y()];
@@ -317,10 +317,6 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		break;
 	}
 	case 5: {
-		if (result.y() == 6) {
-			DEC_HL_8bit();
-			break;
-		}
 		switch (result.y()) {
 		case 0: DEC_8bit(_registers.b); break;
 		case 1: DEC_8bit(_registers.c); break;
@@ -328,6 +324,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 		case 3: DEC_8bit(_registers.e); break;
 		case 4: DEC_8bit(_registers.h); break;
 		case 5: DEC_8bit(_registers.l); break;
+		case 6: DEC_HL_8bit(); break;
 		case 7: DEC_8bit(_registers.a); break;
 		default: std::unreachable();
 		}
@@ -335,21 +332,19 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 	}
 	case 6: {
 		auto immediate = _mmu->read(_registers.pc++);
-		if (result.y() == 6) {
-			LD_mem(_registers.hl, immediate);
-		}
-		else {
+
 			switch (result.y()) {
-			case 0: LD_8bit(_registers.b, immediate); break;
-			case 1: LD_8bit(_registers.c, immediate); break;
-			case 2: LD_8bit(_registers.d, immediate); break;
-			case 3: LD_8bit(_registers.e, immediate); break;
-			case 4: LD_8bit(_registers.h, immediate); break;
-			case 5: LD_8bit(_registers.l, immediate); break;
-			case 7: LD_8bit(_registers.a, immediate); break;
-			default: std::unreachable();
+				case 0: LD_8bit(_registers.b, immediate); break;
+				case 1: LD_8bit(_registers.c, immediate); break;
+				case 2: LD_8bit(_registers.d, immediate); break;
+				case 3: LD_8bit(_registers.e, immediate); break;
+				case 4: LD_8bit(_registers.h, immediate); break;
+				case 5: LD_8bit(_registers.l, immediate); break;
+				case 6: LD_mem(_registers.hl, immediate);
+				case 7: LD_8bit(_registers.a, immediate); break;
+				default: std::unreachable();
 			}
-		}
+
 		break;
 	}
 	case 7: {
@@ -374,10 +369,6 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 
 	auto src = reg_readonly(result.z());
 
-	if (result.y() == 6) {
-		LD_mem(_registers.hl, src);
-	}
-	else {
 		switch (result.y()) {
 		case 0: LD_8bit(_registers.b, src); break;
 		case 1: LD_8bit(_registers.c, src); break;
@@ -385,22 +376,26 @@ void cpu::cpu::block1(const decoded_instruction& result) {
 		case 3: LD_8bit(_registers.e, src); break;
 		case 4: LD_8bit(_registers.h, src); break;
 		case 5: LD_8bit(_registers.l, src); break;
+		case 6: LD_mem(_registers.hl, src); break;
 		case 7: LD_8bit(_registers.a, src); break;
 		default: std::unreachable();
 		}
-	}
+
 }
 
-enum class AluOperation :uint8_t{
-	ADD_A,
-	ADC_A,
-	SUB_A,
-	SBC_A,
-	AND_a,
-	XOR_a,
-	OR_a,
-	CP_a,
-} ;
+namespace
+{
+	enum class AluOperation :uint8_t{
+		ADD_A,
+		ADC_A,
+		SUB_A,
+		SBC_A,
+		AND_a,
+		XOR_a,
+		OR_a,
+		CP_a,
+	} ;
+}
 
 void cpu::cpu::block2(const decoded_instruction& result) {
 	const uint8_t value = reg_readonly(result.z());
@@ -417,7 +412,7 @@ void cpu::cpu::block2(const decoded_instruction& result) {
 	}
 }
 
-void cpu::cpu::block3(decoded_instruction& result, bool& branch_taken) {
+void cpu::cpu::block3(const decoded_instruction& result, bool& branch_taken) {
 	switch (result.z()) {
 	case 0: {
 		switch (result.y()) {
@@ -640,7 +635,7 @@ uint32_t cpu::cpu::step() {
 		halt_bug = false;
 	}
 
-	decoded_instruction instruction{ .opcode = _mmu->read(fetch_addr) };
+	const auto instruction = decoded_instruction( _mmu->read(fetch_addr) );
 
 	if (instruction.opcode == 0xCB) {
 		spent_cycles = 4 * cb_prefixed();

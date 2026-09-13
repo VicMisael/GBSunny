@@ -8,6 +8,7 @@
 #include <memory>
 #include <array>
 #include <algorithm>
+#include <cstring>
 
 #include "cartridge/cartridge.h"
 #include "blocked_memory_page.h"
@@ -40,6 +41,8 @@ namespace mmu {
         uint64_t dma_blocked = 0;
         std::array<uint64_t, MemRegionCount> slow_by_region{};
     };
+
+    inline ReadStats read_stats;
 
     class MMU {
 
@@ -125,11 +128,87 @@ namespace mmu {
 
         void init_read_mem_map();
 
-        [[nodiscard]] uint8_t read(uint16_t addr) const ;
+        [[nodiscard]] uint8_t read(uint16_t addr) const
+        {
+#ifdef READ_STATS
+            read_stats.total++;
+#endif
+#ifdef SLOW_MEM_READS
+            return read_slow(addr);
+#endif
 
-		[[nodiscard]] uint16_t read16(uint16_t addr) const;
+            constexpr uint16_t hram_start = 0xFF80;
+            constexpr uint16_t hram_end = 0xFFFE;
 
-        void write(uint16_t addr, const uint8_t &data);
+            if (dma_active && (addr < hram_start || addr > hram_end)) [[unlikely]] {
+#ifdef READ_STATS
+                read_stats.dma_blocked++;
+#endif
+                return 0xFF;
+            }
+
+            const auto* mapped_page = read_mem_regions[addr >> 8];
+            if (mapped_page != nullptr) [[likely]] {
+#ifdef READ_STATS
+                read_stats.mapped++;
+#endif
+                return mapped_page[addr & 0xFF];
+            }
+
+            if (addr >= hram_start && addr <= hram_end) {
+#ifdef READ_STATS
+                read_stats.hram++;
+#endif
+                return HRAM[addr - hram_start];
+            }
+
+            return read_slow(addr);
+        }
+
+		[[nodiscard]] uint16_t read16(uint16_t addr) const
+        {
+#ifndef SLOW_MEM_READS
+            if (!dma_active && (addr & 0xFF) != 0xFF) [[likely]] {
+                const auto* page = read_mem_regions[addr >> 8];
+
+                if (page != nullptr) [[likely]] {
+#ifdef READ_STATS
+                    read_stats.total += 2;
+                    read_stats.mapped += 2;
+#endif
+                    std::uint16_t value;
+                    std::memcpy(&value, page + (addr & 0xFF), sizeof(value));
+                    return value;
+                }
+            }
+#endif
+
+            const uint8_t low = read(addr);
+            const uint8_t high = read(static_cast<uint16_t>(addr + 1));
+            return static_cast<uint16_t>(low | (static_cast<uint16_t>(high) << 8));
+        }
+
+        void write(uint16_t addr, const uint8_t &data)
+        {
+            constexpr uint16_t hram_start = 0xFF80;
+            constexpr uint16_t hram_end = 0xFFFE;
+
+            if (dma_active && (addr < hram_start || addr > hram_end)) [[unlikely]] {
+                return;
+            }
+
+            if (auto* mapped_page = write_mem_regions[addr >> 8]; mapped_page != nullptr) [[likely]] {
+                mapped_page[addr & 0xFF] = data;
+                return;
+            }
+
+            if (addr >= hram_start && addr <= hram_end) {
+                HRAM[addr - hram_start] = data;
+                return;
+            }
+
+            write_slow(addr, data);
+        }
 
 		[[nodiscard]] uint8_t* get_writable_memory_block(uint16_t addr)
 		{

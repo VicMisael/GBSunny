@@ -180,7 +180,7 @@ void CPUImpl2::execute_accumulator_rotation(uint8_t operation) {
 }
 
 uint8_t CPUImpl2::execute_cb() {
-	decoded_instruction instruction{ .opcode = _mmu->read(_registers.pc++) };
+	const auto instruction = decoded_instruction(_mmu->read(_registers.pc++));
 
 	switch (instruction.x()) {
 	case 0: {

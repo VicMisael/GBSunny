@@ -19,6 +19,13 @@ namespace cpu {
 
 
 	struct decoded_instruction {
+
+		constexpr decoded_instruction(uint8_t value) noexcept
+	: opcode(value) {}
+
+		constexpr explicit operator uint8_t() const noexcept {
+			return opcode;
+		}
 		uint8_t opcode;
 
 		[[nodiscard]] constexpr uint8_t x() const { return opcode >> 6; }
@@ -48,7 +55,7 @@ namespace cpu {
 		void block1(const decoded_instruction& result);
 		void block2(const decoded_instruction& result);
 		uint8_t cb_prefixed();
-		void block3(decoded_instruction &result, bool &branch_taken);
+		void block3(const decoded_instruction &result, bool &branch_taken);
 
 		void JP_16(uint16_t uint16);
 
@@ -104,15 +111,21 @@ namespace cpu {
 		static void RES(uint8_t y,uint8_t& operand);
 		static void SET(uint8_t y,uint8_t& operand);
 		//8 BIt Loads
-		static void LD_8bit(uint8_t& dest, uint8_t src);
+		static void LD_8bit(uint8_t& dest, uint8_t src)
+		{
+			dest=src;
+		};
 
 		void LD_HL_SP_i8(int8_t value);
 
-		void LD_mem(uint16_t addr, uint8_t src);
+		void LD_mem(uint16_t addr, uint8_t src) const
+		{
+			_mmu->write(addr, src);
+		};
 
 		void LD_nn_SP(uint16_t address);
 
-		void LD_16bit_reg_NN(uint16_t &regref,uint16_t value);
+		static void LD_16bit_reg_NN(uint16_t &regref,uint16_t value);
 
 		void ADD_HL(const uint16_t& data);
 
@@ -236,4 +249,5 @@ namespace cpu {
 
 
 
+#include "cpu_opcodes.inl"
 #endif //CPU_H

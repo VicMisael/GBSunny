@@ -11,7 +11,6 @@ add_library(CoreModule STATIC gb.cpp
         joypad/joypad.cpp
         joypad/joypad.h
         cpu/opcode_names.h
-        cpu/cpu_opcodes.cpp
         utils/utils.h
         cpu/opcode_cycles.h
         ppu/scanline_ppu/ppu_scanline.cpp

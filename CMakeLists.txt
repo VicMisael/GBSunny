@@ -41,6 +41,7 @@ target_link_libraries(GBAsunny PRIVATE CoreModule
 if(GBSUNNY_IPO_SUPPORTED)
     message(STATUS "IPO / LTO enabled")
     set_property(TARGET GBAsunny CoreModule PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 else()
     message(STATUS "IPO / LTO not supported: <${GBSUNNY_IPO_ERROR}>")
 endif()
