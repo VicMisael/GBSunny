@@ -128,6 +128,8 @@ namespace mmu {
 
         void init_read_mem_map();
 
+    	void read(uint16_t addr,uint8_t& dest) const;
+
         [[nodiscard]] uint8_t read(uint16_t addr) const
         {
 #ifdef READ_STATS

@@ -145,6 +145,10 @@ void mmu::MMU::init_read_mem_map()
 	 
 }
 
+void mmu::MMU::read(uint16_t addr, uint8_t &dest) const {
+	dest = this->read(addr);
+}
+
 #pragma endregion MemMap
 
 #pragma region MemoryReadAndWrite
