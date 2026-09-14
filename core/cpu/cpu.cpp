@@ -275,8 +275,7 @@ void cpu::cpu::block0(const decoded_instruction& result, bool& branch_taken) {
 			LD_mem(r16mem(result.p()), _registers.a);
 			break;
 		case 1: {
-			auto value = _mmu->read(r16mem(result.p()));
-			LD_8bit(_registers.a, value);
+			_mmu->read(r16mem(result.p()), _registers.a);
 			break;
 		}
 		default:
@@ -438,8 +437,7 @@ void cpu::cpu::block3(const decoded_instruction& result, bool& branch_taken) {
 		}
 		case 6: {
 			const auto address = 0xff00 + _mmu->read(_registers.pc++);
-			const auto value = _mmu->read(address);
-			LD_8bit(_registers.a, value);
+			_mmu->read(address, _registers.a);
 			break;
 		}
 		case 7: {
@@ -514,7 +512,7 @@ void cpu::cpu::block3(const decoded_instruction& result, bool& branch_taken) {
 			break;
 		}
 		case 6: {
-			LD_8bit(_registers.a, _mmu->read(0xff00 + _registers.c));
+			_mmu->read(0xff00 + _registers.c, _registers.a);
 			break;
 
 		}
@@ -522,7 +520,7 @@ void cpu::cpu::block3(const decoded_instruction& result, bool& branch_taken) {
 			const auto addr = _mmu->read16(_registers.pc);
 			_registers.pc += 2;
 
-			LD_8bit(_registers.a, _mmu->read(addr));
+			_mmu->read(addr, _registers.a);
 			break;
 		}
 		default:

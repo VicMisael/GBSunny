@@ -352,7 +352,7 @@ uint32_t CPUImpl2::step() {
 	case 0x26:
 	case 0x2E:
 	case 0x3E:
-		LD_8bit(reg_ref((opcode >> 3) & 0x07), _mmu->read(_registers.pc++));
+		_mmu->read(_registers.pc++, reg_ref((opcode >> 3) & 0x07));
 		break;
 	case 0x07:
 		RLCA();
@@ -373,7 +373,7 @@ uint32_t CPUImpl2::step() {
 	case 0x1A:
 	case 0x2A:
 	case 0x3A:
-		LD_8bit(_registers.a, _mmu->read(r16mem((opcode >> 4) & 0x03)));
+		_mmu->read(r16mem((opcode >> 4) & 0x03), _registers.a);
 		break;
 	case 0x0B:
 	case 0x1B:
@@ -528,11 +528,11 @@ uint32_t CPUImpl2::step() {
 	}
 	case 0xF0: {
 		const auto address = 0xff00 + _mmu->read(_registers.pc++);
-		LD_8bit(_registers.a, _mmu->read(address));
+		_mmu->read(address, _registers.a);
 		break;
 	}
 	case 0xF2:
-		LD_8bit(_registers.a, _mmu->read(0xff00 + _registers.c));
+		_mmu->read(0xff00 + _registers.c, _registers.a);
 		break;
 	case 0xF3:
 		ime = false;
@@ -547,7 +547,7 @@ uint32_t CPUImpl2::step() {
 	case 0xFA: {
 		const auto lower = _mmu->read(_registers.pc++);
 		const auto upper = _mmu->read(_registers.pc++);
-		LD_8bit(_registers.a, _mmu->read(utils::make_u16(lower, upper)));
+		_mmu->read(utils::make_u16(lower, upper), _registers.a);
 		break;
 	}
 	case 0xFB:
